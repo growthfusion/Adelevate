@@ -13,6 +13,9 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 
 import Search from "@/components/search-bar";
 
+import { logAction } from '@/utils/actionLog';
+import { supabase } from '@/supabaseClient';
+
 // Firestore imports
 import { db } from "@/firebase";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
@@ -66,6 +69,14 @@ const RulesDashboard = () => {
   const dropdownRef = useRef(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
+  const [user, setUser] = useState(null);
+
+  // Load session
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setUser(data.session.user);
+    });
+  }, []);
 
   // CHANGED: listen to Firestore instead of localStorage
   useEffect(() => {
@@ -140,11 +151,19 @@ const RulesDashboard = () => {
   );
 
   // CHANGED: New rule goes straight to the correct route (no /editRules)
-  const addNewRule = (type) => {
+  const addNewRule = async (type) => {
     const target = routeForType(type.name); // CHANGED
     navigate(target, { state: { mode: "new" } }); // CHANGED
     setDropdownOpen(false);
     setSearchQuery("");
+
+    if (user?.email) {
+      await logAction({
+        userEmail: user.email,
+        action: 'add',
+        details: `Added new rule: ${type.name}`
+      });
+    }
   };
 
   const deleteRule = async (ruleId) => {
@@ -152,6 +171,14 @@ const RulesDashboard = () => {
     setSelectedRules((p) => p.filter((id) => id !== ruleId));
     try {
       await deleteDoc(doc(db, "configs", ruleId));
+      if (user?.email) {
+        await logAction({
+          userEmail: user.email,
+          action: 'delete',
+          details: `Deleted rule: ${rule.name || rule.id}`
+        });
+      }
+
     }
     catch (e) {
       console.error(e);
@@ -163,6 +190,7 @@ const RulesDashboard = () => {
   // CHANGED: Persist toggle to Firestore
   const toggleStatus = async (rule) => {
     const current = normalizeStatus(rule.status);
+
     const newStatus = current === "Running" ? "Paused" : "Running";
 
     // optimistic UI update
@@ -170,10 +198,17 @@ const RulesDashboard = () => {
         prev.map((r) => (r.id === rule.id ? { ...r, status: newStatus } : r))
     );
     try {
-      await updateDoc(doc(db, "configs", rule.id), { status: newStatus }); // CHANGED
+      await updateDoc(doc(db, "configs", rule.id), { status: newStatus });
+
+      if (user?.email) {
+        await logAction({
+          userEmail: user.email,
+          action: 'update',
+          details: `Changed status of rule ${rule.name || rule.id} to ${newStatus}`
+        });
+      }
     } catch (e) {
       console.error("Failed to update status:", e);
-      // revert on error
       setRules((prev) =>
           prev.map((r) => (r.id === rule.id ? { ...r, status: current } : r))
       );
@@ -182,9 +217,17 @@ const RulesDashboard = () => {
   };
 
   // CHANGED: When clicking a rule name, route is decided by its type
-  const openRuleForEdit = (rule) => {
-    const target = routeForType(rule.type); // CHANGED
-    navigate(target, { state: { id: rule.id, mode: "edit" } }); // CHANGED
+  const openRuleForEdit = async (rule) => {
+    const target = routeForType(rule.type);
+    navigate(target, { state: { id: rule.id, mode: "edit" } });
+
+    if(user?.email) {
+      await logAction({
+        userEmail: user.email,
+        action: 'edit',
+        details: `Edited rule: ${rule.name}`}
+      )
+    }
   };
 
   // Format conditions for chips (supports Firestore object schema)
