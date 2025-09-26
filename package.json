@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
     "firebase": "^12.3.0"
   }
 }
