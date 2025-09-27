@@ -48,16 +48,24 @@ function parseIncomingCondition(raw, index) {
     operator: "",
     value: "",
     unit: "none",
-    target: "",
+    target: "",          // <-- ensure present in base
   };
 
   if (!raw) return base;
 
   // Firestore object form
-  if (typeof raw === "object" && (raw.metric || raw.comparison)) {
+  if (typeof raw === "object" && (raw.metric || raw.comparison || raw.operator)) {
     const op =
         raw.operator ||
-        (raw.comparison === "gte" ? "Greater or Equal" : raw.comparison === "lte" ? "Less or Equal" : "Equal to");
+        (raw.comparison === "gte"
+            ? "Greater or Equal"
+            : raw.comparison === "lte"
+                ? "Less or Equal"
+                : raw.comparison === "gt"
+                    ? "Greater"
+                    : raw.comparison === "lt"
+                        ? "Less"
+                        : "Equal to");
 
     return {
       ...base,
@@ -65,25 +73,61 @@ function parseIncomingCondition(raw, index) {
       operator: op,
       value: raw.value ?? raw.threshold ?? "",
       unit: raw.unit || "none",
+      target: raw.target || "",     // <-- KEEP IT
     };
   }
 
-  // String form e.g. "ROI >= 1.5"
+  // String form e.g. "ROI >= 1.5" (no target possible from a string)
   if (typeof raw === "string") {
     const s = raw.trim();
     let operator = "Equal to";
     if (s.includes(">=")) operator = "Greater or Equal";
     else if (s.includes("<=")) operator = "Less or Equal";
-
+    else if (s.includes(">")) operator = "Greater";
+    else if (s.includes("<")) operator = "Less";
     const metric = (s.split(" ")[0] || "").toLowerCase();
     const valueToken = s.split(" ").pop() || "";
     const hasPct = valueToken.includes("%");
-
-    return { ...base, metric, operator, value: valueToken.replace("%", ""), unit: hasPct ? "%" : "none" };
+    return {
+      ...base,
+      metric,
+      operator,
+      value: valueToken.replace("%", ""),
+      unit: hasPct ? "%" : "none",
+      target: "", // cannot infer from string
+    };
   }
 
   return base;
 }
+
+const TRACKER_METRICS = [
+  { value: "impressions", label: "Impressions" },
+  { value: "clicks", label: "Clicks" },
+  { value: "ctr", label: "CTR" },
+  { value: "conversions", label: "Conversions" },
+  { value: "roi", label: "ROI" },
+  { value: "roas", label: "ROAS" },
+  { value: "cpr", label: "CPR" },
+  { value: "epc", label: "EPC" },
+  { value: "lpepc", label: "LPEPC" },
+];
+
+const ALL_METRICS = [
+  { value: "days_since_creation", label: "Days since creation" },
+  { value: "days_since_started", label: "Days since started" },
+  { value: "days_until_end", label: "Days until end" },
+  { value: "created_date", label: "Created Date" },
+  { value: "start_date", label: "Start Date" },
+  { value: "end_date", label: "End Date" },
+  { value: "tags", label: "Tags" },
+  { value: "campaign_status", label: "Campaign Status" },
+  { value: "budget", label: "Budget" },
+  ...TRACKER_METRICS, // ← uses the const above
+  { value: "fb_engagement", label: "Engagement" },
+  { value: "fb_reach", label: "Reach" },
+  { value: "fb_impressions", label: "Impressions (FB)" },
+];
 
 /** Mock campaigns (replace with API later) */
 function getMockCampaigns(platform) {
@@ -208,7 +252,6 @@ export default function EditRuleFormPause() {
   // Load Firestore doc if editing
   useEffect(() => {
     if (!ruleId) return;
-
     const ref = doc(db, "configs", ruleId);
     const unsub = onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
@@ -220,14 +263,42 @@ export default function EditRuleFormPause() {
       setScheduleInterval(d.frequency || "");
       setCampaigns(d.campaigns || []);
 
-      const raw = Array.isArray(d.condition) ? d.condition : [];
-      setConditions(
-          raw.length
-              ? raw.map(parseIncomingCondition)
-              : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }]
-      );
-    });
+      // start with raw array conditions (object form)
+      const rawArr = Array.isArray(d.condition) ? d.condition : [];
 
+      // also expand grouped % conditions (if present) into UI rows
+      const groups = d.condition_groups || d.groups || {};
+      const groupRows = [];
+      if (groups && typeof groups === "object") {
+        Object.values(groups).forEach((g) => {
+          const left = g["1"];
+          const right = g["2"];
+          const pct = g.meta && (g.meta.percent ?? g.meta.pct);
+          if (left && right && pct !== undefined) {
+            // Map code to UI operator label
+            const cmpMap = { gt: "Greater", gte: "Greater or Equal", lt: "Less", lte: "Less or Equal", eq: "Equal to" };
+            const opLabel = cmpMap[String(left.comparison).toLowerCase()] || "Equal to";
+
+            groupRows.push({
+              id: 0, // will be renumbered by set below
+              logic: "And",
+              metric: String(left.metric || "").toLowerCase(),
+              operator: opLabel,
+              value: String(pct),
+              unit: "%",
+              target: String(right.metric || "").toLowerCase(),
+            });
+          }
+        });
+      }
+
+      const merged = [...rawArr.map(parseIncomingCondition), ...groupRows];
+      const normalized = merged.length
+          ? merged.map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }))
+          : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
+
+      setConditions(normalized);
+    });
     return () => unsub();
   }, [ruleId]);
 
@@ -309,6 +380,7 @@ export default function EditRuleFormPause() {
         value: c.value,
         unit: c.unit, // "none" | "%" | "$" | ...
         type: "value",
+        target: c.target || "",
       })),
     };
 
@@ -442,6 +514,8 @@ export default function EditRuleFormPause() {
                                   <SelectItem value="roi">ROI</SelectItem>
                                   <SelectItem value="roas">ROAS</SelectItem>
                                   <SelectItem value="cpr">CPR</SelectItem>
+                                  <SelectItem value="lpcpc">LPCPC</SelectItem>
+                                  <SelectItem value="epc">EPC</SelectItem>
                                 </SelectGroup>
 
                                 <SelectSeparator />
@@ -473,9 +547,9 @@ export default function EditRuleFormPause() {
                                 <SelectValue placeholder="Operator" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Equal to">Greater</SelectItem>
+                                <SelectItem value="Greater">Greater</SelectItem>
                                 <SelectItem value="Greater or Equal">Greater or Equal</SelectItem>
-                                <SelectItem value="Equal to">Less</SelectItem>
+                                <SelectItem value="Less">Less</SelectItem>
                                 <SelectItem value="Less or Equal">Less or Equal</SelectItem>
                                 <SelectItem value="Equal to">Equal to</SelectItem>
                               </SelectContent>
@@ -486,8 +560,9 @@ export default function EditRuleFormPause() {
                               <span className="text-sm text-gray-600">than</span>
                             </div>
 
-                            {/* value + unit */}
-                            <div className="flex items-center gap-2 sm:col-span-1">
+                            {/* value + unit (+ optional target metric when unit is %) */}
+                            <div className="flex items-center gap-2 sm:col-span-2">
+                              {/* numeric / percent value */}
                               <Input
                                   value={condition.value}
                                   onChange={(e) => {
@@ -498,15 +573,20 @@ export default function EditRuleFormPause() {
                                   className="w-full"
                                   placeholder=""
                               />
+
+                              {/* unit select */}
                               <Select
                                   value={condition.unit}
                                   onValueChange={(value) => {
                                     const next = [...conditions];
                                     next[index].unit = value;
+                                    // if user leaves "%", keep target; otherwise clear it
+                                    if (value !== "%") next[index].target = "";
                                     setConditions(next);
-                                  }}>
-                                <SelectTrigger className="w-16">
-                                  <SelectValue placeholder="%" />
+                                  }}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="—" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">—</SelectItem>
@@ -515,7 +595,43 @@ export default function EditRuleFormPause() {
                                   <SelectItem value="days">days</SelectItem>
                                 </SelectContent>
                               </Select>
+
+                              {/* When unit = "%", show "of [metric]" */}
+                              {condition.unit === "%" && (
+                                  <>
+                                    <span className="text-sm text-gray-600">of</span>
+                                    <Select
+                                        value={condition.target}
+                                        onValueChange={(value) => {
+                                          const next = [...conditions];
+                                          next[index].target = value;
+                                          setConditions(next);
+                                        }}
+                                    >
+                                      <SelectTrigger className="w-56">
+                                        <SelectValue placeholder="Select Option" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectGroup>
+                                          <SelectLabel>Metrics</SelectLabel>
+                                          {ALL_METRICS.map((m) => (
+                                              <SelectItem key={m.value} value={m.value}>
+                                                {m.label}
+                                              </SelectItem>
+                                          ))}
+                                        </SelectGroup>
+                                      </SelectContent>
+                                    </Select>
+                                  </>
+                              )}
                             </div>
+
+                            {/* Tiny inline validation for the first column red hint (optional) */}
+                            {condition.unit === "%" && !condition.target && (
+                                <div className="sm:col-span-6 mt-1">
+                                  <p className="text-[12px] text-red-500">Type is not valid. Please choose the target metric for “% of”.</p>
+                                </div>
+                            )}
                           </div>
 
                           {/* delete row */}
