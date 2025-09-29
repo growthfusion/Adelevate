@@ -109,7 +109,9 @@ const TRACKER_METRICS = [
     { value: "roas", label: "ROAS" },
     { value: "cpr", label: "CPR" },
     { value: "epc", label: "EPC" },
-    { value: "lpepc", label: "LPEPC" },
+    { value: "lpcpc", label: "LPCPC" },
+    { value: "cost", label: "COST" },
+    { value: "revenue", label: "REVENUE" },
 ];
 
 const ALL_METRICS = [
@@ -248,7 +250,7 @@ export default function EditRuleFormPause() {
     const [searchCampaign, setSearchCampaign] = useState("");
     const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
 
-    // ✅ Load Firestore doc if editing (use colName passed from dashboard; DO NOT wait for platform)
+    // Load Firestore doc if editing (use colName passed from dashboard; DO NOT wait for platform)
     useEffect(() => {
         if (!ruleId || !colName) return;
         const ref = doc(db, colName, ruleId);
@@ -481,8 +483,10 @@ export default function EditRuleFormPause() {
                                                             <SelectItem value="roi">ROI</SelectItem>
                                                             <SelectItem value="roas">ROAS</SelectItem>
                                                             <SelectItem value="cpr">CPR</SelectItem>
-                                                            <SelectItem value="lpepc">LPEPC</SelectItem>
+                                                            <SelectItem value="lpepc">LPCPC</SelectItem>
                                                             <SelectItem value="epc">EPC</SelectItem>
+                                                            <SelectItem value="cost">COST</SelectItem>
+                                                            <SelectItem value="revenue">REVENUE</SelectItem>
                                                         </SelectGroup>
 
                                                         <SelectSeparator />

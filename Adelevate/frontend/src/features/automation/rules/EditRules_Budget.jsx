@@ -99,7 +99,9 @@ const TRACKER_METRICS = [
   { value: "roas", label: "ROAS" },
   { value: "cpr", label: "CPR" },
   { value: "epc", label: "EPC" },
-  { value: "lpepc", label: "LPEPC" },
+  { value: "lpcpc", label: "LPCPC" },
+  { value: "cost", label: "COST" },
+  { value: "revenue", label: "REVENUE" },
 ];
 
 const ALL_METRICS = [
@@ -437,6 +439,10 @@ export default function EditRuleForm() {
                                   <SelectItem value="roi">ROI</SelectItem>
                                   <SelectItem value="roas">ROAS</SelectItem>
                                   <SelectItem value="cpr">CPR</SelectItem>
+                                  <SelectItem value="lpepc">LPCPC</SelectItem>
+                                  <SelectItem value="epc">EPC</SelectItem>
+                                  <SelectItem value="cost">COST</SelectItem>
+                                  <SelectItem value="revenue">REVENUE</SelectItem>
                                 </SelectGroup>
 
                                 <SelectSeparator />
