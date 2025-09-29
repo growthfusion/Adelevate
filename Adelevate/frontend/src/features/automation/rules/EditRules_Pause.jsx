@@ -1,21 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SelectGroup,
-  SelectLabel,
-  SelectSeparator,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+    SelectGroup,
+    SelectLabel,
+    SelectSeparator,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Copy, ChevronDown, Info, Search as SearchIcon } from "lucide-react";
+import { Plus, X, ChevronDown, Search as SearchIcon } from "lucide-react";
 import Search from "@/components/search-bar";
 
 // Images
@@ -25,860 +24,840 @@ import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import nbIcon from "@/assets/images/automation_img/NewsBreak.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Firestore (read-by-id) + save helper
+// Firestore
 import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
+// NOTE: addConfig decides the collection based on platform+type; we don't need getCollectionName here
 import { addConfig } from "@/services/config.js";
 
 /* ---------------- helpers ---------------- */
 
 const PLATFORM_OPTIONS = [
-  { value: "meta", label: "Meta", icon: metaIcon },
-  { value: "snap", label: "Snap", icon: snapchatIcon },
-  { value: "tiktok", label: "TikTok", icon: tiktokIcon },
-  { value: "google", label: "Google", icon: googleIcon },
-  { value: "newsbreak", label: "News Break", icon: nbIcon },
+    { value: "meta", label: "Meta", icon: metaIcon },
+    { value: "snap", label: "Snap", icon: snapchatIcon },
+    { value: "tiktok", label: "TikTok", icon: tiktokIcon },
+    { value: "google", label: "Google", icon: googleIcon },
+    { value: "newsbreak", label: "News Break", icon: nbIcon },
 ];
 
 function parseIncomingCondition(raw, index) {
-  const base = {
-    id: index + 1,
-    logic: index === 0 ? "If" : "And",
-    metric: "",
-    operator: "",
-    value: "",
-    unit: "none",
-    target: "",          // <-- ensure present in base
-  };
-
-  if (!raw) return base;
-
-  // Firestore object form
-  if (typeof raw === "object" && (raw.metric || raw.comparison || raw.operator)) {
-    const op =
-        raw.operator ||
-        (raw.comparison === "gte"
-            ? "Greater or Equal"
-            : raw.comparison === "lte"
-                ? "Less or Equal"
-                : raw.comparison === "gt"
-                    ? "Greater"
-                    : raw.comparison === "lt"
-                        ? "Less"
-                        : "Equal to");
-
-    return {
-      ...base,
-      metric: String(raw.metric || "").toLowerCase(),
-      operator: op,
-      value: raw.value ?? raw.threshold ?? "",
-      unit: raw.unit || "none",
-      target: raw.target || "",     // <-- KEEP IT
+    const base = {
+        id: index + 1,
+        logic: index === 0 ? "If" : "And",
+        metric: "",
+        operator: "",
+        value: "",
+        unit: "none",
+        target: "",
     };
-  }
+    if (!raw) return base;
 
-  // String form e.g. "ROI >= 1.5" (no target possible from a string)
-  if (typeof raw === "string") {
-    const s = raw.trim();
-    let operator = "Equal to";
-    if (s.includes(">=")) operator = "Greater or Equal";
-    else if (s.includes("<=")) operator = "Less or Equal";
-    else if (s.includes(">")) operator = "Greater";
-    else if (s.includes("<")) operator = "Less";
-    const metric = (s.split(" ")[0] || "").toLowerCase();
-    const valueToken = s.split(" ").pop() || "";
-    const hasPct = valueToken.includes("%");
-    return {
-      ...base,
-      metric,
-      operator,
-      value: valueToken.replace("%", ""),
-      unit: hasPct ? "%" : "none",
-      target: "", // cannot infer from string
-    };
-  }
+    // Firestore object form
+    if (typeof raw === "object" && (raw.metric || raw.comparison || raw.operator)) {
+        const op =
+            raw.operator ||
+            (raw.comparison === "gte"
+                ? "Greater or Equal"
+                : raw.comparison === "lte"
+                    ? "Less or Equal"
+                    : raw.comparison === "gt"
+                        ? "Greater"
+                        : raw.comparison === "lt"
+                            ? "Less"
+                            : "Equal to");
 
-  return base;
+        return {
+            ...base,
+            metric: String(raw.metric || "").toLowerCase(),
+            operator: op,
+            value: raw.value ?? raw.threshold ?? "",
+            unit: raw.unit || "none",
+            target: raw.target || "",
+        };
+    }
+
+    // String form e.g. "ROI >= 1.5"
+    if (typeof raw === "string") {
+        const s = raw.trim();
+        let operator = "Equal to";
+        if (s.includes(">=")) operator = "Greater or Equal";
+        else if (s.includes("<=")) operator = "Less or Equal";
+        else if (s.includes(">")) operator = "Greater";
+        else if (s.includes("<")) operator = "Less";
+        const metric = (s.split(" ")[0] || "").toLowerCase();
+        const valueToken = s.split(" ").pop() || "";
+        const hasPct = valueToken.includes("%");
+        return {
+            ...base,
+            metric,
+            operator,
+            value: valueToken.replace("%", ""),
+            unit: hasPct ? "%" : "none",
+            target: "",
+        };
+    }
+
+    return base;
 }
 
 const TRACKER_METRICS = [
-  { value: "impressions", label: "Impressions" },
-  { value: "clicks", label: "Clicks" },
-  { value: "ctr", label: "CTR" },
-  { value: "conversions", label: "Conversions" },
-  { value: "roi", label: "ROI" },
-  { value: "roas", label: "ROAS" },
-  { value: "cpr", label: "CPR" },
-  { value: "epc", label: "EPC" },
-  { value: "lpepc", label: "LPEPC" },
+    { value: "impressions", label: "Impressions" },
+    { value: "clicks", label: "Clicks" },
+    { value: "ctr", label: "CTR" },
+    { value: "conversions", label: "Conversions" },
+    { value: "roi", label: "ROI" },
+    { value: "roas", label: "ROAS" },
+    { value: "cpr", label: "CPR" },
+    { value: "epc", label: "EPC" },
+    { value: "lpepc", label: "LPEPC" },
 ];
 
 const ALL_METRICS = [
-  { value: "days_since_creation", label: "Days since creation" },
-  { value: "days_since_started", label: "Days since started" },
-  { value: "days_until_end", label: "Days until end" },
-  { value: "created_date", label: "Created Date" },
-  { value: "start_date", label: "Start Date" },
-  { value: "end_date", label: "End Date" },
-  { value: "tags", label: "Tags" },
-  { value: "campaign_status", label: "Campaign Status" },
-  { value: "budget", label: "Budget" },
-  ...TRACKER_METRICS, // ← uses the const above
-  { value: "fb_engagement", label: "Engagement" },
-  { value: "fb_reach", label: "Reach" },
-  { value: "fb_impressions", label: "Impressions (FB)" },
+    { value: "days_since_creation", label: "Days since creation" },
+    { value: "days_since_started", label: "Days since started" },
+    { value: "days_until_end", label: "Days until end" },
+    { value: "created_date", label: "Created Date" },
+    { value: "start_date", label: "Start Date" },
+    { value: "end_date", label: "End Date" },
+    { value: "tags", label: "Tags" },
+    { value: "campaign_status", label: "Campaign Status" },
+    { value: "budget", label: "Budget" },
+    ...TRACKER_METRICS,
+    { value: "fb_engagement", label: "Engagement" },
+    { value: "fb_reach", label: "Reach" },
+    { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
 /** Mock campaigns (replace with API later) */
 function getMockCampaigns(platform) {
-  switch (platform) {
-    case "meta":
-      return [
-        { id: "fb_camp1", name: "atmt | atrz | RAM | Sep15 | $19 | c1", icon: metaIcon },
-        { id: "fb_camp2", name: "atmt | $29 | atnk | sep09 | c3", icon: metaIcon },
-        { id: "fb_camp3", name: "Auto | meta | atrz | LT | Aug16 | C4 | $19", icon: metaIcon },
-        { id: "fb_camp4", name: "AUTO | Meta | DR | DMV | HV | VC | LD", icon: metaIcon },
-        { id: "fb_camp5", name: "atmt | atrz | RAM | Sep09 | $29 | c2 | SP", icon: metaIcon },
-        { id: "fb_camp6", name: "auto | meta | rt | sv1f | atnk | jan08 | c3", icon: metaIcon },
-        { id: "fb_camp7", name: "Auto | Meta | $29 | atnk | aug04 | c1 | gw | sc2", icon: metaIcon },
-      ];
-    case "snap":
-      return [
-        { id: "snap_camp1", name: "Snap | Brand | Mar09 | c2", icon: snapchatIcon },
-        { id: "snap_camp2", name: "Snap | Stories | May15 | Promo", icon: snapchatIcon },
-        { id: "snap_camp3", name: "Snap | Discover | Jun22 | c3", icon: snapchatIcon },
-      ];
-    case "tiktok":
-      return [
-        { id: "tiktok_camp1", name: "TikTok | Trend | Apr23 | c1", icon: tiktokIcon },
-        { id: "tiktok_camp2", name: "TikTok | Viral | Jul01 | c5", icon: tiktokIcon },
-      ];
-    case "google":
-      return [
-        { id: "google_camp1", name: "GGL | Search | Q2 | c4", icon: googleIcon },
-        { id: "google_camp2", name: "GGL | Display | Jun15 | c2", icon: googleIcon },
-      ];
-    case "newsbreak":
-      return [
-        { id: "nb_camp1", name: "auto | NB | dl | vk | feb17 | C3", icon: nbIcon },
-        { id: "nb_camp2", name: "NB | Local | Oct20 | c1", icon: nbIcon },
-      ];
-    default:
-      return [];
-  }
+    switch (platform) {
+        case "meta":
+            return [
+                { id: "fb_camp1", name: "atmt | atrz | RAM | Sep15 | $19 | c1", icon: metaIcon },
+                { id: "fb_camp2", name: "atmt | $29 | atnk | sep09 | c3", icon: metaIcon },
+                { id: "fb_camp3", name: "Auto | meta | atrz | LT | Aug16 | C4 | $19", icon: metaIcon },
+                { id: "fb_camp4", name: "AUTO | Meta | DR | DMV | HV | VC | LD", icon: metaIcon },
+                { id: "fb_camp5", name: "atmt | atrz | RAM | Sep09 | $29 | c2 | SP", icon: metaIcon },
+                { id: "fb_camp6", name: "auto | meta | rt | sv1f | atnk | jan08 | c3", icon: metaIcon },
+                { id: "fb_camp7", name: "Auto | Meta | $29 | atnk | aug04 | c1 | gw | sc2", icon: metaIcon },
+            ];
+        case "snap":
+            return [
+                { id: "snap_camp1", name: "Snap | Brand | Mar09 | c2", icon: snapchatIcon },
+                { id: "snap_camp2", name: "Snap | Stories | May15 | Promo", icon: snapchatIcon },
+                { id: "snap_camp3", name: "Snap | Discover | Jun22 | c3", icon: snapchatIcon },
+            ];
+        case "tiktok":
+            return [
+                { id: "tiktok_camp1", name: "TikTok | Trend | Apr23 | c1", icon: tiktokIcon },
+                { id: "tiktok_camp2", name: "TikTok | Viral | Jul01 | c5", icon: tiktokIcon },
+            ];
+        case "google":
+            return [
+                { id: "google_camp1", name: "GGL | Search | Q2 | c4", icon: googleIcon },
+                { id: "google_camp2", name: "GGL | Display | Jun15 | c2", icon: googleIcon },
+            ];
+        case "newsbreak":
+            return [
+                { id: "nb_camp1", name: "auto | NB | dl | vk | feb17 | C3", icon: nbIcon },
+                { id: "nb_camp2", name: "NB | Local | Oct20 | c1", icon: nbIcon },
+            ];
+        default:
+            return [];
+    }
 }
 
 function getCampaignIcon(campaignId) {
-  if (campaignId.startsWith("fb_")) return metaIcon;
-  if (campaignId.startsWith("snap_")) return snapchatIcon;
-  if (campaignId.startsWith("tiktok_")) return tiktokIcon;
-  if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
-  if (campaignId.startsWith("nb_")) return nbIcon;
-  return metaIcon;
+    if (campaignId.startsWith("fb_")) return metaIcon;
+    if (campaignId.startsWith("snap_")) return snapchatIcon;
+    if (campaignId.startsWith("tiktok_")) return tiktokIcon;
+    if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
+    if (campaignId.startsWith("nb_")) return nbIcon;
+    return metaIcon;
 }
 
 function formatCampaignName(platform, campaignId) {
-  const all = getMockCampaigns(platform);
-  const match = all.find((c) => c.id === campaignId);
-  if (match) return match.name;
-  return campaignId.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
+    const all = getMockCampaigns(platform);
+    const match = all.find((c) => c.id === campaignId);
+    if (match) return match.name;
+    return campaignId.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
 }
 
 function getCampaignOptionsByPlatform(selectedPlatform) {
-  if (!selectedPlatform) return [];
-  const byPlatform = {
-    meta: [
-      { id: "facebook_active", name: "Add Active (0)", icon: metaIcon, status: "active" },
-      { id: "facebook_paused", name: "Add Paused (0)", icon: metaIcon, status: "paused" },
-    ],
-    // IMPORTANT: keys match your selectedPlatform values:
-    snap: [
-      { id: "snapchat_active", name: "Add Active (0)", icon: snapchatIcon, status: "active" },
-      { id: "snapchat_paused", name: "Add Paused (0)", icon: snapchatIcon, status: "paused" },
-    ],
-    tiktok: [
-      { id: "tiktok_active", name: "Add Active (0)", icon: tiktokIcon, status: "active" },
-      { id: "tiktok_paused", name: "Add Paused (0)", icon: tiktokIcon, status: "paused" },
-    ],
-    google: [
-      { id: "google_active", name: "Add Active (0)", icon: googleIcon, status: "active" },
-      { id: "google_paused", name: "Add Paused (0)", icon: googleIcon, status: "paused" },
-    ],
-    newsbreak: [
-      { id: "newsbreak_active", name: "Add Active (0)", icon: nbIcon, status: "active" },
-      { id: "newsbreak_paused", name: "Add Paused (0)", icon: nbIcon, status: "paused" },
-    ],
-  };
-  return byPlatform[selectedPlatform] || [];
+    if (!selectedPlatform) return [];
+    const byPlatform = {
+        meta: [
+            { id: "facebook_active", name: "Add Active (0)", icon: metaIcon, status: "active" },
+            { id: "facebook_paused", name: "Add Paused (0)", icon: metaIcon, status: "paused" },
+        ],
+        snap: [
+            { id: "snapchat_active", name: "Add Active (0)", icon: snapchatIcon, status: "active" },
+            { id: "snapchat_paused", name: "Add Paused (0)", icon: snapchatIcon, status: "paused" },
+        ],
+        tiktok: [
+            { id: "tiktok_active", name: "Add Active (0)", icon: tiktokIcon, status: "active" },
+            { id: "tiktok_paused", name: "Add Paused (0)", icon: tiktokIcon, status: "paused" },
+        ],
+        google: [
+            { id: "google_active", name: "Add Active (0)", icon: googleIcon, status: "active" },
+            { id: "google_paused", name: "Add Paused (0)", icon: googleIcon, status: "paused" },
+        ],
+        newsbreak: [
+            { id: "newsbreak_active", name: "Add Active (0)", icon: nbIcon, status: "active" },
+            { id: "newsbreak_paused", name: "Add Paused (0)", icon: nbIcon, status: "paused" },
+        ],
+    };
+    return byPlatform[selectedPlatform] || [];
 }
 
 /* ---------------- component ---------------- */
 
 export default function EditRuleFormPause() {
-  const navigate = useNavigate();
-  const location = useLocation();
+    const navigate = useNavigate();
+    const location = useLocation();
 
-  // If navigated with { id }, we live-load from Firestore
-  const ruleId = location.state?.id || null;
+    // From navigator
+    const ruleId = location.state?.id || null;
+    const colName = location.state?.colName || null;
 
-  // State
-  const [ruleName, setRuleName] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState("");
-  const [scheduleInterval, setScheduleInterval] = useState("");
+    // State
+    const [ruleName, setRuleName] = useState("");
+    const [selectedPlatform, setSelectedPlatform] = useState("");
+    const [scheduleInterval, setScheduleInterval] = useState("");
 
-  const [conditions, setConditions] = useState([
-    { id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" },
-  ]);
-
-  const [campaigns, setCampaigns] = useState([]);
-
-  // Campaign search dropdown
-  const searchInputRef = useRef(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
-
-  const filteredCampaigns = useMemo(() => {
-    const list = getMockCampaigns(selectedPlatform);
-    if (!campaignSearchTerm) return list;
-    return list.filter((c) => c.name.toLowerCase().includes(campaignSearchTerm.toLowerCase()));
-  }, [selectedPlatform, campaignSearchTerm]);
-
-  // multi-select Add Campaigns dropdown
-  const campaignDropdownRef = useRef(null);
-  const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
-  const [searchCampaign, setSearchCampaign] = useState("");
-  const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
-
-  // Load Firestore doc if editing
-  useEffect(() => {
-    if (!ruleId) return;
-    const ref = doc(db, "configs", ruleId);
-    const unsub = onSnapshot(ref, (snap) => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-
-      const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
-      setSelectedPlatform(platform);
-      setRuleName(d.name || "");
-      setScheduleInterval(d.frequency || "");
-      setCampaigns(d.campaigns || []);
-
-      // start with raw array conditions (object form)
-      const rawArr = Array.isArray(d.condition) ? d.condition : [];
-
-      // also expand grouped % conditions (if present) into UI rows
-      const groups = d.condition_groups || d.groups || {};
-      const groupRows = [];
-      if (groups && typeof groups === "object") {
-        Object.values(groups).forEach((g) => {
-          const left = g["1"];
-          const right = g["2"];
-          const pct = g.meta && (g.meta.percent ?? g.meta.pct);
-          if (left && right && pct !== undefined) {
-            // Map code to UI operator label
-            const cmpMap = { gt: "Greater", gte: "Greater or Equal", lt: "Less", lte: "Less or Equal", eq: "Equal to" };
-            const opLabel = cmpMap[String(left.comparison).toLowerCase()] || "Equal to";
-
-            groupRows.push({
-              id: 0, // will be renumbered by set below
-              logic: "And",
-              metric: String(left.metric || "").toLowerCase(),
-              operator: opLabel,
-              value: String(pct),
-              unit: "%",
-              target: String(right.metric || "").toLowerCase(),
-            });
-          }
-        });
-      }
-
-      const merged = [...rawArr.map(parseIncomingCondition), ...groupRows];
-      const normalized = merged.length
-          ? merged.map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }))
-          : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
-
-      setConditions(normalized);
-    });
-    return () => unsub();
-  }, [ruleId]);
-
-  // Close search dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (searchInputRef.current && !searchInputRef.current.contains(e.target)) {
-        setIsSearchOpen(false);
-      }
-      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(e.target)) {
-        setShowCampaignDropdown(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  /* ------ Conditions ------ */
-  const addCondition = () => {
-    setConditions((prev) => [
-      ...prev,
-      { id: prev.length + 1, logic: "And", metric: "", operator: "", value: "", unit: "none", target: "" },
+    const [conditions, setConditions] = useState([
+        { id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" },
     ]);
-  };
 
-  const removeCondition = (id) => {
-    setConditions((prev) => {
-      if (prev.length <= 1) {
-        return [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
-      }
-      return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }));
-    });
-  };
+    const [campaigns, setCampaigns] = useState([]);
 
-  /* ------ Campaigns ------ */
-  const handleCampaignSelect = (campaign) => {
-    setCampaigns((prev) => (prev.includes(campaign.id) ? prev : [...prev, campaign.id]));
-    setIsSearchOpen(false);
-    setCampaignSearchTerm("");
-  };
+    // Campaign search dropdown
+    const searchInputRef = useRef(null);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
 
-  const handleAddSelectedCampaigns = () => {
-    setCampaigns((prev) => {
-      const next = [...prev];
-      selectedCampaignOptions.forEach((id) => {
-        if (!next.includes(id)) next.push(id);
-      });
-      return next;
-    });
-    setSelectedCampaignOptions([]);
-    setShowCampaignDropdown(false);
-  };
+    const filteredCampaigns = useMemo(() => {
+        const list = getMockCampaigns(selectedPlatform);
+        if (!campaignSearchTerm) return list;
+        return list.filter((c) => c.name.toLowerCase().includes(campaignSearchTerm.toLowerCase()));
+    }, [selectedPlatform, campaignSearchTerm]);
 
-  const handleCampaignOptionChange = (optionId, checked) => {
-    setSelectedCampaignOptions((prev) =>
-        checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)
-    );
-  };
+    // multi-select Add Campaigns dropdown
+    const campaignDropdownRef = useRef(null);
+    const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
+    const [searchCampaign, setSearchCampaign] = useState("");
+    const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
 
-  const clearCampaignSelection = () => setSelectedCampaignOptions([]);
+    // ✅ Load Firestore doc if editing (use colName passed from dashboard; DO NOT wait for platform)
+    useEffect(() => {
+        if (!ruleId || !colName) return;
+        const ref = doc(db, colName, ruleId);
+        const unsub = onSnapshot(ref, (snap) => {
+            if (!snap.exists()) return;
+            const d = snap.data();
 
-  const removeCampaign = (index) => {
-    setCampaigns((prev) => prev.filter((_, i) => i !== index));
-  };
+            const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
+            setSelectedPlatform(platform);
+            setRuleName(d.name || "");
+            setScheduleInterval(d.frequency || "");
+            setCampaigns(d.campaigns || []);
 
-  /* ------ Save (Firestore) ------ */
-  const handleSave = async () => {
-    const uiPayload = {
-      id: ruleId || crypto.randomUUID(),
-      name: ruleName || "Unnamed Pause Campaign",
-      status: "Running", // dashboard toggle can update later
-      type: "Pause campaign", // keep your backend's expected label
-      platform: selectedPlatform || "meta",
-      frequency: scheduleInterval,
-      campaigns,
-      conditions: conditions.map((c) => ({
-        metric: c.metric,
-        operator: c.operator, // "Greater or Equal" | "Less or Equal" | "Equal to"
-        value: c.value,
-        unit: c.unit, // "none" | "%" | "$" | ...
-        type: "value",
-        target: c.target || "",
-      })),
+            const rawArr = Array.isArray(d.condition) ? d.condition : [];
+            const normalized = rawArr.length
+                ? rawArr.map((c, i) => ({ ...parseIncomingCondition(c, i), id: i + 1, logic: i === 0 ? "If" : "And" }))
+                : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
+
+            setConditions(normalized);
+        });
+        return () => unsub();
+    }, [ruleId, colName]);
+
+    // Close search dropdowns on outside click
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (searchInputRef.current && !searchInputRef.current.contains(e.target)) {
+                setIsSearchOpen(false);
+            }
+            if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(e.target)) {
+                setShowCampaignDropdown(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    /* ------ Conditions ------ */
+    const addCondition = () => {
+        setConditions((prev) => [
+            ...prev,
+            { id: prev.length + 1, logic: "And", metric: "", operator: "", value: "", unit: "none", target: "" },
+        ]);
     };
 
-    try {
-      await addConfig(uiPayload); // upsert via services/config.js
-      navigate("/rules");
-    } catch (e) {
-      alert(`Error saving: ${e.message}`);
-    }
-  };
+    const removeCondition = (id) => {
+        setConditions((prev) => {
+            if (prev.length <= 1) {
+                return [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
+            }
+            return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }));
+        });
+    };
 
-  return (
-      <>
-        <Search />
-        <div className="bg-gray-50">
-          <div className="max-w-6xl xl:mx-auto 2xl:mx-auto p-[20px] pt-[60px] bg-gray-50">
-            {/* Header */}
-            <div className="mb-8">
-              <h1 className="text-2xl font-semibold text-blue-600 mb-4 pt-5">
-                {ruleId ? "Edit Rule" : "Create New Rule"}
-              </h1>
+    /* ------ Campaigns ------ */
+    const handleCampaignSelect = (campaign) => {
+        setCampaigns((prev) => (prev.includes(campaign.id) ? prev : [...prev, campaign.id]));
+        setIsSearchOpen(false);
+        setCampaignSearchTerm("");
+    };
 
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                  1
-                </div>
-                <div>
-                  <span className="text-lg font-medium text-gray-900">Rule: </span>
-                  <span className="text-lg text-gray-600 font-medium">Pause campaign</span>
-                </div>
-              </div>
+    const handleAddSelectedCampaigns = () => {
+        setCampaigns((prev) => {
+            const next = [...prev];
+            selectedCampaignOptions.forEach((id) => {
+                if (!next.includes(id)) next.push(id);
+            });
+            return next;
+        });
+        setSelectedCampaignOptions([]);
+        setShowCampaignDropdown(false);
+    };
 
-              {/* Rule Section */}
-              <div className="border border-gray-200 rounded-lg p-6 bg-white mb-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="rule-name" className="text-sm font-medium text-gray-700">
-                      Rule Name
-                    </Label>
-                    <Input
-                        id="rule-name"
-                        value={ruleName}
-                        onChange={(e) => setRuleName(e.target.value)}
-                        className="w-full"
-                        placeholder=""
-                    />
-                  </div>
+    const handleCampaignOptionChange = (optionId, checked) => {
+        setSelectedCampaignOptions((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
+    };
 
-                  <div className="space-y-2">
-                    <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
-                      Platform
-                    </Label>
-                    <div className="flex gap-2">
-                      <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select Platform..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PLATFORM_OPTIONS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>
-                                <div className="flex items-center gap-2">
-                                  <img src={p.icon} alt="" className="w-4 h-4" />
-                                  <span>{p.label}</span>
-                                </div>
-                              </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+    const clearCampaignSelection = () => setSelectedCampaignOptions([]);
 
-            {/* Conditions */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 sm:gap-3 mb-6">
-                <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                  2
-                </div>
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
-              </div>
+    const removeCampaign = (index) => {
+        setCampaigns((prev) => prev.filter((_, i) => i !== index));
+    };
 
-              <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                <div className="space-y-6">
-                  {conditions.map((condition, index) => (
-                      <div
-                          key={condition.id}
-                          className="flex flex-col sm:flex-row items-start gap-3 p-4 bg-gray-50 rounded-lg"
-                      >
-                    <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
-                      {condition.logic}
-                    </span>
+    /* ------ Save (Firestore) ------ */
+    const handleSave = async () => {
+        const uiPayload = {
+            id: ruleId || crypto.randomUUID(),
+            name: ruleName || "Unnamed Pause Campaign",
+            status: "Running",
+            type: "Pause campaign",
+            platform: selectedPlatform || "meta",
+            frequency: scheduleInterval,
+            campaigns,
+            conditions: conditions.map((c) => ({
+                metric: c.metric,
+                operator: c.operator,
+                value: c.value,
+                unit: c.unit,
+                type: "value",
+                target: c.target || "",
+            })),
+        };
 
-                        <div className="flex flex-col sm:flex-row w-full gap-3">
-                          <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
-                            {/* Metric */}
-                            <Select
-                                value={condition.metric}
-                                onValueChange={(value) => {
-                                  const next = [...conditions];
-                                  next[index].metric = value;
-                                  setConditions(next);
-                                }}
-                                className="sm:col-span-2">
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select Option" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>Traffic Source Metrics</SelectLabel>
-                                  <SelectItem value="days_since_creation">Days since creation</SelectItem>
-                                  <SelectItem value="days_since_started">Days since started</SelectItem>
-                                  <SelectItem value="days_until_end">Days until end</SelectItem>
-                                  <SelectItem value="created_date">Created Date</SelectItem>
-                                  <SelectItem value="start_date">Start Date</SelectItem>
-                                  <SelectItem value="end_date">End Date</SelectItem>
-                                  <SelectItem value="tags">Tags</SelectItem>
-                                  <SelectItem value="campaign_status">Campaign Status</SelectItem>
-                                  <SelectItem value="budget">Budget</SelectItem>
-                                </SelectGroup>
+        try {
+            await addConfig(uiPayload); // service will route to the correct collection
+            navigate("/rules");
+        } catch (e) {
+            alert(`Error saving: ${e.message}`);
+        }
+    };
 
-                                <SelectSeparator />
-
-                                <SelectGroup>
-                                  <SelectLabel>Tracker Metrics</SelectLabel>
-                                  <SelectItem value="impressions">Impressions</SelectItem>
-                                  <SelectItem value="clicks">Clicks</SelectItem>
-                                  <SelectItem value="ctr">CTR</SelectItem>
-                                  <SelectItem value="conversions">Conversions</SelectItem>
-                                  <SelectItem value="roi">ROI</SelectItem>
-                                  <SelectItem value="roas">ROAS</SelectItem>
-                                  <SelectItem value="cpr">CPR</SelectItem>
-                                  <SelectItem value="lpcpc">LPCPC</SelectItem>
-                                  <SelectItem value="epc">EPC</SelectItem>
-                                </SelectGroup>
-
-                                <SelectSeparator />
-
-                                <SelectGroup>
-                                  <SelectLabel>Facebook Metrics</SelectLabel>
-                                  <SelectItem value="fb_engagement">Engagement</SelectItem>
-                                  <SelectItem value="fb_reach">Reach</SelectItem>
-                                  <SelectItem value="fb_impressions">Impressions</SelectItem>
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-
-                            {/* 'is' */}
-                            <div className="flex items-center justify-center">
-                              <span className="text-sm text-gray-600">is</span>
+    return (
+        <>
+            <Search />
+            <div className="bg-gray-50">
+                <div className="max-w-6xl xl:mx-auto 2xl:mx-auto p-[20px] pt-[60px] bg-gray-50">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-semibold text-blue-700 mb-4 pt-5">
+                            {ruleId ? "Edit Rule" : "Create New Rule"}
+                        </h1>
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
+                                1
                             </div>
-
-                            {/* Operator */}
-                            <Select
-                                value={condition.operator}
-                                onValueChange={(value) => {
-                                  const next = [...conditions];
-                                  next[index].operator = value;
-                                  setConditions(next);
-                                }}
-                                className="sm:col-span-1">
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Operator" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Greater">Greater</SelectItem>
-                                <SelectItem value="Greater or Equal">Greater or Equal</SelectItem>
-                                <SelectItem value="Less">Less</SelectItem>
-                                <SelectItem value="Less or Equal">Less or Equal</SelectItem>
-                                <SelectItem value="Equal to">Equal to</SelectItem>
-                              </SelectContent>
-                            </Select>
-
-                            {/* 'than' */}
-                            <div className="flex items-center justify-center">
-                              <span className="text-sm text-gray-600">than</span>
+                            <div>
+                                <span className="text-lg font-medium text-gray-900">Rule: </span>
+                                <span className="text-lg text-gray-600 font-medium">Pause campaign</span>
                             </div>
-
-                            {/* value + unit (+ optional target metric when unit is %) */}
-                            <div className="flex items-center gap-2 sm:col-span-2">
-                              {/* numeric / percent value */}
-                              <Input
-                                  value={condition.value}
-                                  onChange={(e) => {
-                                    const next = [...conditions];
-                                    next[index].value = e.target.value;
-                                    setConditions(next);
-                                  }}
-                                  className="w-full"
-                                  placeholder=""
-                              />
-
-                              {/* unit select */}
-                              <Select
-                                  value={condition.unit}
-                                  onValueChange={(value) => {
-                                    const next = [...conditions];
-                                    next[index].unit = value;
-                                    // if user leaves "%", keep target; otherwise clear it
-                                    if (value !== "%") next[index].target = "";
-                                    setConditions(next);
-                                  }}
-                              >
-                                <SelectTrigger className="w-20">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">—</SelectItem>
-                                  <SelectItem value="%">%</SelectItem>
-                                  <SelectItem value="$">$</SelectItem>
-                                  <SelectItem value="days">days</SelectItem>
-                                </SelectContent>
-                              </Select>
-
-                              {/* When unit = "%", show "of [metric]" */}
-                              {condition.unit === "%" && (
-                                  <>
-                                    <span className="text-sm text-gray-600">of</span>
-                                    <Select
-                                        value={condition.target}
-                                        onValueChange={(value) => {
-                                          const next = [...conditions];
-                                          next[index].target = value;
-                                          setConditions(next);
-                                        }}
-                                    >
-                                      <SelectTrigger className="w-56">
-                                        <SelectValue placeholder="Select Option" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectGroup>
-                                          <SelectLabel>Metrics</SelectLabel>
-                                          {ALL_METRICS.map((m) => (
-                                              <SelectItem key={m.value} value={m.value}>
-                                                {m.label}
-                                              </SelectItem>
-                                          ))}
-                                        </SelectGroup>
-                                      </SelectContent>
-                                    </Select>
-                                  </>
-                              )}
-                            </div>
-
-                            {/* Tiny inline validation for the first column red hint (optional) */}
-                            {condition.unit === "%" && !condition.target && (
-                                <div className="sm:col-span-6 mt-1">
-                                  <p className="text-[12px] text-red-500">Type is not valid. Please choose the target metric for “% of”.</p>
-                                </div>
-                            )}
-                          </div>
-
-                          {/* delete row */}
-                          <div className="flex justify-end mt-3 sm:mt-0">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className={`text-gray-400 p-1 hover:bg-gray-200 ${conditions.length <= 1 ? "opacity-50" : ""}`}
-                                onClick={() => removeCondition(condition.id)}
-                                disabled={conditions.length <= 1}>
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
                         </div>
-                      </div>
-                  ))}
 
-                  <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto"
-                      onClick={addCondition}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add
-                  </Button>
+                        {/* Rule Section */}
+                        <div className="border border-gray-200 rounded-lg p-6 bg-white mb-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="rule-name" className="text-sm font-medium text-gray-700">
+                                        Rule Name
+                                    </Label>
+                                    <Input
+                                        id="rule-name"
+                                        value={ruleName}
+                                        onChange={(e) => setRuleName(e.target.value)}
+                                        className="w-full"
+                                        placeholder=""
+                                    />
+                                </div>
 
-                </div>
-              </div>
-            </div>
-
-            {/* Apply Rule */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                  3
-                </div>
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
-
-                  {/* Campaign Search Dropdown */}
-                  <div ref={searchInputRef} className="relative">
-                    <div
-                        className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer"
-                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}>
-                      <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-500">
-                      {selectedPlatform ? "Search campaign..." : "Select a platform to search"}
-                    </span>
-                      <ChevronDown className="h-4 w-4 text-gray-400 ml-auto" />
-                    </div>
-
-                    {isSearchOpen && (
-                        <div className="absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
-                          <div className="p-2 border-b border-gray-100">
-                            <div className="relative">
-                              <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                              <input
-                                  type="text"
-                                  placeholder="Search..."
-                                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md"
-                                  value={campaignSearchTerm}
-                                  onChange={(e) => setCampaignSearchTerm(e.target.value)}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="max-h-60 overflow-y-auto">
-                            {filteredCampaigns.length > 0 ? (
-                                filteredCampaigns.map((c) => (
-                                    <div
-                                        key={c.id}
-                                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
-                                        onClick={() => handleCampaignSelect(c)}>
-                                      <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
-                                      <span className="text-sm">{c.name}</span>
+                                <div className="space-y-2">
+                                    <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
+                                        Platform
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue placeholder="Select Platform..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {PLATFORM_OPTIONS.map((p) => (
+                                                    <SelectItem key={p.value} value={p.value}>
+                                                        <div className="flex items-center gap-2">
+                                                            <img src={p.icon} alt="" className="w-4 h-4" />
+                                                            <span>{p.label}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                  {!selectedPlatform
-                                      ? "Select a platform to see available campaigns"
-                                      : "No campaigns match your search"}
                                 </div>
-                            )}
-                          </div>
-                        </div>
-                    )}
-                  </div>
-
-                  {/* Selected campaigns */}
-                  {campaigns.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {campaigns.map((cid, index) => (
-                            <Badge
-                                key={cid}
-                                variant="secondary"
-                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                              <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                              <span className="truncate max-w-[160px] sm:max-w-none">
-                          {formatCampaignName(selectedPlatform, cid)}
-                        </span>
-                              <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0 hover:bg-blue-200 flex-shrink-0"
-                                  onClick={() => removeCampaign(index)}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </Badge>
-                        ))}
-                      </div>
-                  )}
-
-                  {/* Add Campaigns multi-select (GRAY panel, not white) */}
-                  <div className="relative" ref={campaignDropdownRef}>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto ${
-                            selectedPlatform ? "text-gray-600 bg-transparent" : "text-gray-400 bg-gray-50"
-                        }`}
-                        onClick={() => {
-                          if (selectedPlatform) setShowCampaignDropdown((s) => !s);
-                        }}
-                        disabled={!selectedPlatform}>
-                      <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                      Add Campaigns
-                    </Button>
-
-                    {showCampaignDropdown && (
-                        <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                          {/* Header */}
-                          <div className="px-3 py-2 border-t border-gray-100">
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">Found:</span>
-                              <button
-                                  className={`text-sm px-3 py-1 rounded-md ${
-                                      selectedCampaignOptions.length > 0
-                                          ? "text-blue-600 hover:bg-gray-100"
-                                          : "text-gray-400 cursor-not-allowed"
-                                  }`}
-                                  onClick={handleAddSelectedCampaigns}
-                                  disabled={selectedCampaignOptions.length === 0}>
-                                Add
-                              </button>
                             </div>
-                          </div>
+                        </div>
+                    </div>
 
-                          {/* Options */}
-                          <div className="max-h-60 overflow-y-auto">
-                            {getCampaignOptionsByPlatform(selectedPlatform)
-                                .filter(
-                                    (opt) =>
-                                        searchCampaign === "" ||
-                                        (opt.name || "").toLowerCase().includes(searchCampaign.toLowerCase())
-                                )
-                                .map((opt) => (
-                                    <label
-                                        key={opt.id}
-                                        className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer">
-                                      <input
-                                          type="checkbox"
-                                          className="mr-1"
-                                          checked={selectedCampaignOptions.includes(opt.id)}
-                                          onChange={(e) => handleCampaignOptionChange(opt.id, e.target.checked)}
-                                      />
-                                      <img src={opt.icon} alt="" className="w-5 h-5" />
-                                      <span className="text-sm">{opt.name}</span>
-                                    </label>
+                    {/* Conditions */}
+                    <div className="mb-8">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-6">
+                            <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
+                                2
+                            </div>
+                            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
+                            <div className="space-y-6">
+                                {conditions.map((condition, index) => (
+                                    <div
+                                        key={condition.id}
+                                        className="flex flex-col sm:flex-row items-start gap-3 p-4 bg-gray-50 rounded-lg">
+                                        <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
+                                          {condition.logic}
+                                        </span>
+
+                                        <div className="flex flex-col sm:flex-row w-full gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
+                                                {/* Metric */}
+                                                <Select
+                                                    value={condition.metric}
+                                                    onValueChange={(value) => {
+                                                        const next = [...conditions];
+                                                        next[index].metric = value;
+                                                        setConditions(next);
+                                                    }}
+                                                    className="sm:col-span-2"
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Select Option" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectGroup>
+                                                            <SelectLabel>Traffic Source Metrics</SelectLabel>
+                                                            <SelectItem value="days_since_creation">Days since creation</SelectItem>
+                                                            <SelectItem value="days_since_started">Days since started</SelectItem>
+                                                            <SelectItem value="days_until_end">Days until end</SelectItem>
+                                                            <SelectItem value="created_date">Created Date</SelectItem>
+                                                            <SelectItem value="start_date">Start Date</SelectItem>
+                                                            <SelectItem value="end_date">End Date</SelectItem>
+                                                            <SelectItem value="tags">Tags</SelectItem>
+                                                            <SelectItem value="campaign_status">Campaign Status</SelectItem>
+                                                            <SelectItem value="budget">Budget</SelectItem>
+                                                        </SelectGroup>
+
+                                                        <SelectSeparator />
+
+                                                        <SelectGroup>
+                                                            <SelectLabel>Tracker Metrics</SelectLabel>
+                                                            <SelectItem value="impressions">Impressions</SelectItem>
+                                                            <SelectItem value="clicks">Clicks</SelectItem>
+                                                            <SelectItem value="ctr">CTR</SelectItem>
+                                                            <SelectItem value="conversions">Conversions</SelectItem>
+                                                            <SelectItem value="roi">ROI</SelectItem>
+                                                            <SelectItem value="roas">ROAS</SelectItem>
+                                                            <SelectItem value="cpr">CPR</SelectItem>
+                                                            <SelectItem value="lpepc">LPEPC</SelectItem>
+                                                            <SelectItem value="epc">EPC</SelectItem>
+                                                        </SelectGroup>
+
+                                                        <SelectSeparator />
+
+                                                        <SelectGroup>
+                                                            <SelectLabel>Facebook Metrics</SelectLabel>
+                                                            <SelectItem value="fb_engagement">Engagement</SelectItem>
+                                                            <SelectItem value="fb_reach">Reach</SelectItem>
+                                                            <SelectItem value="fb_impressions">Impressions</SelectItem>
+                                                        </SelectGroup>
+                                                    </SelectContent>
+                                                </Select>
+
+                                                {/* 'is' */}
+                                                <div className="flex items-center justify-center">
+                                                    <span className="text-sm text-gray-600">is</span>
+                                                </div>
+
+                                                {/* Operator */}
+                                                <Select
+                                                    value={condition.operator}
+                                                    onValueChange={(value) => {
+                                                        const next = [...conditions];
+                                                        next[index].operator = value;
+                                                        setConditions(next);
+                                                    }}
+                                                    className="sm:col-span-1"
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Operator" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Greater">Greater</SelectItem>
+                                                        <SelectItem value="Greater or Equal">Greater or Equal</SelectItem>
+                                                        <SelectItem value="Less">Less</SelectItem>
+                                                        <SelectItem value="Less or Equal">Less or Equal</SelectItem>
+                                                        <SelectItem value="Equal to">Equal to</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+
+                                                {/* 'than' */}
+                                                <div className="flex items-center justify-center">
+                                                    <span className="text-sm text-gray-600">than</span>
+                                                </div>
+
+                                                {/* value + unit (+ optional target metric when unit is %) */}
+                                                <div className="flex items-center gap-2 sm:col-span-2">
+                                                    {/* numeric / percent value */}
+                                                    <Input
+                                                        value={condition.value}
+                                                        onChange={(e) => {
+                                                            const next = [...conditions];
+                                                            next[index].value = e.target.value;
+                                                            setConditions(next);
+                                                        }}
+                                                        className="w-full"
+                                                        placeholder=""
+                                                    />
+
+                                                    {/* unit select */}
+                                                    <Select
+                                                        value={condition.unit}
+                                                        onValueChange={(value) => {
+                                                            const next = [...conditions];
+                                                            next[index].unit = value;
+                                                            if (value !== "%") next[index].target = "";
+                                                            setConditions(next);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="w-20">
+                                                            <SelectValue placeholder="—" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">—</SelectItem>
+                                                            <SelectItem value="%">%</SelectItem>
+                                                            <SelectItem value="$">$</SelectItem>
+                                                            <SelectItem value="days">days</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+
+                                                    {/* When unit = "%", show "of [metric]" */}
+                                                    {condition.unit === "%" && (
+                                                        <>
+                                                            <span className="text-sm text-gray-600">of</span>
+                                                            <Select
+                                                                value={condition.target}
+                                                                onValueChange={(value) => {
+                                                                    const next = [...conditions];
+                                                                    next[index].target = value;
+                                                                    setConditions(next);
+                                                                }}
+                                                            >
+                                                                <SelectTrigger className="w-56">
+                                                                    <SelectValue placeholder="Select Option" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectGroup>
+                                                                        <SelectLabel>Metrics</SelectLabel>
+                                                                        {ALL_METRICS.map((m) => (
+                                                                            <SelectItem key={m.value} value={m.value}>
+                                                                                {m.label}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectGroup>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Inline validation */}
+                                                {condition.unit === "%" && !condition.target && (
+                                                    <div className="sm:col-span-6 mt-1">
+                                                        <p className="text-[12px] text-red-500">
+                                                            Type is not valid. Please choose the target metric for “% of”.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* delete row */}
+                                            <div className="flex justify-end mt-3 sm:mt-0">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className={`text-gray-400 p-1 hover:bg-gray-200 ${
+                                                        conditions.length <= 1 ? "opacity-50" : ""
+                                                    }`}
+                                                    onClick={() => removeCondition(condition.id)}
+                                                    disabled={conditions.length <= 1}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
 
-                            {getCampaignOptionsByPlatform(selectedPlatform).length === 0 && (
-                                <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                  Select a platform to see available campaigns
-                                </div>
-                            )}
-                          </div>
-
-                          {/* Footer */}
-                          <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
-                            <button
-                                className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
-                                onClick={clearCampaignSelection}>
-                              Clear
-                            </button>
-                          </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto"
+                                    onClick={addCondition}
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add
+                                </Button>
+                            </div>
                         </div>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-            {/* Schedule */}
-            <div className="mb-8">
-              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                  4
-                </div>
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                <div className="space-y-5 sm:space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
-                      <Select value={scheduleInterval} onValueChange={setScheduleInterval}>
-                        <SelectTrigger className="w-full sm:w-[33rem]">
-                          <SelectValue placeholder="Select interval..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
-                          <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
-                          <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
-                          <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
-                          <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
-                          <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
-                          <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
-                          <SelectItem value="Once Daily (As soon as conditions are met)">
-                            Once Daily (As soon as conditions are met)
-                          </SelectItem>
-                          <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Footer */}
-            <div className="flex justify-end gap-9 pt-6 pb-[70px]">
-              <Button variant="outline" className="text-gray-600 bg-transparent" onClick={() => navigate("/rules")}>
-                Back
-              </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
-                Save
-              </Button>
+                    {/* Apply Rule */}
+                    <div className="mb-8">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                            <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
+                                3
+                            </div>
+                            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
+                            <div className="space-y-4">
+                                <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
+
+                                {/* Campaign Search Dropdown */}
+                                <div ref={searchInputRef} className="relative">
+                                    <div
+                                        className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer"
+                                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}
+                                    >
+                                        <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
+                                        <span className="text-sm text-gray-500">
+                                          {selectedPlatform ? "Search campaign..." : "Select a platform to search"}
+                                        </span>
+                                        <ChevronDown className="h-4 w-4 text-gray-400 ml-auto" />
+                                    </div>
+
+                                    {isSearchOpen && (
+                                        <div className="absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
+                                            <div className="p-2 border-b border-gray-100">
+                                                <div className="relative">
+                                                    <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search..."
+                                                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md"
+                                                        value={campaignSearchTerm}
+                                                        onChange={(e) => setCampaignSearchTerm(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {filteredCampaigns.length > 0 ? (
+                                                    filteredCampaigns.map((c) => (
+                                                        <div
+                                                            key={c.id}
+                                                            className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                                                            onClick={() => handleCampaignSelect(c)}
+                                                        >
+                                                            <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
+                                                            <span className="text-sm">{c.name}</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                                                        {!selectedPlatform
+                                                            ? "Select a platform to see available campaigns"
+                                                            : "No campaigns match your search"}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Selected campaigns */}
+                                {campaigns.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {campaigns.map((cid, index) => (
+                                            <Badge
+                                                key={cid}
+                                                variant="secondary"
+                                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                                            >
+                                                <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                <span className="truncate max-w-[160px] sm:max-w-none">
+                                                  {formatCampaignName(selectedPlatform, cid)}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-4 w-4 p-0 hover:bg-blue-200 flex-shrink-0"
+                                                    onClick={() => removeCampaign(index)}
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </Button>
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Add Campaigns multi-select (GRAY panel) */}
+                                <div className="relative" ref={campaignDropdownRef}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto ${
+                                            selectedPlatform ? "text-gray-600 bg-transparent" : "text-gray-400 bg-gray-50"
+                                        }`}
+                                        onClick={() => {
+                                            if (selectedPlatform) setShowCampaignDropdown((s) => !s);
+                                        }}
+                                        disabled={!selectedPlatform}
+                                    >
+                                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                                        Add Campaigns
+                                    </Button>
+
+                                    {showCampaignDropdown && (
+                                        <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
+                                            {/* Header */}
+                                            <div className="px-3 py-2 border-t border-gray-100">
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-gray-600">Found:</span>
+                                                    <button
+                                                        className={`text-sm px-3 py-1 rounded-md ${
+                                                            selectedCampaignOptions.length > 0
+                                                                ? "text-blue-600 hover:bg-gray-100"
+                                                                : "text-gray-400 cursor-not-allowed"
+                                                        }`}
+                                                        onClick={handleAddSelectedCampaigns}
+                                                        disabled={selectedCampaignOptions.length === 0}
+                                                    >
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Options */}
+                                            <div className="max-h-60 overflow-y-auto">
+                                                {getCampaignOptionsByPlatform(selectedPlatform)
+                                                    .filter(
+                                                        (opt) =>
+                                                            searchCampaign === "" ||
+                                                            (opt.name || "").toLowerCase().includes(searchCampaign.toLowerCase())
+                                                    )
+                                                    .map((opt) => (
+                                                        <label
+                                                            key={opt.id}
+                                                            className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mr-1"
+                                                                checked={selectedCampaignOptions.includes(opt.id)}
+                                                                onChange={(e) => handleCampaignOptionChange(opt.id, e.target.checked)}
+                                                            />
+                                                            <img src={opt.icon} alt="" className="w-5 h-5" />
+                                                            <span className="text-sm">{opt.name}</span>
+                                                        </label>
+                                                    ))}
+
+                                                {getCampaignOptionsByPlatform(selectedPlatform).length === 0 && (
+                                                    <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                                                        Select a platform to see available campaigns
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
+                                                <button
+                                                    className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
+                                                    onClick={clearCampaignSelection}
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Schedule */}
+                    <div className="mb-8">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                            <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
+                                4
+                            </div>
+                            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
+                            <div className="space-y-5 sm:space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
+                                        <Select value={scheduleInterval} onValueChange={setScheduleInterval}>
+                                            <SelectTrigger className="w-full sm:w-[33rem]">
+                                                <SelectValue placeholder="Select interval..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
+                                                <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
+                                                <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
+                                                <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
+                                                <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
+                                                <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
+                                                <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
+                                                <SelectItem value="Once Daily (As soon as conditions are met)">
+                                                    Once Daily (As soon as conditions are met)
+                                                </SelectItem>
+                                                <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex justify-end gap-9 pt-6 pb-[70px]">
+                        <Button variant="outline" className="text-gray-600 bg-transparent" onClick={() => navigate("/rules")}>
+                            Back
+                        </Button>
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+                            Save
+                        </Button>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </>
-  );
+        </>
+    );
 }

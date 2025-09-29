@@ -29,11 +29,10 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 // Firestore
 import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { addConfig } from "@/services/config.js";
+import { addConfig } from "@/services/config.js"; // ⬅️ no getCollectionName here
 
 /* ---------- helpers ---------- */
 function parseIncomingCondition(raw, index) {
-    // Normalize various shapes into the UI condition row
     const base = {
         id: index + 1,
         logic: index === 0 ? "If" : "And",
@@ -45,41 +44,41 @@ function parseIncomingCondition(raw, index) {
     };
     if (!raw) return base;
 
-    // object from Firestore
-    if (typeof raw === "object" && (raw.metric || raw.comparison)) {
+    // object form
+    if (typeof raw === "object" && (raw.metric || raw.comparison || raw.operator)) {
         const op =
             raw.operator ||
             (raw.comparison === "gte"
                 ? "Greater or Equal"
                 : raw.comparison === "lte"
                     ? "Less or Equal"
-                    : "Equal to");
+                    : raw.comparison === "gt"
+                        ? "Greater"
+                        : raw.comparison === "lt"
+                            ? "Less"
+                            : "Equal to");
         return {
             ...base,
             metric: String(raw.metric || "").toLowerCase(),
             operator: op,
             value: raw.value ?? raw.threshold ?? "",
             unit: raw.unit || "none",
+            target: raw.target || "",
         };
     }
 
-    // string like: "ROI >= 1.5" or "CTR <= 2%"
+    // string form e.g. "CTR <= 2%"
     if (typeof raw === "string") {
         const s = raw.trim();
         const metric = (s.split(" ")[0] || "").toLowerCase();
         let operator = "Equal to";
         if (s.includes(">=")) operator = "Greater or Equal";
         else if (s.includes("<=")) operator = "Less or Equal";
+        else if (s.includes(">")) operator = "Greater";
+        else if (s.includes("<")) operator = "Less";
         const valueToken = s.split(" ").pop() || "";
         const hasPct = valueToken.includes("%");
-        const value = valueToken.replace("%", "");
-        return {
-            ...base,
-            metric,
-            operator,
-            value,
-            unit: hasPct ? "%" : "none",
-        };
+        return { ...base, metric, operator, value: valueToken.replace("%", ""), unit: hasPct ? "%" : "none" };
     }
     return base;
 }
@@ -90,6 +89,34 @@ const PLATFORM_OPTIONS = [
     { value: "tiktok", label: "TikTok", icon: tiktokIcon },
     { value: "google", label: "Google", icon: googleIcon },
     { value: "newsbreak", label: "News Break", icon: nbIcon },
+];
+
+const TRACKER_METRICS = [
+    { value: "impressions", label: "Impressions" },
+    { value: "clicks", label: "Clicks" },
+    { value: "ctr", label: "CTR" },
+    { value: "conversions", label: "Conversions" },
+    { value: "roi", label: "ROI" },
+    { value: "roas", label: "ROAS" },
+    { value: "cpr", label: "CPR" },
+    { value: "epc", label: "EPC" },
+    { value: "lpepc", label: "LPEPC" },
+];
+
+const ALL_METRICS = [
+    { value: "days_since_creation", label: "Days since creation" },
+    { value: "days_since_started", label: "Days since started" },
+    { value: "days_until_end", label: "Days until end" },
+    { value: "created_date", label: "Created Date" },
+    { value: "start_date", label: "Start Date" },
+    { value: "end_date", label: "End Date" },
+    { value: "tags", label: "Tags" },
+    { value: "campaign_status", label: "Campaign Status" },
+    { value: "budget", label: "Budget" },
+    ...TRACKER_METRICS,
+    { value: "fb_engagement", label: "Engagement" },
+    { value: "fb_reach", label: "Reach" },
+    { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
 /** Mock campaign data (replace with your API later) */
@@ -152,8 +179,9 @@ export default function EditRuleFormActivate() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // If navigated from list with { id }, we'll use Firestore live data
+    // Expect { id, colName } in state when editing
     const ruleId = location.state?.id || null;
+    const colName = location.state?.colName || null;
 
     // UI state
     const [ruleName, setRuleName] = useState("");
@@ -175,37 +203,35 @@ export default function EditRuleFormActivate() {
     const [searchCampaign, setSearchCampaign] = useState("");
     const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
 
-    // Live Firestore when editing
+    // ✅ Live Firestore when editing (use colName; don't wait for platform)
     useEffect(() => {
-        if (!ruleId) return;
-        const ref = doc(db, "configs", ruleId);
+        if (!ruleId || !colName) return;
+        const ref = doc(db, colName, ruleId);
         const unsub = onSnapshot(ref, (snap) => {
             if (!snap.exists()) return;
             const d = snap.data();
+
             const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
-            setRuleName(d.name || "");
             setSelectedPlatform(platform);
+            setRuleName(d.name || "");
             setScheduleInterval(d.frequency || "");
             setCampaigns(d.campaigns || []);
+
             const raw = Array.isArray(d.condition) ? d.condition : [];
-            setConditions(
-                raw.length
-                    ? raw.map((c, i) => parseIncomingCondition(c, i))
-                    : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }]
-            );
+            const rows =
+                raw.length > 0
+                    ? raw.map((c, i) => ({ ...parseIncomingCondition(c, i), id: i + 1, logic: i === 0 ? "If" : "And" }))
+                    : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
+            setConditions(rows);
         });
         return () => unsub();
-    }, [ruleId]);
+    }, [ruleId, colName]);
 
     // close dropdowns on outside click
     useEffect(() => {
         function handleClickOutside(e) {
-            if (searchInputRef.current && !searchInputRef.current.contains(e.target)) {
-                setIsSearchOpen(false);
-            }
-            if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(e.target)) {
-                setShowCampaignDropdown(false);
-            }
+            if (searchInputRef.current && !searchInputRef.current.contains(e.target)) setIsSearchOpen(false);
+            if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(e.target)) setShowCampaignDropdown(false);
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -228,12 +254,9 @@ export default function EditRuleFormActivate() {
     const removeCondition = (id) => {
         setConditions((prev) => {
             if (prev.length <= 1) {
-                // reset the only row
                 return [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
             }
-            return prev
-                .filter((c) => c.id !== id)
-                .map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }));
+            return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }));
         });
     };
 
@@ -243,10 +266,7 @@ export default function EditRuleFormActivate() {
         setIsSearchOpen(false);
         setCampaignSearchTerm("");
     };
-
-    const removeCampaign = (index) => {
-        setCampaigns((prev) => prev.filter((_, i) => i !== index));
-    };
+    const removeCampaign = (index) => setCampaigns((prev) => prev.filter((_, i) => i !== index));
 
     /* ----- Add Campaigns (multi-select dropdown) ----- */
     const getCampaignOptionsByPlatform = () => {
@@ -289,13 +309,12 @@ export default function EditRuleFormActivate() {
     };
 
     const handleCampaignOptionChange = (optionId, checked) => {
-        setSelectedCampaignOptions((prev) =>
-            checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)
-        );
+        setSelectedCampaignOptions((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
     };
 
     const clearCampaignSelection = () => setSelectedCampaignOptions([]);
-    /* ----- Save (to Firestore via services/config.js) ----- */
+
+    /* ----- Save ----- */
     const handleSave = async () => {
         const uiPayload = {
             id: ruleId || crypto.randomUUID(),
@@ -305,17 +324,17 @@ export default function EditRuleFormActivate() {
             platform: selectedPlatform || "meta",
             frequency: scheduleInterval,
             campaigns,
-            // supply "conditions" with UI fields; services/toFirestoreDoc will normalize
             conditions: conditions.map((c) => ({
                 metric: c.metric,
-                operator: c.operator, // "Greater or Equal" | "Less or Equal" | "Equal to"
+                operator: c.operator,
                 value: c.value,
                 unit: c.unit,
                 type: "value",
+                target: c.target || "",
             })),
         };
         try {
-            await addConfig(uiPayload);
+            await addConfig(uiPayload); // service decides collection
             navigate("/rules");
         } catch (e) {
             alert(`Error saving: ${e.message}`);
@@ -357,6 +376,7 @@ export default function EditRuleFormActivate() {
                                         placeholder=""
                                     />
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
                                         Platform
@@ -391,6 +411,7 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
                         </div>
+
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-6">
                                 {conditions.map((condition, index) => (
@@ -398,6 +419,7 @@ export default function EditRuleFormActivate() {
                                         <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
                                           {condition.logic}
                                         </span>
+
                                         <div className="flex flex-col sm:flex-row w-full gap-3">
                                             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
                                                 {/* Metric */}
@@ -408,7 +430,8 @@ export default function EditRuleFormActivate() {
                                                         next[index].metric = value;
                                                         setConditions(next);
                                                     }}
-                                                    className="sm:col-span-2">
+                                                    className="sm:col-span-2"
+                                                >
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Select Metric" />
                                                     </SelectTrigger>
@@ -425,7 +448,9 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="campaign_status">Campaign Status</SelectItem>
                                                             <SelectItem value="budget">Budget</SelectItem>
                                                         </SelectGroup>
+
                                                         <SelectSeparator />
+
                                                         <SelectGroup>
                                                             <SelectLabel>Tracker Metrics</SelectLabel>
                                                             <SelectItem value="impressions">Impressions</SelectItem>
@@ -436,7 +461,9 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="roas">ROAS</SelectItem>
                                                             <SelectItem value="cpr">CPR</SelectItem>
                                                         </SelectGroup>
+
                                                         <SelectSeparator />
+
                                                         <SelectGroup>
                                                             <SelectLabel>Facebook Metrics</SelectLabel>
                                                             <SelectItem value="fb_engagement">Engagement</SelectItem>
@@ -459,7 +486,8 @@ export default function EditRuleFormActivate() {
                                                         next[index].operator = value;
                                                         setConditions(next);
                                                     }}
-                                                    className="sm:col-span-1">
+                                                    className="sm:col-span-1"
+                                                >
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Operator" />
                                                     </SelectTrigger>
@@ -477,8 +505,8 @@ export default function EditRuleFormActivate() {
                                                     <span className="text-sm text-gray-600">than</span>
                                                 </div>
 
-                                                {/* value + unit */}
-                                                <div className="flex items-center gap-2 sm:col-span-1">
+                                                {/* value + unit (+ optional target when %) */}
+                                                <div className="flex items-center gap-2 sm:col-span-2">
                                                     <Input
                                                         value={condition.value}
                                                         onChange={(e) => {
@@ -494,8 +522,10 @@ export default function EditRuleFormActivate() {
                                                         onValueChange={(value) => {
                                                             const next = [...conditions];
                                                             next[index].unit = value;
+                                                            if (value !== "%") next[index].target = "";
                                                             setConditions(next);
-                                                        }}>
+                                                        }}
+                                                    >
                                                         <SelectTrigger className="w-16">
                                                             <SelectValue placeholder="%" />
                                                         </SelectTrigger>
@@ -506,7 +536,43 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="days">days</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+
+                                                    {condition.unit === "%" && (
+                                                        <>
+                                                            <span className="text-sm text-gray-600">of</span>
+                                                            <Select
+                                                                value={condition.target}
+                                                                onValueChange={(value) => {
+                                                                    const next = [...conditions];
+                                                                    next[index].target = value;
+                                                                    setConditions(next);
+                                                                }}
+                                                            >
+                                                                <SelectTrigger className="w-56">
+                                                                    <SelectValue placeholder="Select Option" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectGroup>
+                                                                        <SelectLabel>Metrics</SelectLabel>
+                                                                        {ALL_METRICS.map((m) => (
+                                                                            <SelectItem key={m.value} value={m.value}>
+                                                                                {m.label}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectGroup>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </>
+                                                    )}
                                                 </div>
+
+                                                {condition.unit === "%" && !condition.target && (
+                                                    <div className="sm:col-span-6 mt-1">
+                                                        <p className="text-[12px] text-red-500">
+                                                            Type is not valid. Please choose the target metric for “% of”.
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* delete row */}
@@ -516,18 +582,21 @@ export default function EditRuleFormActivate() {
                                                     size="sm"
                                                     className={`text-gray-400 p-1 hover:bg-gray-200 ${conditions.length <= 1 ? "opacity-50" : ""}`}
                                                     onClick={() => removeCondition(condition.id)}
-                                                    disabled={conditions.length <= 1}>
+                                                    disabled={conditions.length <= 1}
+                                                >
                                                     <X className="w-4 h-4" />
                                                 </Button>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
+
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto"
-                                    onClick={addCondition}>
+                                    onClick={addCondition}
+                                >
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add
                                 </Button>
@@ -543,13 +612,17 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
                         </div>
+
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-4">
                                 <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
 
                                 {/* Campaign Search */}
                                 <div ref={searchInputRef} className="relative">
-                                    <div className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer" onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}>
+                                    <div
+                                        className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer"
+                                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}
+                                    >
                                         <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
                                         <span className="text-sm text-gray-500">
                                           {selectedPlatform ? "Search campaign..." : "Select a platform first"}
@@ -574,7 +647,11 @@ export default function EditRuleFormActivate() {
                                             <div className="max-h-60 overflow-y-auto">
                                                 {filteredCampaigns.length > 0 ? (
                                                     filteredCampaigns.map((c) => (
-                                                        <div key={c.id} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center" onClick={() => handleCampaignSelect(c)}>
+                                                        <div
+                                                            key={c.id}
+                                                            className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                                                            onClick={() => handleCampaignSelect(c)}
+                                                        >
                                                             <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
                                                             <span className="text-sm">{c.name}</span>
                                                         </div>
@@ -596,16 +673,16 @@ export default function EditRuleFormActivate() {
                                             <Badge
                                                 key={cid}
                                                 variant="secondary"
-                                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
+                                            >
                                                 <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                <span className="truncate max-w-[160px] sm:max-w-none">
-                                                  {formatCampaignName(selectedPlatform, cid)}
-                                                </span>
+                                                <span className="truncate max-w-[160px] sm:max-w-none">{formatCampaignName(selectedPlatform, cid)}</span>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-4 w-4 p-0 hover:bg-blue-200 flex-shrink-0"
-                                                    onClick={() => removeCampaign(idx)}>
+                                                    onClick={() => removeCampaign(idx)}
+                                                >
                                                     <X className="w-3 h-3" />
                                                 </Button>
                                             </Badge>
@@ -613,7 +690,7 @@ export default function EditRuleFormActivate() {
                                     </div>
                                 )}
 
-                                {/* Add Campaigns multi-select (GRAY panel, not white) */}
+                                {/* Add Campaigns (multi-select) */}
                                 <div className="relative" ref={campaignDropdownRef}>
                                     <Button
                                         variant="outline"
@@ -624,7 +701,8 @@ export default function EditRuleFormActivate() {
                                         onClick={() => {
                                             if (selectedPlatform) setShowCampaignDropdown((s) => !s);
                                         }}
-                                        disabled={!selectedPlatform}>
+                                        disabled={!selectedPlatform}
+                                    >
                                         <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                                         Add Campaigns
                                     </Button>
@@ -637,12 +715,11 @@ export default function EditRuleFormActivate() {
                                                     <span className="text-sm text-gray-600">Found:</span>
                                                     <button
                                                         className={`text-sm px-3 py-1 rounded-md ${
-                                                            selectedCampaignOptions.length > 0
-                                                                ? "text-blue-600 hover:bg-gray-100"
-                                                                : "text-gray-400 cursor-not-allowed"
+                                                            selectedCampaignOptions.length > 0 ? "text-blue-600 hover:bg-gray-100" : "text-gray-400 cursor-not-allowed"
                                                         }`}
                                                         onClick={handleAddSelectedCampaigns}
-                                                        disabled={selectedCampaignOptions.length === 0}>
+                                                        disabled={selectedCampaignOptions.length === 0}
+                                                    >
                                                         Add
                                                     </button>
                                                 </div>
@@ -678,9 +755,7 @@ export default function EditRuleFormActivate() {
 
                                             {/* Footer */}
                                             <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
-                                                <button
-                                                    className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
-                                                    onClick={clearCampaignSelection}>
+                                                <button className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100" onClick={clearCampaignSelection}>
                                                     Clear
                                                 </button>
                                             </div>
@@ -699,6 +774,7 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
                         </div>
+
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-5 sm:space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
