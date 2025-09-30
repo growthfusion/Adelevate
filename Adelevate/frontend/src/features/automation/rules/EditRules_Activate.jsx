@@ -32,6 +32,18 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { addConfig } from "@/services/config.js"; // ⬅️ no getCollectionName here
 
 /* ---------- helpers ---------- */
+const PLATFORM_OPTIONS = [
+    { value: "meta", label: "Meta", icon: metaIcon },
+    { value: "snap", label: "Snap", icon: snapchatIcon },
+    { value: "tiktok", label: "TikTok", icon: tiktokIcon },
+    { value: "google", label: "Google", icon: googleIcon },
+    { value: "newsbreak", label: "News Break", icon: nbIcon },
+];
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const BULK_ACTIVE = "All_Active_Campaigns";
+const BULK_PAUSED = "All_Pause_Campaigns";
+
 function parseIncomingCondition(raw, index) {
     const base = {
         id: index + 1,
@@ -43,7 +55,6 @@ function parseIncomingCondition(raw, index) {
         target: "",
     };
     if (!raw) return base;
-
     // object form
     if (typeof raw === "object" && (raw.metric || raw.comparison || raw.operator)) {
         const op =
@@ -66,7 +77,6 @@ function parseIncomingCondition(raw, index) {
             target: raw.target || "",
         };
     }
-
     // string form e.g. "CTR <= 2%"
     if (typeof raw === "string") {
         const s = raw.trim();
@@ -82,14 +92,6 @@ function parseIncomingCondition(raw, index) {
     }
     return base;
 }
-
-const PLATFORM_OPTIONS = [
-    { value: "meta", label: "Meta", icon: metaIcon },
-    { value: "snap", label: "Snap", icon: snapchatIcon },
-    { value: "tiktok", label: "TikTok", icon: tiktokIcon },
-    { value: "google", label: "Google", icon: googleIcon },
-    { value: "newsbreak", label: "News Break", icon: nbIcon },
-];
 
 const TRACKER_METRICS = [
     { value: "impressions", label: "Impressions" },
@@ -121,59 +123,13 @@ const ALL_METRICS = [
     { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
-/** Mock campaign data (replace with your API later) */
-function getMockCampaigns(platform) {
-    switch (platform) {
-        case "meta":
-            return [
-                { id: "fb_camp1", name: "atmt | atrz | RAM | Sep15 | $19 | c1", icon: metaIcon },
-                { id: "fb_camp2", name: "atmt | $29 | atnk | Sep09 | c3", icon: metaIcon },
-                { id: "fb_camp3", name: "Auto | Meta | atrz | LT | Aug16 | C4 | $19", icon: metaIcon },
-                { id: "fb_camp4", name: "AUTO | Meta | DR | DMV | HV | VC | LD", icon: metaIcon },
-                { id: "fb_camp5", name: "atmt | atrz | RAM | Sep09 | $29 | c2 | SP", icon: metaIcon },
-                { id: "fb_camp6", name: "auto | meta | rt | sv1f | atnk | Jan08 | c3", icon: metaIcon },
-                { id: "fb_camp7", name: "Auto | Meta | $29 | atnk | Aug04 | c1 | gw | sc2", icon: metaIcon },
-            ];
-        case "snap":
-            return [
-                { id: "snap_camp1", name: "Snap | Brand | Mar09 | c2", icon: snapchatIcon },
-                { id: "snap_camp2", name: "Snap | Stories | May15 | Promo", icon: snapchatIcon },
-                { id: "snap_camp3", name: "Snap | Discover | Jun22 | c3", icon: snapchatIcon },
-            ];
-        case "tiktok":
-            return [
-                { id: "tiktok_camp1", name: "TikTok | Trend | Apr23 | c1", icon: tiktokIcon },
-                { id: "tiktok_camp2", name: "TikTok | Viral | Jul01 | c5", icon: tiktokIcon },
-            ];
-        case "google":
-            return [
-                { id: "google_camp1", name: "GGL | Search | Q2 | c4", icon: googleIcon },
-                { id: "google_camp2", name: "GGL | Display | Jun15 | c2", icon: googleIcon },
-            ];
-        case "newsbreak":
-            return [
-                { id: "nb_camp1", name: "auto | NB | dl | vk | Feb17 | C3", icon: nbIcon },
-                { id: "nb_camp2", name: "NB | Local | Oct20 | c1", icon: nbIcon },
-            ];
-        default:
-            return [];
-    }
-}
-
 function getCampaignIcon(campaignId) {
     if (campaignId.startsWith("fb_")) return metaIcon;
     if (campaignId.startsWith("snap_")) return snapchatIcon;
     if (campaignId.startsWith("tiktok_")) return tiktokIcon;
     if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
     if (campaignId.startsWith("nb_")) return nbIcon;
-    return metaIcon;
-}
-
-function formatCampaignName(platform, campaignId) {
-    const all = getMockCampaigns(platform);
-    const match = all.find((c) => c.id === campaignId);
-    if (match) return match.name;
-    return campaignId.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
+    return snapchatIcon;
 }
 
 /* ---------- component ---------- */
@@ -192,9 +148,13 @@ export default function EditRuleFormActivate() {
     const [conditions, setConditions] = useState([
         { id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" },
     ]);
-    const [campaigns, setCampaigns] = useState([]);
 
-    // campaign search dropdowns
+    const [campaigns, setCampaigns] = useState([]);
+    const [catalog, setCatalog] = useState({ snap: null }); // { snap: { accounts: {...}, total_campaigns, fetched_at } }
+    const [loadingCatalog, setLoadingCatalog] = useState(false);
+    const [catalogError, setCatalogError] = useState("");
+
+    // campaigns search dropdowns
     const searchInputRef = useRef(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
@@ -205,20 +165,96 @@ export default function EditRuleFormActivate() {
     const [searchCampaign, setSearchCampaign] = useState("");
     const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
 
-    // ✅ Live Firestore when editing (use colName; don't wait for platform)
+    // fetch live Snapchat campaigns from /api/campaigns on mount
+    useEffect(() => {
+        let isMounted = true;
+        (async () => {
+            try {
+                setLoadingCatalog(true);
+                setCatalogError("");
+                const res = await fetch(`${API_BASE}/api/campaigns`, { cache: "no-store" });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || "Failed to load campaigns");
+                if (!isMounted) return;
+                // payload shape:
+                // { platform:"snap", accounts:{[acctId]:{account_name, campaigns:[{id,name,status,...}] }}, total_campaigns, fetched_at }
+                setCatalog({ snap: data });
+            } catch (e) {
+                if (isMounted) setCatalogError(String(e?.message || e));
+            } finally {
+                if (isMounted) setLoadingCatalog(false);
+            }
+        })();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // flatten helpers from catalog
+    const snapCampaignList = useMemo(() => {
+        const snap = catalog.snap;
+        if (!snap?.accounts) return [];
+        const rows = [];
+        Object.entries(snap.accounts).forEach(([acctId, group]) => {
+            (group?.campaigns || []).forEach((c) => {
+                rows.push({
+                    id: c.id, // Snapchat ID (not stored)
+                    name: c.name || c.id,
+                    status: (c.status || "").toUpperCase(),
+                    accountId: acctId,
+                    accountName: group?.account_name || acctId,
+                    icon: snapchatIcon,
+                });
+            });
+        });
+        return rows;
+    }, [catalog]);
+
+    // derive a general list by platform (for future Meta)
+    const campaignsByPlatform = useMemo(() => {
+        return {
+            snap: snapCampaignList,
+            // meta: metaCampaignList (when you add /api/meta later)
+        };
+    }, [snapCampaignList]);
+
+    // searchable list uses live data
+    const filteredCampaigns = useMemo(() => {
+        if (!selectedPlatform) return [];
+        const list = campaignsByPlatform[selectedPlatform] || [];
+        if (!campaignSearchTerm) return list;
+        return list.filter((c) => (c.name || "").toLowerCase().includes(campaignSearchTerm.toLowerCase()));
+    }, [selectedPlatform, campaignSearchTerm, campaignsByPlatform]);
+
+    // we store names (or bulk tokens), so just echo them when rendering.
+    function formatCampaignName(_platform, storedValue) {
+        return storedValue;
+    }
+
+    // dynamic "Add Active / Add Paused" from live data
+    function getCampaignOptionsByPlatform(selectedPlatform) {
+        if (!selectedPlatform) return [];
+        const list = campaignsByPlatform[selectedPlatform] || [];
+        const activeCount = list.filter((c) => c.status === "ACTIVE").length;
+        const pausedCount = list.filter((c) => c.status === "PAUSED").length;
+        return [
+            { id: BULK_ACTIVE, name: `Add Active (${activeCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "active" },
+            { id: BULK_PAUSED, name: `Add Paused (${pausedCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "paused" },
+        ];
+    }
+
+    // Load from Firestore when editing
     useEffect(() => {
         if (!ruleId || !colName) return;
         const ref = doc(db, colName, ruleId);
         const unsub = onSnapshot(ref, (snap) => {
             if (!snap.exists()) return;
             const d = snap.data();
-
             const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
             setSelectedPlatform(platform);
             setRuleName(d.name || "");
             setScheduleInterval(d.frequency || "");
             setCampaigns(d.campaigns || []);
-
             const raw = Array.isArray(d.condition) ? d.condition : [];
             const rows =
                 raw.length > 0
@@ -239,12 +275,6 @@ export default function EditRuleFormActivate() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const filteredCampaigns = useMemo(() => {
-        const list = getMockCampaigns(selectedPlatform);
-        if (!campaignSearchTerm) return list;
-        return list.filter((c) => c.name.toLowerCase().includes(campaignSearchTerm.toLowerCase()));
-    }, [selectedPlatform, campaignSearchTerm]);
-
     /* ----- conditions CRUD ----- */
     const addCondition = () => {
         setConditions((prev) => [
@@ -252,7 +282,6 @@ export default function EditRuleFormActivate() {
             { id: prev.length + 1, logic: "And", metric: "", operator: "", value: "", unit: "none", target: "" },
         ]);
     };
-
     const removeCondition = (id) => {
         setConditions((prev) => {
             if (prev.length <= 1) {
@@ -264,47 +293,23 @@ export default function EditRuleFormActivate() {
 
     /* ----- campaigns (search) ----- */
     const handleCampaignSelect = (campaign) => {
-        setCampaigns((prev) => (prev.includes(campaign.id) ? prev : [...prev, campaign.id]));
+        const name = campaign.name || campaign.id;
+        if (name === BULK_ACTIVE || name === BULK_PAUSED) return;
+        setCampaigns((prev) => (prev.includes(name) ? prev : [...prev, name]));
         setIsSearchOpen(false);
         setCampaignSearchTerm("");
     };
-    const removeCampaign = (index) => setCampaigns((prev) => prev.filter((_, i) => i !== index));
-
-    /* ----- Add Campaigns (multi-select dropdown) ----- */
-    const getCampaignOptionsByPlatform = () => {
-        if (!selectedPlatform) return [];
-        const byPlatform = {
-            meta: [
-                { id: "facebook_active", name: "Add Active (0)", icon: metaIcon, status: "active" },
-                { id: "facebook_paused", name: "Add Paused (0)", icon: metaIcon, status: "paused" },
-            ],
-            snap: [
-                { id: "snapchat_active", name: "Add Active (0)", icon: snapchatIcon, status: "active" },
-                { id: "snapchat_paused", name: "Add Paused (0)", icon: snapchatIcon, status: "paused" },
-            ],
-            tiktok: [
-                { id: "tiktok_active", name: "Add Active (0)", icon: tiktokIcon, status: "active" },
-                { id: "tiktok_paused", name: "Add Paused (0)", icon: tiktokIcon, status: "paused" },
-            ],
-            google: [
-                { id: "google_active", name: "Add Active (0)", icon: googleIcon, status: "active" },
-                { id: "google_paused", name: "Add Paused (0)", icon: googleIcon, status: "paused" },
-            ],
-            newsbreak: [
-                { id: "newsbreak_active", name: "Add Active (0)", icon: nbIcon, status: "active" },
-                { id: "newsbreak_paused", name: "Add Paused (0)", icon: nbIcon, status: "paused" },
-            ],
-        };
-        return byPlatform[selectedPlatform] || [];
-    };
 
     const handleAddSelectedCampaigns = () => {
+        const tokensToAdd = new Set();
+        selectedCampaignOptions.forEach((optId) => {
+            if (optId === BULK_ACTIVE) tokensToAdd.add(BULK_ACTIVE);
+            if (optId === BULK_PAUSED) tokensToAdd.add(BULK_PAUSED);
+        });
         setCampaigns((prev) => {
-            const next = [...prev];
-            selectedCampaignOptions.forEach((id) => {
-                if (!next.includes(id)) next.push(id);
-            });
-            return next;
+            const next = new Set(prev);
+            tokensToAdd.forEach((token) => next.add(token));
+            return Array.from(next);
         });
         setSelectedCampaignOptions([]);
         setShowCampaignDropdown(false);
@@ -313,8 +318,9 @@ export default function EditRuleFormActivate() {
     const handleCampaignOptionChange = (optionId, checked) => {
         setSelectedCampaignOptions((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
     };
-
     const clearCampaignSelection = () => setSelectedCampaignOptions([]);
+
+    const removeCampaign = (index) => setCampaigns((prev) => prev.filter((_, i) => i !== index));
 
     /* ----- Save ----- */
     const handleSave = async () => {
@@ -362,7 +368,6 @@ export default function EditRuleFormActivate() {
                                 <span className="text-lg text-gray-600 font-medium">Activate Campaign</span>
                             </div>
                         </div>
-
                         {/* Rule Section */}
                         <div className="border border-gray-200 rounded-lg p-6 bg-white mb-8">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -378,7 +383,6 @@ export default function EditRuleFormActivate() {
                                         placeholder=""
                                     />
                                 </div>
-
                                 <div className="space-y-2">
                                     <Label htmlFor="platform" className="text-sm font-medium text-gray-700">
                                         Platform
@@ -413,15 +417,13 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
                         </div>
-
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-6">
                                 {conditions.map((condition, index) => (
                                     <div key={condition.id} className="flex flex-col sm:flex-row items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                                        <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
-                                          {condition.logic}
-                                        </span>
-
+                    <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
+                      {condition.logic}
+                    </span>
                                         <div className="flex flex-col sm:flex-row w-full gap-3">
                                             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
                                                 {/* Metric */}
@@ -450,9 +452,7 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="campaign_status">Campaign Status</SelectItem>
                                                             <SelectItem value="budget">Budget</SelectItem>
                                                         </SelectGroup>
-
                                                         <SelectSeparator />
-
                                                         <SelectGroup>
                                                             <SelectLabel>Tracker Metrics</SelectLabel>
                                                             <SelectItem value="impressions">Impressions</SelectItem>
@@ -462,14 +462,12 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="roi">ROI</SelectItem>
                                                             <SelectItem value="roas">ROAS</SelectItem>
                                                             <SelectItem value="cpr">CPR</SelectItem>
-                                                            <SelectItem value="lpepc">LPCPC</SelectItem>
+                                                            <SelectItem value="lpcpc">LPCPC</SelectItem>
                                                             <SelectItem value="epc">EPC</SelectItem>
-                                                            <SelectItem value="cost">COST</SelectItem>
+                                                            <SelectItem value="spend">COST</SelectItem>
                                                             <SelectItem value="revenue">REVENUE</SelectItem>
                                                         </SelectGroup>
-
                                                         <SelectSeparator />
-
                                                         <SelectGroup>
                                                             <SelectLabel>Facebook Metrics</SelectLabel>
                                                             <SelectItem value="fb_engagement">Engagement</SelectItem>
@@ -478,12 +476,10 @@ export default function EditRuleFormActivate() {
                                                         </SelectGroup>
                                                     </SelectContent>
                                                 </Select>
-
                                                 {/* 'is' */}
                                                 <div className="flex items-center justify-center">
                                                     <span className="text-sm text-gray-600">is</span>
                                                 </div>
-
                                                 {/* Operator */}
                                                 <Select
                                                     value={condition.operator}
@@ -505,12 +501,10 @@ export default function EditRuleFormActivate() {
                                                         <SelectItem value="Equal to">Equal to</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-
                                                 {/* 'than' */}
                                                 <div className="flex items-center justify-center">
                                                     <span className="text-sm text-gray-600">than</span>
                                                 </div>
-
                                                 {/* value + unit (+ optional target when %) */}
                                                 <div className="flex items-center gap-2 sm:col-span-2">
                                                     <Input
@@ -542,7 +536,6 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="days">days</SelectItem>
                                                         </SelectContent>
                                                     </Select>
-
                                                     {condition.unit === "%" && (
                                                         <>
                                                             <span className="text-sm text-gray-600">of</span>
@@ -571,7 +564,6 @@ export default function EditRuleFormActivate() {
                                                         </>
                                                     )}
                                                 </div>
-
                                                 {condition.unit === "%" && !condition.target && (
                                                     <div className="sm:col-span-6 mt-1">
                                                         <p className="text-[12px] text-red-500">
@@ -580,7 +572,6 @@ export default function EditRuleFormActivate() {
                                                     </div>
                                                 )}
                                             </div>
-
                                             {/* delete row */}
                                             <div className="flex justify-end mt-3 sm:mt-0">
                                                 <Button
@@ -596,7 +587,6 @@ export default function EditRuleFormActivate() {
                                         </div>
                                     </div>
                                 ))}
-
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -618,24 +608,21 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
                         </div>
-
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-4">
                                 <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
 
-                                {/* Campaign Search */}
+                                {/* Campaign Search Dropdown */}
                                 <div ref={searchInputRef} className="relative">
                                     <div
                                         className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer"
-                                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}
-                                    >
+                                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}>
                                         <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
                                         <span className="text-sm text-gray-500">
-                                          {selectedPlatform ? "Search campaign..." : "Select a platform first"}
+                                          {selectedPlatform ? "Search campaigns..." : "Select a platform to search"}
                                         </span>
                                         <ChevronDown className="h-4 w-4 text-gray-400 ml-auto" />
                                     </div>
-
                                     {isSearchOpen && (
                                         <div className="absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
                                             <div className="p-2 border-b border-gray-100">
@@ -656,15 +643,20 @@ export default function EditRuleFormActivate() {
                                                         <div
                                                             key={c.id}
                                                             className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
-                                                            onClick={() => handleCampaignSelect(c)}
+                                                            onClick={() => handleCampaignSelect(c)} // live name
                                                         >
-                                                            <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
+                                                            <img src={c.icon || snapchatIcon} alt="" className="w-5 h-5 mr-2" />
                                                             <span className="text-sm">{c.name}</span>
+                                                            <span className="ml-auto text-xs text-gray-500">{c.status}</span>
                                                         </div>
                                                     ))
                                                 ) : (
                                                     <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                                        {!selectedPlatform ? "Select a platform to see available campaigns" : "No campaigns match your search"}
+                                                        {!selectedPlatform
+                                                            ? "Select a platform to see available campaigns"
+                                                            : loadingCatalog
+                                                                ? "Loading…"
+                                                                : "No campaigns match your search"}
                                                     </div>
                                                 )}
                                             </div>
@@ -674,20 +666,21 @@ export default function EditRuleFormActivate() {
 
                                 {/* Selected campaigns */}
                                 {campaigns.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                        {campaigns.map((cid, idx) => (
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {campaigns.map((storedValue, index) => (
                                             <Badge
-                                                key={cid}
+                                                key={storedValue}
                                                 variant="secondary"
-                                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
-                                            >
-                                                <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                                <span className="truncate max-w-[160px] sm:max-w-none">{formatCampaignName(selectedPlatform, cid)}</span>
+                                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                <img src={getCampaignIcon(storedValue)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                <span className="truncate max-w-[160px] sm:max-w-none">
+                                                  {formatCampaignName(selectedPlatform, storedValue)}
+                                                </span>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     className="h-4 w-4 p-0 hover:bg-blue-200 flex-shrink-0"
-                                                    onClick={() => removeCampaign(idx)}
+                                                    onClick={() => removeCampaign(index)}
                                                 >
                                                     <X className="w-3 h-3" />
                                                 </Button>
@@ -696,7 +689,7 @@ export default function EditRuleFormActivate() {
                                     </div>
                                 )}
 
-                                {/* Add Campaigns (multi-select) */}
+                                {/* Add Campaigns multi-select (GRAY panel) */}
                                 <div className="relative" ref={campaignDropdownRef}>
                                     <Button
                                         variant="outline"
@@ -712,7 +705,6 @@ export default function EditRuleFormActivate() {
                                         <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                                         Add Campaigns
                                     </Button>
-
                                     {showCampaignDropdown && (
                                         <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
                                             {/* Header */}
@@ -721,7 +713,9 @@ export default function EditRuleFormActivate() {
                                                     <span className="text-sm text-gray-600">Found:</span>
                                                     <button
                                                         className={`text-sm px-3 py-1 rounded-md ${
-                                                            selectedCampaignOptions.length > 0 ? "text-blue-600 hover:bg-gray-100" : "text-gray-400 cursor-not-allowed"
+                                                            selectedCampaignOptions.length > 0
+                                                                ? "text-blue-600 hover:bg-gray-100"
+                                                                : "text-gray-400 cursor-not-allowed"
                                                         }`}
                                                         onClick={handleAddSelectedCampaigns}
                                                         disabled={selectedCampaignOptions.length === 0}
@@ -730,17 +724,19 @@ export default function EditRuleFormActivate() {
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            {/* Options */}
+                                            {/* Options (ACTIVE/PAUSED counts from live data) */}
                                             <div className="max-h-60 overflow-y-auto">
-                                                {getCampaignOptionsByPlatform()
+                                                {getCampaignOptionsByPlatform(selectedPlatform)
                                                     .filter(
                                                         (opt) =>
                                                             searchCampaign === "" ||
                                                             (opt.name || "").toLowerCase().includes(searchCampaign.toLowerCase())
                                                     )
                                                     .map((opt) => (
-                                                        <label key={opt.id} className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer">
+                                                        <label
+                                                            key={opt.id}
+                                                            className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
+                                                        >
                                                             <input
                                                                 type="checkbox"
                                                                 className="mr-1"
@@ -751,17 +747,18 @@ export default function EditRuleFormActivate() {
                                                             <span className="text-sm">{opt.name}</span>
                                                         </label>
                                                     ))}
-
-                                                {getCampaignOptionsByPlatform().length === 0 && (
+                                                {getCampaignOptionsByPlatform(selectedPlatform).length === 0 && (
                                                     <div className="px-3 py-4 text-center text-gray-500 text-sm">
                                                         Select a platform to see available campaigns
                                                     </div>
                                                 )}
                                             </div>
-
                                             {/* Footer */}
                                             <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
-                                                <button className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100" onClick={clearCampaignSelection}>
+                                                <button
+                                                    className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
+                                                    onClick={clearCampaignSelection}
+                                                >
                                                     Clear
                                                 </button>
                                             </div>
@@ -780,7 +777,6 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
                         </div>
-
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-5 sm:space-y-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">

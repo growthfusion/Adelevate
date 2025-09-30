@@ -150,7 +150,7 @@ export function toFirestoreDoc(ui, id) {
         platform: platformArray.length ? platformArray : ["meta"],
         status: ui.status || "Paused",
         frequency: ui.frequency || "",
-        campaigns: ui.campaigns || [],
+        campaigns: (ui.campaigns || []).map(String),
         condition: normalizedCondition,
     };
 

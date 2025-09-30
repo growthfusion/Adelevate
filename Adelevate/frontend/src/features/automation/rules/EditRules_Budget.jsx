@@ -39,6 +39,10 @@ const PLATFORM_OPTIONS = [
   { value: "newsbreak", label: "News Break", icon: nbIcon },
 ];
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const BULK_ACTIVE = "All_Active_Campaigns";
+const BULK_PAUSED = "All_Pause_Campaigns";
+
 function parseIncomingCondition(raw, index) {
   const base = {
     id: index + 1,
@@ -120,58 +124,13 @@ const ALL_METRICS = [
   { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
-function getMockCampaigns(platform) {
-  switch (platform) {
-    case "meta":
-      return [
-        { id: "fb_camp1", name: "atmt | atrz | RAM | Sep15 | $19 | c1", icon: metaIcon },
-        { id: "fb_camp2", name: "atmt | $29 | atnk | sep09 | c3", icon: metaIcon },
-        { id: "fb_camp3", name: "Auto | meta | atrz | LT | Aug16 | C4 | $19", icon: metaIcon },
-        { id: "fb_camp4", name: "AUTO | Meta | DR | DMV | HV | VC | LD", icon: metaIcon },
-        { id: "fb_camp5", name: "atmt | atrz | RAM | Sep09 | $29 | c2 | SP", icon: metaIcon },
-        { id: "fb_camp6", name: "auto | meta | rt | sv1f | atnk | jan08 | c3", icon: metaIcon },
-        { id: "fb_camp7", name: "Auto | Meta | $29 | atnk | aug04 | c1 | gw | sc2", icon: metaIcon },
-      ];
-    case "snap":
-      return [
-        { id: "snap_camp1", name: "Snap | Brand | Mar09 | c2", icon: snapchatIcon },
-        { id: "snap_camp2", name: "Snap | Stories | May15 | Promo", icon: snapchatIcon },
-        { id: "snap_camp3", name: "Snap | Discover | Jun22 | c3", icon: snapchatIcon },
-      ];
-    case "tiktok":
-      return [
-        { id: "tiktok_camp1", name: "TikTok | Trend | Apr23 | c1", icon: tiktokIcon },
-        { id: "tiktok_camp2", name: "TikTok | Viral | Jul01 | c5", icon: tiktokIcon },
-      ];
-    case "google":
-      return [
-        { id: "google_camp1", name: "GGL | Search | Q2 | c4", icon: googleIcon },
-        { id: "google_camp2", name: "GGL | Display | Jun15 | c2", icon: googleIcon },
-      ];
-    case "newsbreak":
-      return [
-        { id: "nb_camp1", name: "auto | NB | dl | vk | feb17 | C3", icon: nbIcon },
-        { id: "nb_camp2", name: "NB | Local | Oct20 | c1", icon: nbIcon },
-      ];
-    default:
-      return [];
-  }
-}
-
 function getCampaignIcon(campaignId) {
   if (campaignId.startsWith("fb_")) return metaIcon;
   if (campaignId.startsWith("snap_")) return snapchatIcon;
   if (campaignId.startsWith("tiktok_")) return tiktokIcon;
   if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
   if (campaignId.startsWith("nb_")) return nbIcon;
-  return metaIcon;
-}
-
-function formatCampaignName(platform, campaignId) {
-  const all = getMockCampaigns(platform);
-  const match = all.find((c) => c.id === campaignId);
-  if (match) return match.name;
-  return campaignId.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
+  return snapchatIcon;
 }
 
 /* ---------------- component ---------------- */
@@ -195,6 +154,9 @@ export default function EditRuleForm() {
 
   // Campaigns
   const [campaigns, setCampaigns] = useState([]);
+  const [catalog, setCatalog] = useState({ snap: null }); // { snap: { accounts: {...}, total_campaigns, fetched_at } }
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
 
   // Action (budget) fields
   const [actionType, setActionType] = useState("");
@@ -208,11 +170,6 @@ export default function EditRuleForm() {
   const searchInputRef = useRef(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
-  const filteredCampaigns = useMemo(() => {
-    const list = getMockCampaigns(selectedPlatform);
-    if (!campaignSearchTerm) return list;
-    return list.filter((c) => c.name.toLowerCase().includes(campaignSearchTerm.toLowerCase()));
-  }, [selectedPlatform, campaignSearchTerm]);
 
   // multi-select Add Campaigns dropdown
   const campaignDropdownRef = useRef(null);
@@ -230,6 +187,84 @@ export default function EditRuleForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // fetch live Snapchat campaigns from /api/campaigns on mount
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        setLoadingCatalog(true);
+        setCatalogError("");
+        const res = await fetch(`${API_BASE}/api/campaigns`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Failed to load campaigns");
+        if (!isMounted) return;
+        // payload shape:
+        // { platform:"snap", accounts:{[acctId]:{account_name, campaigns:[{id,name,status,...}] }}, total_campaigns, fetched_at }
+        setCatalog({ snap: data });
+      } catch (e) {
+        if (isMounted) setCatalogError(String(e?.message || e));
+      } finally {
+        if (isMounted) setLoadingCatalog(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // flatten helpers from catalog
+  const snapCampaignList = useMemo(() => {
+    const snap = catalog.snap;
+    if (!snap?.accounts) return [];
+    const rows = [];
+    Object.entries(snap.accounts).forEach(([acctId, group]) => {
+      (group?.campaigns || []).forEach((c) => {
+        rows.push({
+          id: c.id, // Snapchat ID (not stored)
+          name: c.name || c.id,
+          status: (c.status || "").toUpperCase(),
+          accountId: acctId,
+          accountName: group?.account_name || acctId,
+          icon: snapchatIcon,
+        });
+      });
+    });
+    return rows;
+  }, [catalog]);
+
+  // derive a general list by platform (for future Meta)
+  const campaignsByPlatform = useMemo(() => {
+    return {
+      snap: snapCampaignList,
+      // meta: metaCampaignList (when you add /api/meta later)
+    };
+  }, [snapCampaignList]);
+
+  // searchable list uses live data
+  const filteredCampaigns = useMemo(() => {
+    if (!selectedPlatform) return [];
+    const list = campaignsByPlatform[selectedPlatform] || [];
+    if (!campaignSearchTerm) return list;
+    return list.filter((c) => (c.name || "").toLowerCase().includes(campaignSearchTerm.toLowerCase()));
+  }, [selectedPlatform, campaignSearchTerm, campaignsByPlatform]);
+
+  // we store names (or bulk tokens), so just echo them when rendering.
+  function formatCampaignName(_platform, storedValue) {
+    return storedValue;
+  }
+
+  // dynamic "Add Active / Add Paused" from live data
+  function getCampaignOptionsByPlatform(selectedPlatform) {
+    if (!selectedPlatform) return [];
+    const list = campaignsByPlatform[selectedPlatform] || [];
+    const activeCount = list.filter((c) => c.status === "ACTIVE").length;
+    const pausedCount = list.filter((c) => c.status === "PAUSED").length;
+    return [
+      { id: BULK_ACTIVE, name: `Add Active (${activeCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "active" },
+      { id: BULK_PAUSED, name: `Add Paused (${pausedCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "paused" },
+    ];
+  }
+
   /* ------ load Firestore doc (edit mode) ------ */
   useEffect(() => {
     if (!ruleId || !colName) return;
@@ -237,7 +272,6 @@ export default function EditRuleForm() {
     const unsub = onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
       const d = snap.data();
-
       const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
       setSelectedPlatform(platform);
       setRuleName(d.name || "");
@@ -262,6 +296,16 @@ export default function EditRuleForm() {
     return () => unsub();
   }, [ruleId, colName]);
 
+  // close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchInputRef.current && !searchInputRef.current.contains(e.target)) setIsSearchOpen(false);
+      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(e.target)) setShowCampaignDropdown(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   /* ------ conditions handlers ------ */
   const addConditionRow = () => {
     setConditions((prev) => [
@@ -278,27 +322,35 @@ export default function EditRuleForm() {
     });
   };
 
-  /* ------ campaign handlers ------ */
+  /* ------ campaigns handlers ------ */
   const handleCampaignSelect = (campaign) => {
-    setCampaigns((prev) => (prev.includes(campaign.id) ? prev : [...prev, campaign.id]));
+    const name = campaign.name || campaign.id;
+    if (name === BULK_ACTIVE || name === BULK_PAUSED) return;
+    setCampaigns((prev) => (prev.includes(name) ? prev : [...prev, name]));
     setIsSearchOpen(false);
     setCampaignSearchTerm("");
   };
+
   const handleAddSelectedCampaigns = () => {
+    const tokensToAdd = new Set();
+    selectedCampaignOptions.forEach((optId) => {
+      if (optId === BULK_ACTIVE) tokensToAdd.add(BULK_ACTIVE);
+      if (optId === BULK_PAUSED) tokensToAdd.add(BULK_PAUSED);
+    });
     setCampaigns((prev) => {
-      const next = [...prev];
-      selectedCampaignOptions.forEach((id) => {
-        if (!next.includes(id)) next.push(id);
-      });
-      return next;
+      const next = new Set(prev);
+      tokensToAdd.forEach((token) => next.add(token));
+      return Array.from(next);
     });
     setSelectedCampaignOptions([]);
     setShowCampaignDropdown(false);
   };
+
   const handleCampaignOptionChange = (optionId, checked) => {
     setSelectedCampaignOptions((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
   };
   const clearCampaignSelection = () => setSelectedCampaignOptions([]);
+
   const removeCampaign = (index) => setCampaigns((prev) => prev.filter((_, i) => i !== index));
 
   /* ------ save -> Firestore via services/config.js ------ */
@@ -316,9 +368,9 @@ export default function EditRuleForm() {
           .map((c) => ({
             type: "value",
             metric: c.metric,
-            operator: c.operator, // "Greater or Equal" | "Less or Equal" | "Equal to" | "Greater" | "Less"
+            operator: c.operator,
             value: c.value,
-            unit: c.unit, // "none" | "%" | "$" | "days"
+            unit: c.unit,
             target: c.target || "",
           })),
       actionType,
@@ -439,9 +491,9 @@ export default function EditRuleForm() {
                                   <SelectItem value="roi">ROI</SelectItem>
                                   <SelectItem value="roas">ROAS</SelectItem>
                                   <SelectItem value="cpr">CPR</SelectItem>
-                                  <SelectItem value="lpepc">LPCPC</SelectItem>
+                                  <SelectItem value="lpcpc">LPCPC</SelectItem>
                                   <SelectItem value="epc">EPC</SelectItem>
-                                  <SelectItem value="cost">COST</SelectItem>
+                                  <SelectItem value="spend">COST</SelectItem>
                                   <SelectItem value="revenue">REVENUE</SelectItem>
                                 </SelectGroup>
 
@@ -658,10 +710,11 @@ export default function EditRuleForm() {
             {/* 4. Apply Rule */}
             <div className="mb-8">
               <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">4</div>
+                <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
+                  3
+                </div>
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
               </div>
-
               <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                 <div className="space-y-4">
                   <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
@@ -670,17 +723,15 @@ export default function EditRuleForm() {
                   <div ref={searchInputRef} className="relative">
                     <div
                         className="border border-gray-300 rounded-md flex items-center px-3 py-2 cursor-pointer"
-                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}
-                    >
+                        onClick={() => selectedPlatform && setIsSearchOpen((s) => !s)}>
                       <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-500">
-                      {selectedPlatform ? "Search campaign..." : "Select a platform to search"}
-                    </span>
+                                          {selectedPlatform ? "Search campaigns..." : "Select a platform to search"}
+                                        </span>
                       <ChevronDown className="h-4 w-4 text-gray-400 ml-auto" />
                     </div>
-
                     {isSearchOpen && (
-                        <div className="absolute z-50 mt-1 w/full bg-white rounded-md shadow-lg border border-gray-200">
+                        <div className="absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200">
                           <div className="p-2 border-b border-gray-100">
                             <div className="relative">
                               <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -699,15 +750,20 @@ export default function EditRuleForm() {
                                     <div
                                         key={c.id}
                                         className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
-                                        onClick={() => handleCampaignSelect(c)}
+                                        onClick={() => handleCampaignSelect(c)} // live name
                                     >
-                                      <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
+                                      <img src={c.icon || snapchatIcon} alt="" className="w-5 h-5 mr-2" />
                                       <span className="text-sm">{c.name}</span>
+                                      <span className="ml-auto text-xs text-gray-500">{c.status}</span>
                                     </div>
                                 ))
                             ) : (
                                 <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                  {!selectedPlatform ? "Select a platform to see available campaigns" : "No campaigns match your search"}
+                                  {!selectedPlatform
+                                      ? "Select a platform to see available campaigns"
+                                      : loadingCatalog
+                                          ? "Loading…"
+                                          : "No campaigns match your search"}
                                 </div>
                             )}
                           </div>
@@ -718,16 +774,15 @@ export default function EditRuleForm() {
                   {/* Selected campaigns */}
                   {campaigns.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
-                        {campaigns.map((cid, index) => (
+                        {campaigns.map((storedValue, index) => (
                             <Badge
-                                key={cid}
+                                key={storedValue}
                                 variant="secondary"
-                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
-                            >
-                              <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                              <img src={getCampaignIcon(storedValue)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                               <span className="truncate max-w-[160px] sm:max-w-none">
-                          {formatCampaignName(selectedPlatform, cid)}
-                        </span>
+                                                  {formatCampaignName(selectedPlatform, storedValue)}
+                                                </span>
                               <Button
                                   variant="ghost"
                                   size="sm"
@@ -741,7 +796,7 @@ export default function EditRuleForm() {
                       </div>
                   )}
 
-                  {/* Add Campaigns multi-select */}
+                  {/* Add Campaigns multi-select (GRAY panel) */}
                   <div className="relative" ref={campaignDropdownRef}>
                     <Button
                         variant="outline"
@@ -757,30 +812,17 @@ export default function EditRuleForm() {
                       <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       Add Campaigns
                     </Button>
-
                     {showCampaignDropdown && (
                         <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                          {/* Search */}
-                          <div className="p-3">
-                            <div className="relative">
-                              <input
-                                  type="text"
-                                  placeholder="Search..."
-                                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md bg-white"
-                                  value={searchCampaign}
-                                  onChange={(e) => setSearchCampaign(e.target.value)}
-                              />
-                              <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                            </div>
-                          </div>
-
                           {/* Header */}
                           <div className="px-3 py-2 border-t border-gray-100">
                             <div className="flex justify-between">
                               <span className="text-sm text-gray-600">Found:</span>
                               <button
                                   className={`text-sm px-3 py-1 rounded-md ${
-                                      selectedCampaignOptions.length > 0 ? "text-blue-600 hover:bg-gray-100" : "text-gray-400 cursor-not-allowed"
+                                      selectedCampaignOptions.length > 0
+                                          ? "text-blue-600 hover:bg-gray-100"
+                                          : "text-gray-400 cursor-not-allowed"
                                   }`}
                                   onClick={handleAddSelectedCampaigns}
                                   disabled={selectedCampaignOptions.length === 0}
@@ -789,8 +831,7 @@ export default function EditRuleForm() {
                               </button>
                             </div>
                           </div>
-
-                          {/* Options */}
+                          {/* Options (ACTIVE/PAUSED counts from live data) */}
                           <div className="max-h-60 overflow-y-auto">
                             {getCampaignOptionsByPlatform(selectedPlatform)
                                 .filter(
@@ -799,7 +840,10 @@ export default function EditRuleForm() {
                                         (opt.name || "").toLowerCase().includes(searchCampaign.toLowerCase())
                                 )
                                 .map((opt) => (
-                                    <label key={opt.id} className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer">
+                                    <label
+                                        key={opt.id}
+                                        className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
+                                    >
                                       <input
                                           type="checkbox"
                                           className="mr-1"
@@ -816,13 +860,11 @@ export default function EditRuleForm() {
                                 </div>
                             )}
                           </div>
-
                           {/* Footer */}
                           <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
                             <button
                                 className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
-                                onClick={clearCampaignSelection}
-                            >
+                                onClick={clearCampaignSelection}>
                               Clear
                             </button>
                           </div>

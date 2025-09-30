@@ -27,7 +27,6 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 // Firestore
 import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-// NOTE: addConfig decides the collection based on platform+type; we don't need getCollectionName here
 import { addConfig } from "@/services/config.js";
 
 /* ---------------- helpers ---------------- */
@@ -39,6 +38,11 @@ const PLATFORM_OPTIONS = [
     { value: "google", label: "Google", icon: googleIcon },
     { value: "newsbreak", label: "News Break", icon: nbIcon },
 ];
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+
+const BULK_ACTIVE = "All_Active_Campaigns";
+const BULK_PAUSED = "All_Pause_Campaigns";
 
 function parseIncomingCondition(raw, index) {
     const base = {
@@ -130,86 +134,13 @@ const ALL_METRICS = [
     { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
-/** Mock campaigns (replace with API later) */
-function getMockCampaigns(platform) {
-    switch (platform) {
-        case "meta":
-            return [
-                { id: "fb_camp1", name: "atmt | atrz | RAM | Sep15 | $19 | c1", icon: metaIcon },
-                { id: "fb_camp2", name: "atmt | $29 | atnk | sep09 | c3", icon: metaIcon },
-                { id: "fb_camp3", name: "Auto | meta | atrz | LT | Aug16 | C4 | $19", icon: metaIcon },
-                { id: "fb_camp4", name: "AUTO | Meta | DR | DMV | HV | VC | LD", icon: metaIcon },
-                { id: "fb_camp5", name: "atmt | atrz | RAM | Sep09 | $29 | c2 | SP", icon: metaIcon },
-                { id: "fb_camp6", name: "auto | meta | rt | sv1f | atnk | jan08 | c3", icon: metaIcon },
-                { id: "fb_camp7", name: "Auto | Meta | $29 | atnk | aug04 | c1 | gw | sc2", icon: metaIcon },
-            ];
-        case "snap":
-            return [
-                { id: "snap_camp1", name: "Snap | Brand | Mar09 | c2", icon: snapchatIcon },
-                { id: "snap_camp2", name: "Snap | Stories | May15 | Promo", icon: snapchatIcon },
-                { id: "snap_camp3", name: "Snap | Discover | Jun22 | c3", icon: snapchatIcon },
-            ];
-        case "tiktok":
-            return [
-                { id: "tiktok_camp1", name: "TikTok | Trend | Apr23 | c1", icon: tiktokIcon },
-                { id: "tiktok_camp2", name: "TikTok | Viral | Jul01 | c5", icon: tiktokIcon },
-            ];
-        case "google":
-            return [
-                { id: "google_camp1", name: "GGL | Search | Q2 | c4", icon: googleIcon },
-                { id: "google_camp2", name: "GGL | Display | Jun15 | c2", icon: googleIcon },
-            ];
-        case "newsbreak":
-            return [
-                { id: "nb_camp1", name: "auto | NB | dl | vk | feb17 | C3", icon: nbIcon },
-                { id: "nb_camp2", name: "NB | Local | Oct20 | c1", icon: nbIcon },
-            ];
-        default:
-            return [];
-    }
-}
-
 function getCampaignIcon(campaignId) {
     if (campaignId.startsWith("fb_")) return metaIcon;
     if (campaignId.startsWith("snap_")) return snapchatIcon;
     if (campaignId.startsWith("tiktok_")) return tiktokIcon;
     if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
     if (campaignId.startsWith("nb_")) return nbIcon;
-    return metaIcon;
-}
-
-function formatCampaignName(platform, campaignId) {
-    const all = getMockCampaigns(platform);
-    const match = all.find((c) => c.id === campaignId);
-    if (match) return match.name;
-    return campaignId.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
-}
-
-function getCampaignOptionsByPlatform(selectedPlatform) {
-    if (!selectedPlatform) return [];
-    const byPlatform = {
-        meta: [
-            { id: "facebook_active", name: "Add Active (0)", icon: metaIcon, status: "active" },
-            { id: "facebook_paused", name: "Add Paused (0)", icon: metaIcon, status: "paused" },
-        ],
-        snap: [
-            { id: "snapchat_active", name: "Add Active (0)", icon: snapchatIcon, status: "active" },
-            { id: "snapchat_paused", name: "Add Paused (0)", icon: snapchatIcon, status: "paused" },
-        ],
-        tiktok: [
-            { id: "tiktok_active", name: "Add Active (0)", icon: tiktokIcon, status: "active" },
-            { id: "tiktok_paused", name: "Add Paused (0)", icon: tiktokIcon, status: "paused" },
-        ],
-        google: [
-            { id: "google_active", name: "Add Active (0)", icon: googleIcon, status: "active" },
-            { id: "google_paused", name: "Add Paused (0)", icon: googleIcon, status: "paused" },
-        ],
-        newsbreak: [
-            { id: "newsbreak_active", name: "Add Active (0)", icon: nbIcon, status: "active" },
-            { id: "newsbreak_paused", name: "Add Paused (0)", icon: nbIcon, status: "paused" },
-        ],
-    };
-    return byPlatform[selectedPlatform] || [];
+    return snapchatIcon;
 }
 
 /* ---------------- component ---------------- */
@@ -226,29 +157,110 @@ export default function EditRuleFormPause() {
     const [ruleName, setRuleName] = useState("");
     const [selectedPlatform, setSelectedPlatform] = useState("");
     const [scheduleInterval, setScheduleInterval] = useState("");
-
     const [conditions, setConditions] = useState([
         { id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" },
     ]);
-
     const [campaigns, setCampaigns] = useState([]);
+
+    const [catalog, setCatalog] = useState({ snap: null }); // { snap: { accounts: {...}, total_campaigns, fetched_at } }
+    const [loadingCatalog, setLoadingCatalog] = useState(false);
+    const [catalogError, setCatalogError] = useState("");
 
     // Campaign search dropdown
     const searchInputRef = useRef(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
 
-    const filteredCampaigns = useMemo(() => {
-        const list = getMockCampaigns(selectedPlatform);
-        if (!campaignSearchTerm) return list;
-        return list.filter((c) => c.name.toLowerCase().includes(campaignSearchTerm.toLowerCase()));
-    }, [selectedPlatform, campaignSearchTerm]);
-
     // multi-select Add Campaigns dropdown
     const campaignDropdownRef = useRef(null);
     const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
     const [searchCampaign, setSearchCampaign] = useState("");
     const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
+
+    // fetch live Snapchat campaigns from /api/campaigns on mount ***
+    useEffect(() => {
+        let isMounted = true;
+        (async () => {
+            try {
+                setLoadingCatalog(true);
+                setCatalogError("");
+                const res = await fetch(`${API_BASE}/api/campaigns`, { cache: "no-store" });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || "Failed to load campaigns");
+                if (!isMounted) return;
+                // payload shape from our endpoint:
+                // { platform:"snap", accounts:{[acctId]:{account_name, campaigns:[{id,name,status,...}] }}, total_campaigns, fetched_at }
+                setCatalog({ snap: data });
+            } catch (e) {
+                if (isMounted) setCatalogError(String(e?.message || e));
+            } finally {
+                if (isMounted) setLoadingCatalog(false);
+            }
+        })();
+        return () => { isMounted = false; };
+    }, []);
+
+    // 🔵 *** CHANGE: flatten helpers from catalog ***
+    const snapCampaignList = useMemo(() => {
+        const snap = catalog.snap;
+        if (!snap?.accounts) return [];
+        const rows = [];
+        Object.entries(snap.accounts).forEach(([acctId, group]) => {
+            (group?.campaigns || []).forEach((c) => {
+                rows.push({
+                    id: c.id,            // note: Snapchat ids don't start with "snap_"
+                    name: c.name || c.id,
+                    status: (c.status || "").toUpperCase(),
+                    accountId: acctId,
+                    accountName: group?.account_name || acctId,
+                    icon: snapchatIcon,
+                });
+            });
+        });
+        return rows;
+    }, [catalog]);
+
+    // 🔵 *** CHANGE: derive a general list by platform (for future Meta) ***
+    const campaignsByPlatform = useMemo(() => {
+        return {
+            snap: snapCampaignList,
+            // meta: metaCampaignList (when you add /api/meta later)
+        };
+    }, [snapCampaignList]);
+
+    // 🔵 *** CHANGE: searchable list uses live data instead of mocks ***
+    const filteredCampaigns = useMemo(() => {
+        if (!selectedPlatform) return [];
+        const list = campaignsByPlatform[selectedPlatform] || [];
+        if (!campaignSearchTerm) return list;
+        return list.filter((c) => (c.name || "").toLowerCase().includes(campaignSearchTerm.toLowerCase()));
+    }, [selectedPlatform, campaignSearchTerm, campaignsByPlatform]);
+
+    // 🔵 *** CHANGE: name lookup for badges (so we can display real names by id) ***
+    const nameLookup = useMemo(() => {
+        const map = new Map();
+        Object.values(campaignsByPlatform).forEach((arr) => {
+            (arr || []).forEach((c) => map.set(c.id, c.name));
+        });
+        return map;
+    }, [campaignsByPlatform]);
+
+    function formatCampaignName(_platform, storedValue) {
+        return storedValue;
+    }
+
+    // 🔵 *** CHANGE: dynamic "Add Active / Add Paused" counts from live data ***
+    function getCampaignOptionsByPlatform(selectedPlatform) {
+        if (!selectedPlatform) return [];
+        const list = campaignsByPlatform[selectedPlatform] || [];
+        const activeCount = list.filter((c) => c.status === "ACTIVE").length;
+        const pausedCount = list.filter((c) => c.status === "PAUSED").length;
+
+        return [
+            { id: BULK_ACTIVE, name: `Add Active (${activeCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "active" },
+            { id: BULK_PAUSED, name: `Add Paused (${pausedCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "paused" },
+        ];
+    }
 
     // Load Firestore doc if editing (use colName passed from dashboard; DO NOT wait for platform)
     useEffect(() => {
@@ -306,19 +318,26 @@ export default function EditRuleFormPause() {
     };
 
     /* ------ Campaigns ------ */
+    // 🟢 *** CHANGE: when a user clicks an item in the search dropdown, use the real id ***
     const handleCampaignSelect = (campaign) => {
-        setCampaigns((prev) => (prev.includes(campaign.id) ? prev : [...prev, campaign.id]));
+        const name = campaign.name || campaign.id;
+        setCampaigns((prev) => (prev.includes(name) ? prev : [...prev, name]));
         setIsSearchOpen(false);
         setCampaignSearchTerm("");
     };
 
+    // "Add Active/Paused" bulk add using the dynamic options ***
     const handleAddSelectedCampaigns = () => {
+        const tokensToAdd = new Set();
+        selectedCampaignOptions.forEach((optId) => {
+            if (optId === BULK_ACTIVE) tokensToAdd.add(BULK_ACTIVE);
+            if (optId === BULK_PAUSED) tokensToAdd.add(BULK_PAUSED);
+        });
+
         setCampaigns((prev) => {
-            const next = [...prev];
-            selectedCampaignOptions.forEach((id) => {
-                if (!next.includes(id)) next.push(id);
-            });
-            return next;
+            const next = new Set(prev);
+            tokensToAdd.forEach((token) => next.add(token));
+            return Array.from(next);
         });
         setSelectedCampaignOptions([]);
         setShowCampaignDropdown(false);
@@ -340,7 +359,7 @@ export default function EditRuleFormPause() {
             id: ruleId || crypto.randomUUID(),
             name: ruleName || "Unnamed Pause Campaign",
             status: "Running",
-            type: "Pause campaign",
+            type: "Pause campaigns",
             platform: selectedPlatform || "meta",
             frequency: scheduleInterval,
             campaigns,
@@ -483,9 +502,9 @@ export default function EditRuleFormPause() {
                                                             <SelectItem value="roi">ROI</SelectItem>
                                                             <SelectItem value="roas">ROAS</SelectItem>
                                                             <SelectItem value="cpr">CPR</SelectItem>
-                                                            <SelectItem value="lpepc">LPCPC</SelectItem>
+                                                            <SelectItem value="lpcpc">LPCPC</SelectItem>
                                                             <SelectItem value="epc">EPC</SelectItem>
-                                                            <SelectItem value="cost">COST</SelectItem>
+                                                            <SelectItem value="spend">COST</SelectItem>
                                                             <SelectItem value="revenue">REVENUE</SelectItem>
                                                         </SelectGroup>
 
@@ -649,6 +668,7 @@ export default function EditRuleFormPause() {
 
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-4">
+
                                 <Label className="text-sm font-medium text-gray-700 block">Apply Rule to Campaigns</Label>
 
                                 {/* Campaign Search Dropdown */}
@@ -659,7 +679,7 @@ export default function EditRuleFormPause() {
                                     >
                                         <SearchIcon className="h-4 w-4 text-gray-400 mr-2" />
                                         <span className="text-sm text-gray-500">
-                                          {selectedPlatform ? "Search campaign..." : "Select a platform to search"}
+                                          {selectedPlatform ? "Search campaigns..." : "Select a platform to search"}
                                         </span>
                                         <ChevronDown className="h-4 w-4 text-gray-400 ml-auto" />
                                     </div>
@@ -685,17 +705,20 @@ export default function EditRuleFormPause() {
                                                         <div
                                                             key={c.id}
                                                             className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
-                                                            onClick={() => handleCampaignSelect(c)}
+                                                            onClick={() => handleCampaignSelect(c)} // 🔵 live id/name
                                                         >
-                                                            <img src={c.icon} alt="" className="w-5 h-5 mr-2" />
+                                                            <img src={c.icon || snapchatIcon} alt="" className="w-5 h-5 mr-2" />
                                                             <span className="text-sm">{c.name}</span>
+                                                            <span className="ml-auto text-xs text-gray-500">{c.status}</span>
                                                         </div>
                                                     ))
                                                 ) : (
                                                     <div className="px-3 py-4 text-center text-gray-500 text-sm">
                                                         {!selectedPlatform
                                                             ? "Select a platform to see available campaigns"
-                                                            : "No campaigns match your search"}
+                                                            : loadingCatalog
+                                                                ? "Loading…"
+                                                                : "No campaigns match your search"}
                                                     </div>
                                                 )}
                                             </div>
@@ -706,15 +729,15 @@ export default function EditRuleFormPause() {
                                 {/* Selected campaigns */}
                                 {campaigns.length > 0 && (
                                     <div className="flex flex-wrap gap-2 mb-4">
-                                        {campaigns.map((cid, index) => (
+                                        {campaigns.map((storedValue, index) => (
                                             <Badge
-                                                key={cid}
+                                                key={storedValue}
                                                 variant="secondary"
                                                 className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
                                             >
-                                                <img src={getCampaignIcon(cid)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                <img src={getCampaignIcon(storedValue)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                                                 <span className="truncate max-w-[160px] sm:max-w-none">
-                                                  {formatCampaignName(selectedPlatform, cid)}
+                                                  {formatCampaignName(selectedPlatform, storedValue)}
                                                 </span>
                                                 <Button
                                                     variant="ghost"
@@ -766,7 +789,7 @@ export default function EditRuleFormPause() {
                                                 </div>
                                             </div>
 
-                                            {/* Options */}
+                                            {/* Options (ACTIVE/PAUSED counts from live data) */}
                                             <div className="max-h-60 overflow-y-auto">
                                                 {getCampaignOptionsByPlatform(selectedPlatform)
                                                     .filter(
@@ -789,7 +812,6 @@ export default function EditRuleFormPause() {
                                                             <span className="text-sm">{opt.name}</span>
                                                         </label>
                                                     ))}
-
                                                 {getCampaignOptionsByPlatform(selectedPlatform).length === 0 && (
                                                     <div className="px-3 py-4 text-center text-gray-500 text-sm">
                                                         Select a platform to see available campaigns
@@ -809,6 +831,7 @@ export default function EditRuleFormPause() {
                                         </div>
                                     )}
                                 </div>
+
                             </div>
                         </div>
                     </div>
