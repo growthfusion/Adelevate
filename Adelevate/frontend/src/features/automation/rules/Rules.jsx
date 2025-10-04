@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Plus, Copy, Trash2, Search as SearchIcon } from "lucide-react";
+import { SquarePen } from 'lucide-react';
+
 
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
@@ -245,7 +247,7 @@ const RulesDashboard = () => {
         }
     };
 
-    const openRuleForEdit = async (rule) => {
+ const ruleEdit = async (rule) => {
         const target = routeForType(rule.type);
         navigate(target, { state: { id: rule.id, colName: rule.__colName, mode: "edit" } });
         if (user?.email) {
@@ -256,6 +258,7 @@ const RulesDashboard = () => {
             });
         }
     };
+
 
     const renderConditions = (rule) => {
         const conds = rule.condition || rule.conditions || [];
@@ -407,6 +410,9 @@ const RulesDashboard = () => {
 
                                                     {/* quick actions */}
                                                     <div className="flex items-center gap-1 ml-2">
+                                                      <button className="p-1 hover:bg-gray-100 rounded" onClick={() => ruleEdit(rule)}>
+                                                           <SquarePen  className="w-4 h-4 text-gray-600" />
+                                                        </button>
                                                         <button className="p-1 hover:bg-gray-100 rounded">
                                                             <Copy className="w-4 h-4 text-blue-500" />
                                                         </button>
