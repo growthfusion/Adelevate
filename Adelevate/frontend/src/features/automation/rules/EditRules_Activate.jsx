@@ -105,6 +105,7 @@ const TRACKER_METRICS = [
     { value: "lpcpc", label: "LPCPC" },
     { value: "cost", label: "COST" },
     { value: "revenue", label: "REVENUE" },
+    { value: "profit", label: "PROFIT" },
 ];
 
 const ALL_METRICS = [
@@ -466,6 +467,7 @@ export default function EditRuleFormActivate() {
                                                             <SelectItem value="epc">EPC</SelectItem>
                                                             <SelectItem value="spend">COST</SelectItem>
                                                             <SelectItem value="revenue">REVENUE</SelectItem>
+                                                            <SelectItem value="profit">PROFIT</SelectItem>
                                                         </SelectGroup>
                                                         <SelectSeparator />
                                                         <SelectGroup>

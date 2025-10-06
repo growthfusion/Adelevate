@@ -6,7 +6,7 @@ const SERVICE_ACCOUNT = {
     project_id: process.env.GCP_PROJECT_ID,
     private_key_id: process.env.GCP_PRIVATE_KEY_ID,
     private_key: process.env.GCP_PRIVATE_KEY,
-    client_email: process.env.GCP_CLIENT_EMAIL,
+    client_email: "pristine-lodge-459019-p4@appspot.gserviceaccount.com",
     client_id: process.env.GCP_CLIENT_ID,
     auth_uri: "https://accounts.google.com/o/oauth2/auth",
     token_uri: "https://oauth2.googleapis.com/token",
