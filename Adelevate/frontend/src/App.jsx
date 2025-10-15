@@ -3,7 +3,7 @@ import SlideSidebar from "./components/slide-sidebar";
 import Page from "./features/dashboard/Page";
 import LoginPage from "./components/login";
 import RulesDashboard from "./features/automation/rules/Rules";
-//import LogsDashboard from "./features/logs/logs_table";
+import LogsDashboard from "@/features/table_logs/logs_table";
 import ActionLogsDashboard from "./features/action_logs/Alogs";
 import EditRuleFormActivate from "./features/automation/rules/EditRules_Activate";
 import EditRuleFormBudget from "./features/automation/rules/EditRules_Budget";
@@ -29,6 +29,7 @@ function App() {
                                     <Route path="editActivate" element={<EditRuleFormActivate />} />
                                     <Route path="editBudget" element={<EditRuleFormBudget />} />
                                     <Route path="editPause" element={<EditRuleFormPause />} />
+                                    <Route path="log" element={<LogsDashboard />} />
                                     <Route path="actionlog" element={<ActionLogsDashboard />} />
                                 </Routes>
                             </main>
