@@ -8,19 +8,17 @@ const Page = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if a session exists
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
         setUser(data.session.user);
       } else {
-        navigate('/login'); // Redirect if not logged in
+        navigate('/login'); 
       }
     });
 
-    // Listen to auth changes (optional: to handle logout from other tabs)
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        navigate('/login'); // Redirect on logout
+        navigate('/login'); 
       }
     });
 
@@ -30,10 +28,9 @@ const Page = () => {
   }, [navigate]);
 
   const handleLogout = async () => {
-    // Sign out from Supabase
     await supabase.auth.signOut();
-    localStorage.removeItem('supabase-session'); // Clear session
-    navigate('/login'); // Redirect to login page
+    localStorage.removeItem(''); 
+    navigate('/login'); 
   };
 
   return (

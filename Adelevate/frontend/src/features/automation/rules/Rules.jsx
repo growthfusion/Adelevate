@@ -1,8 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Plus, Copy, Trash2, Search as SearchIcon } from "lucide-react";
+import { 
+  ChevronDown, 
+  Plus, 
+  Copy, 
+  Trash2, 
+  Search as SearchIcon 
+} from "lucide-react";
 import { SquarePen } from 'lucide-react';
-
 
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
@@ -18,7 +23,44 @@ import { supabase } from "@/supabaseClient";
 import { db } from "@/firebase";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 
-const comparisonSymbol = { gte: "≥", lte: "≤", eq: "=" };
+// Get comparison symbol with styling
+const getComparisonSymbol = (operator) => {
+  let symbol = "";
+  let colorClass = "";
+  
+  switch(operator) {
+    case "gt":
+    case "Greater":
+      symbol = ">";
+      colorClass = "text-green-600";
+      break;
+    case "gte":
+    case "Greater or Equal":
+      symbol = "≥";
+      colorClass = "text-green-600";
+      break;
+    case "lt":
+    case "Less":
+      symbol = "<";
+      colorClass = "text-red-600";
+      break;
+    case "lte":
+    case "Less or Equal":
+      symbol = "≤";
+      colorClass = "text-red-600";
+      break;
+    case "eq":
+    case "Equal to":
+      symbol = "=";
+      colorClass = "text-blue-600";
+      break;
+    default:
+      symbol = "=";
+      colorClass = "text-gray-600";
+  }
+  
+  return <span className={`font-bold text-lg ${colorClass}`}>{symbol}</span>;
+};
 
 const normalizeStatus = (s) => {
     const v = typeof s === "string" ? s.trim().toLowerCase() : s;
@@ -65,10 +107,9 @@ const PlatformIcon = ({ platform }) => {
     return <img src={src} alt={key} title={key} className="w-5 h-5" />;
 };
 
-// helper: unique key for a rule across collections
 const ruleKey = (r) => `${r.__colName}::${r.id}`;
 
-// fixed order for collections
+
 const COLLECTION_ORDER = [
     "meta_pause_campaign",
     "meta_active_campaign",
@@ -144,7 +185,7 @@ const RulesDashboard = () => {
         return () => unsubs.forEach((unsub) => unsub());
     }, []);
 
-    // scroll tracker
+
     useEffect(() => {
         const handleScroll = () => {
             if (headerRef.current) {
@@ -247,7 +288,7 @@ const RulesDashboard = () => {
         }
     };
 
- const ruleEdit = async (rule) => {
+    const ruleEdit = async (rule) => {
         const target = routeForType(rule.type);
         navigate(target, { state: { id: rule.id, colName: rule.__colName, mode: "edit" } });
         if (user?.email) {
@@ -259,17 +300,31 @@ const RulesDashboard = () => {
         }
     };
 
-
+    // Updated renderConditions function with text symbols
     const renderConditions = (rule) => {
         const conds = rule.condition || rule.conditions || [];
         return conds.map((c) => {
             if (typeof c === "string") return c;
+            
             const m = (c.metric || "").toString().toUpperCase();
-            const sym = comparisonSymbol[c.comparison] || "=";
+            const operator = c.comparison || c.operator || "eq";
             const thr = c.threshold ?? c.value ?? "";
-            return `${m} ${sym} ${thr}`;
+            
+            return (
+                <div className="inline-flex items-center gap-1">
+                    <span>{m}</span> 
+                    <span className="mx-1">{getComparisonSymbol(operator)}</span> 
+                    <span>{thr}</span>
+                </div>
+            );
         });
     };
+
+
+
+    const CloneCoditions = (rule) =>{
+        
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -411,7 +466,7 @@ const RulesDashboard = () => {
                                                     {/* quick actions */}
                                                     <div className="flex items-center gap-1 ml-2">
                                                       <button className="p-1 hover:bg-gray-100 rounded" onClick={() => ruleEdit(rule)}>
-                                                           <SquarePen  className="w-4 h-4 text-gray-600" />
+                                                           <SquarePen className="w-4 h-4 text-gray-600" />
                                                         </button>
                                                         <button className="p-1 hover:bg-gray-100 rounded">
                                                             <Copy className="w-4 h-4 text-blue-500" />
@@ -425,7 +480,7 @@ const RulesDashboard = () => {
 
                                             <td className="py-3 px-3 border-r border-gray-200">
                                                 <button
-                                                    onClick={() => openRuleForEdit(rule)}
+                                                    onClick={() => ruleEdit(rule)}
                                                     className="text-left hover:text-blue-600 transition-colors font-medium text-sm text-gray-900"
                                                 >
                                                     {rule.name || `Unnamed ${rule.type}`}
@@ -433,22 +488,22 @@ const RulesDashboard = () => {
                                             </td>
 
                                             <td className="py-3 px-3 border-r border-gray-200">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus)}`}>
-                            {displayStatus}
-                          </span>
+                                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayStatus)}`}>
+                                                {displayStatus}
+                                              </span>
                                             </td>
 
                                             <td className="text-sm text-gray-600 py-3 px-3 border-r border-gray-200">{rule.type}</td>
 
                                             <td className="py-3 px-3 border-r border-gray-200">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {renderConditions(rule).map((txt, i) => (
+                                                    {renderConditions(rule).map((condElement, i) => (
                                                         <span
                                                             key={`${k}-c${i}`}
-                                                            className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(txt, i)}`}
+                                                            className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor("", i)}`}
                                                         >
-                                {txt}
-                              </span>
+                                                            {condElement}
+                                                        </span>
                                                     ))}
                                                 </div>
                                             </td>

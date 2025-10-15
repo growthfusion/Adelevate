@@ -80,7 +80,6 @@ function parseIncomingCondition(raw, index) {
         };
     }
 
-    // String form e.g. "ROI >= 1.5"
     if (typeof raw === "string") {
         const s = raw.trim();
         let operator = "Equal to";
@@ -318,7 +317,7 @@ export default function EditRuleFormPause() {
     };
 
     /* ------ Campaigns ------ */
-    // 🟢 *** CHANGE: when a user clicks an item in the search dropdown, use the real id ***
+    //  *** CHANGE: when a user clicks an item in the search dropdown, use the real id ***
     const handleCampaignSelect = (campaign) => {
         const name = campaign.name || campaign.id;
         setCampaigns((prev) => (prev.includes(name) ? prev : [...prev, name]));
@@ -380,6 +379,7 @@ export default function EditRuleFormPause() {
             alert(`Error saving: ${e.message}`);
         }
     };
+
 
     return (
         <>
