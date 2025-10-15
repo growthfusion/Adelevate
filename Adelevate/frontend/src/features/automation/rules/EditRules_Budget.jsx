@@ -106,6 +106,7 @@ const TRACKER_METRICS = [
   { value: "lpcpc", label: "LPCPC" },
   { value: "cost", label: "COST" },
   { value: "revenue", label: "REVENUE" },
+  { value: "profit", label: "PROFIT" },
 ];
 
 const ALL_METRICS = [
@@ -124,13 +125,25 @@ const ALL_METRICS = [
   { value: "fb_impressions", label: "Impressions (FB)" },
 ];
 
-function getCampaignIcon(campaignId) {
-  if (campaignId.startsWith("fb_")) return metaIcon;
-  if (campaignId.startsWith("snap_")) return snapchatIcon;
-  if (campaignId.startsWith("tiktok_")) return tiktokIcon;
-  if (campaignId.startsWith("google_") || campaignId.startsWith("ggl_")) return googleIcon;
-  if (campaignId.startsWith("nb_")) return nbIcon;
-  return snapchatIcon;
+function getCampaignIcon(campaignId, platform) {
+  const id = String(campaignId || "");
+  // Bulk tokens: icon follows the selected platform
+  if (id === BULK_ACTIVE || id === BULK_PAUSED) {
+    switch (platform) {
+      case "meta": return metaIcon;
+      case "snap": return snapchatIcon;
+      case "newsbreak": return nbIcon;
+      case "tiktok": return tiktokIcon;
+      case "google": return googleIcon;
+      default: return metaIcon;
+    }
+  }
+  if (id.startsWith("fb_")) return metaIcon;
+  if (id.startsWith("snap_")) return snapchatIcon;
+  if (id.startsWith("tiktok_")) return tiktokIcon;
+  if (id.startsWith("google_") || id.startsWith("ggl_")) return googleIcon;
+  if (id.startsWith("nb_")) return nbIcon;
+  return platform === "meta" ? metaIcon : platform === "snap" ? snapchatIcon : snapchatIcon;
 }
 
 /* ---------------- component ---------------- */
@@ -154,7 +167,7 @@ export default function EditRuleForm() {
 
   // Campaigns
   const [campaigns, setCampaigns] = useState([]);
-  const [catalog, setCatalog] = useState({ snap: null }); // { snap: { accounts: {...}, total_campaigns, fetched_at } }
+  const [catalog, setCatalog] = useState({ snap: null, meta:null }); // { snap: { accounts: {...}, total_campaigns, fetched_at } }
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [catalogError, setCatalogError] = useState("");
 
@@ -194,13 +207,22 @@ export default function EditRuleForm() {
       try {
         setLoadingCatalog(true);
         setCatalogError("");
-        const res = await fetch(`${API_BASE}/api/campaigns`, { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Failed to load campaigns");
+        const [snapRes, metaRes, nbRes] = await Promise.all([
+          fetch(`${API_BASE}/api/campaigns?platform=snap`, { cache: "no-store" }),
+          fetch(`${API_BASE}/api/campaigns?platform=meta`, { cache: "no-store" }),
+          fetch(`${API_BASE}/api/campaigns?platform=newsbreak`, { cache: "no-store" }),
+        ]);
+        const [snapJson, metaJson, nbJson] = await Promise.all([
+          snapRes.json(),
+          metaRes.json(),
+          nbRes.json(),
+        ]);
+        if (!snapRes.ok) throw new Error(snapJson?.error || "Failed to load Snap campaigns");
+        if (!metaRes.ok) throw new Error(metaJson?.error || "Failed to load Meta campaigns");
+        if (!nbRes.ok) throw new Error(nbJson?.error || "Failed to load NewsBreak campaigns");
         if (!isMounted) return;
-        // payload shape:
-        // { platform:"snap", accounts:{[acctId]:{account_name, campaigns:[{id,name,status,...}] }}, total_campaigns, fetched_at }
-        setCatalog({ snap: data });
+
+        setCatalog({ snap: snapJson, meta: metaJson, newsbreak: nbJson });
       } catch (e) {
         if (isMounted) setCatalogError(String(e?.message || e));
       } finally {
@@ -220,7 +242,7 @@ export default function EditRuleForm() {
     Object.entries(snap.accounts).forEach(([acctId, group]) => {
       (group?.campaigns || []).forEach((c) => {
         rows.push({
-          id: c.id, // Snapchat ID (not stored)
+          id: c.id,
           name: c.name || c.id,
           status: (c.status || "").toUpperCase(),
           accountId: acctId,
@@ -232,15 +254,60 @@ export default function EditRuleForm() {
     return rows;
   }, [catalog]);
 
+  // Meta (BM → accounts → campaigns)
+  const metaCampaignList = useMemo(() => {
+    const meta = catalog.meta;
+    if (!meta?.business_managers) return [];
+    const rows = [];
+    Object.entries(meta.business_managers).forEach(([bmName, bmObj]) => {
+      const accounts = bmObj?.accounts || {};
+      Object.entries(accounts).forEach(([actId, accObj]) => {
+        (accObj?.campaigns || []).forEach((c) => {
+          rows.push({
+            id: c.id, // raw campaign id from Meta
+            name: c.name || c.id,
+            status: (c.status || "").toUpperCase(),
+            accountId: actId,
+            accountName: accObj?.account_name || actId,
+            bmName,
+            icon: metaIcon,
+          });
+        });
+      });
+    });
+    return rows;
+  }, [catalog]);
+
+  // Newbreak Campaign Fetch
+  const newsbreakCampaignList = useMemo(() => {
+    const nb = catalog.newsbreak;
+    if (!nb?.accounts) return [];
+    const rows = [];
+    Object.entries(nb.accounts).forEach(([acctId, group]) => {
+      (group?.campaigns || []).forEach((c) => {
+        rows.push({
+          id: c.id,
+          name: c.name || c.id,
+          status: (c.status || "").toUpperCase(),
+          accountId: acctId,
+          accountName: group?.account_name || acctId,
+          icon: nbIcon, // NewsBreak icon
+        });
+      });
+    });
+    return rows;
+  }, [catalog]);
+
   // derive a general list by platform (for future Meta)
   const campaignsByPlatform = useMemo(() => {
     return {
       snap: snapCampaignList,
-      // meta: metaCampaignList (when you add /api/meta later)
+      meta: metaCampaignList,
+      newsbreak: newsbreakCampaignList,
     };
-  }, [snapCampaignList]);
+  }, [snapCampaignList, metaCampaignList, newsbreakCampaignList]);
 
-  // searchable list uses live data
+  // searchable list uses live data instead of mocks ***
   const filteredCampaigns = useMemo(() => {
     if (!selectedPlatform) return [];
     const list = campaignsByPlatform[selectedPlatform] || [];
@@ -248,20 +315,52 @@ export default function EditRuleForm() {
     return list.filter((c) => (c.name || "").toLowerCase().includes(campaignSearchTerm.toLowerCase()));
   }, [selectedPlatform, campaignSearchTerm, campaignsByPlatform]);
 
-  // we store names (or bulk tokens), so just echo them when rendering.
   function formatCampaignName(_platform, storedValue) {
-    return storedValue;
+    if (storedValue === BULK_ACTIVE || storedValue === BULK_PAUSED) return storedValue;
+    const s = String(storedValue ?? "");
+    const firstBar = s.indexOf("|");
+    if (firstBar >= 0) {
+      // keep EVERYTHING after the first pipe so names with additional pipes render fully
+      return s.slice(firstBar + 1).trim();
+    }
+    return s;
+  }
+
+  function toPlainCampaignName(value) {
+    const s = String(value ?? "");
+    if (s === BULK_ACTIVE || s === BULK_PAUSED) return s; // keep bulk tokens
+    const firstBar = s.indexOf("|");
+    return firstBar >= 0 ? s.slice(firstBar + 1).trim() : s;
   }
 
   // dynamic "Add Active / Add Paused" from live data
   function getCampaignOptionsByPlatform(selectedPlatform) {
     if (!selectedPlatform) return [];
     const list = campaignsByPlatform[selectedPlatform] || [];
+
     const activeCount = list.filter((c) => c.status === "ACTIVE").length;
-    const pausedCount = list.filter((c) => c.status === "PAUSED").length;
+
+    // pausedCount depends on platform
+    let pausedCount = 0;
+    if (selectedPlatform === "newsbreak") {
+      pausedCount = list.filter((c) => c.status === "INACTIVE").length;
+    } else {
+      pausedCount = list.filter((c) => c.status === "PAUSED").length;
+    }
+
+    let platformIcon;
+    switch (selectedPlatform) {
+      case "meta": platformIcon = metaIcon; break;
+      case "snap": platformIcon = snapchatIcon; break;
+      case "newsbreak": platformIcon = nbIcon; break;
+      case "tiktok": platformIcon = tiktokIcon; break;
+      case "google": platformIcon = googleIcon; break;
+      default: platformIcon = metaIcon;
+    }
+
     return [
-      { id: BULK_ACTIVE, name: `Add Active (${activeCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "active" },
-      { id: BULK_PAUSED, name: `Add Paused (${pausedCount})`, icon: selectedPlatform === "snap" ? snapchatIcon : metaIcon, status: "paused" },
+      { id: BULK_ACTIVE, name: `Add Active (${activeCount})`, icon: platformIcon, status: "active" },
+      { id: BULK_PAUSED, name: `Add Paused (${pausedCount})`, icon: platformIcon, status: "paused" },
     ];
   }
 
@@ -322,11 +421,22 @@ export default function EditRuleForm() {
     });
   };
 
-  /* ------ campaigns handlers ------ */
+  /* ------ campaigns ------ */
   const handleCampaignSelect = (campaign) => {
-    const name = campaign.name || campaign.id;
-    if (name === BULK_ACTIVE || name === BULK_PAUSED) return;
-    setCampaigns((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    const cleanName = campaign.name || campaign.id;
+    const token =
+        selectedPlatform === "meta"
+            ? `fb_${campaign.id}|${cleanName}`
+            : selectedPlatform === "snap"
+                ? `snap_${campaign.id}|${cleanName}`
+                : selectedPlatform === "newsbreak"
+                    ? `nb_${campaign.id}|${cleanName}`
+                    : cleanName;
+    setCampaigns((prev) => {
+      const displayName = toPlainCampaignName(token);
+      const already = prev.some((v) => toPlainCampaignName(v) === displayName);
+      return already ? prev : [...prev, token];
+    });
     setIsSearchOpen(false);
     setCampaignSearchTerm("");
   };
@@ -355,6 +465,8 @@ export default function EditRuleForm() {
 
   /* ------ save -> Firestore via services/config.js ------ */
   const handleSave = async () => {
+    const campaignsToPersist = campaigns.map(toPlainCampaignName);
+
     const uiPayload = {
       id: ruleId || crypto.randomUUID(),
       name: ruleName || "Unnamed Change Budget",
@@ -362,7 +474,7 @@ export default function EditRuleForm() {
       type: "Change Campaign Budget",
       platform: selectedPlatform || "meta",
       frequency: scheduleInterval,
-      campaigns,
+      campaigns: campaignsToPersist,
       conditions: conditions
           .filter((c) => c.metric && c.operator && c.value !== "")
           .map((c) => ({
@@ -495,6 +607,7 @@ export default function EditRuleForm() {
                                   <SelectItem value="epc">EPC</SelectItem>
                                   <SelectItem value="spend">COST</SelectItem>
                                   <SelectItem value="revenue">REVENUE</SelectItem>
+                                  <SelectItem value="profit">PROFIT</SelectItem>
                                 </SelectGroup>
 
                                 <SelectSeparator />
@@ -779,16 +892,20 @@ export default function EditRuleForm() {
                                 key={storedValue}
                                 variant="secondary"
                                 className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                              <img src={getCampaignIcon(storedValue)} alt="" className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {/* Use getCampaignIcon with null platform so it detects icon from ID */}
+                              <img
+                                  src={getCampaignIcon(storedValue, selectedPlatform)}
+                                  alt=""
+                                  className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
+                              />
                               <span className="truncate max-w-[160px] sm:max-w-none">
-                                                  {formatCampaignName(selectedPlatform, storedValue)}
+                                                    {formatCampaignName(selectedPlatform, storedValue)}
                                                 </span>
                               <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-4 w-4 p-0 hover:bg-blue-200 flex-shrink-0"
-                                  onClick={() => removeCampaign(index)}
-                              >
+                                  onClick={() => removeCampaign(index)}>
                                 <X className="w-3 h-3" />
                               </Button>
                             </Badge>
