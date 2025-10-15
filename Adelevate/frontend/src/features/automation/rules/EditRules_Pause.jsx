@@ -80,6 +80,7 @@ function parseIncomingCondition(raw, index) {
         };
     }
 
+    // String form e.g. "ROI >= 1.5"
     if (typeof raw === "string") {
         const s = raw.trim();
         let operator = "Equal to";
@@ -442,7 +443,6 @@ export default function EditRuleFormPause() {
             alert(`Error saving: ${e.message}`);
         }
     };
-
 
     return (
         <>
