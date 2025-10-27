@@ -8,7 +8,6 @@ import AdvancedFilterPanel from './components/AdvancedFilterPanel';
 import PerformanceAnalysisPanel from './components/PerformanceAnalysisPanel';
 import TrendVisualizationPanel from './components/TrendVisualizationPanel';
 import CorrelationMatrix from './components/CorrelationMatrix';
-import AIInsightsPanel from './components/AIInsightsPanel';
 import CustomMetricCalculator from './components/CustomMetricCalculator';
 import { Button } from "@/components/ui/button";
 
@@ -326,11 +325,7 @@ const PlatformAnalyticsCenter = () => {
           </div>
         </div>
       </div>
-      {/* AI Insights Panel */}
-      <AIInsightsPanel
-        isCollapsed={isAIInsightsCollapsed}
-        onToggleCollapse={() => setIsAIInsightsCollapsed(!isAIInsightsCollapsed)}
-      />
+    
       {/* Custom Metric Calculator Modal */}
       <CustomMetricCalculator
         isOpen={isCustomMetricOpen}

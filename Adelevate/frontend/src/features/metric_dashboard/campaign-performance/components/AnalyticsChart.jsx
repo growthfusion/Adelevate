@@ -40,10 +40,9 @@ const AnalyticsChart = ({ data, className = '' }) => {
   };
 
   return (
-    <div className={`bg-card border border-border rounded-2xl p-6 ${className}`}>
+    <div className={`bg-card border border-border rounded-2xl p-6 ${className} lg:w-[150%] mx-5`}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
-          <span className="text-primary font-bold">📊</span>
           <h3 className="text-lg font-semibold text-foreground">Performance Analytics</h3>
         </div>
         
@@ -109,9 +108,9 @@ const AnalyticsChart = ({ data, className = '' }) => {
         </ResponsiveContainer>
       </div>
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-        <div className="text-sm text-muted-foreground">
+        {/* <div className="text-sm text-muted-foreground">
           Showing {activeMetricConfig?.label?.toLowerCase()} trends for selected period
-        </div>
+        </div> */}
         <Button
           variant="ghost"
           size="sm"
