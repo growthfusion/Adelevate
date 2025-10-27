@@ -5,6 +5,7 @@ import { TbAutomation } from "react-icons/tb";
 import Search from "./search-bar";
 import { MdOutlineDataSaverOff } from "react-icons/md";
 import { MdDataSaverOn } from "react-icons/md";
+import  social from "@/assets/images/dashboard_img/social-media-marketing.png" 
 
 const SlideSidebar = () => {
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
@@ -138,6 +139,19 @@ const SlideSidebar = () => {
               {!isSidebarCollapsed && <span>Action Logs</span>}
             </a>
           </li>
+
+
+          <li>
+            <a href="/campaigns"
+                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                    isSidebarCollapsed ? "justify-center" : "space-x-3"
+                }`}
+                title={isSidebarCollapsed ? "Log" : ""}>
+              <img src={social} alt="" className="w-5 h-5 min-w-[20px]" />
+              {!isSidebarCollapsed && <span>Campaigns</span>}
+            </a>
+          </li>
+
         </ul>
       </nav>
     </>
@@ -237,6 +251,20 @@ const SlideSidebar = () => {
               {!isSidebarCollapsed && <span>Action Logs</span>}
             </a>
           </li>
+
+
+           <li>
+            <a href="/campaigns"
+                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                    isSidebarCollapsed ? "justify-center" : "space-x-3"
+                }`}
+                title={isSidebarCollapsed ? "Log" : ""}>
+              <img src={social} alt="" className="w-6 h-6 min-w-[20px]" />
+              {!isSidebarCollapsed && <span>Campaigns</span>}
+            </a>
+          </li>
+
+          
         </ul>
       </nav>
     </>

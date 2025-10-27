@@ -148,9 +148,7 @@ const PlatformComparison = ({ metricsData = [], chartData = [], className = '' }
       <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white text-lg font-bold">📊</span>
-            </div>
+            
             <div>
               <h3 className="text-lg font-semibold text-foreground">Platform Comparison</h3>
               <p className="text-sm text-muted-foreground">Cross-platform performance analysis</p>
@@ -159,7 +157,7 @@ const PlatformComparison = ({ metricsData = [], chartData = [], className = '' }
           
           <div className="flex items-center space-x-2">
             <div className="flex items-center bg-muted rounded-lg p-1">
-              {['overview', 'detailed', 'ai-analysis']?.map((mode) => (
+              {['overview', 'detailed']?.map((mode) => (
                 <Button
                   key={mode}
                   variant={viewMode === mode ? 'default' : 'ghost'}
@@ -357,25 +355,7 @@ const PlatformComparison = ({ metricsData = [], chartData = [], className = '' }
           </div>
         )}
 
-        {viewMode === 'ai-analysis' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-white text-2xl">🧠</span>
-                </div>
-                <h4 className="text-lg font-semibold text-foreground mb-2">AI-Powered Analysis</h4>
-                <p className="text-muted-foreground mb-4">Get detailed platform comparison insights powered by AI</p>
-                <Button
-                  variant="default"
-                  onClick={() => generatePlatformComparison(comparisonData)}
-                >
-                  Generate Analysis
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+      
       </div>
     </div>
   );

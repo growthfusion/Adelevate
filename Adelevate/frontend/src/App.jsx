@@ -9,10 +9,10 @@ import EditRuleFormActivate from "./features/automation/rules/EditRules_Activate
 import EditRuleFormBudget from "./features/automation/rules/EditRules_Budget";
 import EditRuleFormPause from "./features/automation/rules/EditRules_Pause";
 
+import Campaigns from "./features/campaigns/page";
 
 import CampaignPerformanceHub from "./features/metric_dashboard/campaign-performance/index";
-import PlatformAnalyticsCenter from "./features/metric_dashboard/executive-roi-dashboard/index";
-import ExecutiveROIDashboard from "./features/metric_dashboard/platform-analytics-center";
+
 
 function App() {
     return (
@@ -36,6 +36,7 @@ function App() {
                                     <Route path="editPause" element={<EditRuleFormPause />} />
                                     <Route path="log" element={<LogsDashboard />} />
                                     <Route path="actionlog" element={<ActionLogsDashboard />} />
+                                    <Route path="campaigns" element={<Campaigns />}/>
 
         <Route path="the" element={<CampaignPerformanceHub />} />
        

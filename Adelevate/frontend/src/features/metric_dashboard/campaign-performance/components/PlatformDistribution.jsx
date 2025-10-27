@@ -49,7 +49,6 @@ const PlatformDistribution = ({ className = '' }) => {
       <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
-            <span className="text-primary">📊</span>
             <h3 className="text-lg font-semibold text-foreground">Platform Distribution</h3>
           </div>
           <Button
@@ -109,7 +108,6 @@ const PlatformDistribution = ({ className = '' }) => {
       <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
-            <span className="text-primary">📈</span>
             <h3 className="text-lg font-semibold text-foreground">ROI Comparison</h3>
           </div>
           <Button

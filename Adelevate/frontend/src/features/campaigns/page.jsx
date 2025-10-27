@@ -1,30 +1,20 @@
-import React from "react";
+import { CampaignsToolbar } from "./campaigns-toolbar"
+import  CampaignsTable  from "./campaigns-table"
+import Search from "@/components/search-bar"
 
-
-export default function Page(){
-
-return(
+export default function Campaigns() {
+  return (
     <>
-<div className="min-h-screen flex items-center justify-center">
-    <div className="px-3 py-">
-   <input type="Date" 
-       placeholder="Today"
-   />
-     <input type="Date" 
-       placeholder="Yesterday"
-   />
-
-    <input type="place" 
-       placeholder="Zone"
-   />
-
-   <input 
-    type="Tags"
-    placeholder="Title"/>
-    </div>
-     
-     <button className="bg-blue-600 px-5 py-5 hover:bg-blue-700">Apply</button>
-</div>
+    <Search />
+    <main className="min-h-dvh w-full pt-[60px] ">
+      <div className="mx-auto max-w-[2000px] px-4 py-4">
+        <h1 className="mb-3 text-3xl font-semibold tracking-tight text-pretty">Campaigns</h1>
+        <CampaignsToolbar />
+        <div className="mt-3 rounded-md border bg-card">
+          <CampaignsTable />
+        </div>
+      </div>
+    </main>
     </>
-)
+  )
 }

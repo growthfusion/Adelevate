@@ -308,32 +308,7 @@ const CampaignPerformanceHub = () => {
           <PlatformDistribution />
 
           {/* Enhanced Status Footer */}
-          <div className="mt-8 bg-card/50 backdrop-blur-sm border border-border rounded-xl p-4">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Last updated:</span>
-                  <span className="text-foreground font-medium">{lastUpdated?.toLocaleTimeString()}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                  <span className="text-muted-foreground">All systems operational</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">AI Insights:</span>
-                  <span className="text-success font-medium">Active</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-muted-foreground">Auto-refresh: {autoRefresh === 'off' ? 'Disabled' : `${autoRefresh} min`}</span>
-                <div className="flex items-center space-x-1">
-                  <div className="w-1 h-1 bg-primary rounded-full animate-pulse" />
-                  <div className="w-1 h-1 bg-primary rounded-full animate-pulse delay-75" />
-                  <div className="w-1 h-1 bg-primary rounded-full animate-pulse delay-150" />
-                </div>
-              </div>
-            </div>
-          </div>
+        
         </div>
       </div>
     </>

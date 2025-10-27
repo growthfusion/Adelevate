@@ -151,9 +151,7 @@ const SystemStatusIndicator = ({ className = '', compact = false }) => {
           </span>
         </div>
         
-        <div className="text-xs text-muted-foreground">
-          Last updated {formatLastRefresh(systemHealth?.lastRefresh)}
-        </div>
+       
         
         <Button
           variant="ghost"

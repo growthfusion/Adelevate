@@ -361,12 +361,7 @@ const PerformanceAnalysisPanel = () => {
           </tbody>
         </table>
       </div>
-      <div className="p-4 border-t border-border bg-muted/20">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Showing {sortedData?.length} campaigns across {new Set(sortedData.map(item => item.platform))?.size} platforms</span>
-          <span>Last updated: 2 minutes ago</span>
-        </div>
-      </div>
+   
     </div>
   );
 };
