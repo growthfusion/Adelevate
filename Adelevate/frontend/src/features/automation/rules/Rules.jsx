@@ -14,6 +14,7 @@ import Search from "@/components/search-bar";
 import { logAction } from "@/utils/actionLog";
 import { supabase } from "@/supabaseClient";
 
+
 // Firestore
 import { db } from "@/firebase";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
@@ -36,6 +37,44 @@ function routeForType(t = "") {
     if (s.includes("change_budget")) return "/editBudget";
     return "/editActivate";
 }
+
+const getComparisonSymbol = (operator) => {
+  let symbol = "";
+  let colorClass = "";
+  
+  switch(operator) {
+    case "gt":
+    case "Greater":
+      symbol = ">";
+      colorClass = "text-green-600";
+      break;
+    case "gte":
+    case "Greater or Equal":
+      symbol = "≥";
+      colorClass = "text-green-600";
+      break;
+    case "lt":
+    case "Less":
+      symbol = "<";
+      colorClass = "text-red-600";
+      break;
+    case "lte":
+    case "Less or Equal":
+      symbol = "≤";
+      colorClass = "text-red-600";
+      break;
+    case "eq":
+    case "Equal to":
+      symbol = "=";
+      colorClass = "text-blue-600";
+      break;
+    default:
+      symbol = "=";
+      colorClass = "text-gray-600";
+  }
+  
+  return <span className={`font-bold text-lg ${colorClass}`}>{symbol}</span>;
+};
 
 // platform icons
 const PLATFORM_ICONS = {
@@ -100,6 +139,8 @@ const sortRulesStable = (a, b) => {
     const bn = String(b.name || b.id || "");
     return an.localeCompare(bn);
 };
+
+
 
 const RulesDashboard = () => {
     const navigate = useNavigate();
@@ -260,16 +301,72 @@ const RulesDashboard = () => {
     };
 
 
-    const renderConditions = (rule) => {
+    // const renderConditions = (rule) => {
+    //     const conds = rule.condition || rule.conditions || [];
+    //     return conds.map((c) => {
+    //         if (typeof c === "string") return c;
+    //         const m = (c.metric || "").toString().toUpperCase();
+    //         const sym = comparisonSymbol[c.comparison] || "=";
+    //         const thr = c.threshold ?? c.value ?? "";
+    //         return `${m} ${sym} ${thr}`;
+    //     });
+    // };
+
+
+   const renderConditions = (rule) => {
         const conds = rule.condition || rule.conditions || [];
         return conds.map((c) => {
             if (typeof c === "string") return c;
+            
             const m = (c.metric || "").toString().toUpperCase();
-            const sym = comparisonSymbol[c.comparison] || "=";
+            const operator = c.comparison || c.operator || "eq";
             const thr = c.threshold ?? c.value ?? "";
-            return `${m} ${sym} ${thr}`;
+            
+            return (
+                <div className="inline-flex items-center gap-1">
+                    <span>{m}</span> 
+                    <span className="mx-1">{getComparisonSymbol(operator)}</span> 
+                    <span>{thr}</span>
+                </div>
+            );
         });
+
+
+        
     };
+//footer
+
+const [currentPage, setCurrentPage] = useState(1);
+const [rowsPerPage, setRowsPerPage] = useState(10);
+const [rowsDropdownOpen, setRowsDropdownOpen] = useState(false);
+const rowsDropdownRef = useRef(null);
+
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (rowsDropdownRef.current && !rowsDropdownRef.current.contains(event.target)) {
+      setRowsDropdownOpen(false);
+    }
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
+
+const totalPages = Math.ceil(rules.length / rowsPerPage);
+const paginatedRules = rules.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+const goToNextPage = () => {
+  if (currentPage < totalPages) {
+    setCurrentPage(currentPage + 1);
+  }
+};
+
+const goToPrevPage = () => {
+  if (currentPage > 1) {
+    setCurrentPage(currentPage - 1);
+  }
+};
+
+
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -380,13 +477,14 @@ const RulesDashboard = () => {
                                 <th className="w-24 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">Status</th>
                                 <th className="w-40 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">Type</th>
                                 <th className="w-80 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">Conditions</th>
-                                <th className="w-32 font-medium text-gray-700 p-3 text-left">Frequency</th>
-                                <th className="w-32 font-medium text-gray-700 p-3 text-left">Platform</th>
+                                <th className="w-32 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">Frequency</th>
+                                <th className="w-32 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">Platform</th>
                             </tr>
                             </thead>
-                            <tbody>
-                            {rules.length > 0 ? (
-                                rules.map((rule, index) => {
+                            
+<tbody>
+{paginatedRules.length > 0 ? (
+    paginatedRules.map((rule, index) => {
                                     const displayStatus = normalizeStatus(rule.status);
                                     const k = ruleKey(rule);
                                     return (
@@ -409,7 +507,7 @@ const RulesDashboard = () => {
                                                     </label>
 
                                                     {/* quick actions */}
-                                                    <div className="flex items-center gap-1 ml-2">
+                                                    {/* <div className="flex items-center gap-1 ml-2">
                                                       <button className="p-1 hover:bg-gray-100 rounded" onClick={() => ruleEdit(rule)}>
                                                            <SquarePen  className="w-4 h-4 text-gray-600" />
                                                         </button>
@@ -419,13 +517,63 @@ const RulesDashboard = () => {
                                                         <button className="p-1 hover:bg-gray-100 rounded" onClick={() => deleteRule(rule)}>
                                                             <Trash2 className="w-4 h-4 text-red-500" />
                                                         </button>
-                                                    </div>
+                                                    </div> */}
+
+                                                        <div className="flex items-center gap-1 ml-2">
+  <div className="relative group">
+    <button
+      className="p-1 hover:bg-gray-100 rounded"
+      onClick={() => ruleEdit(rule)}
+    >
+      <SquarePen className="w-4 h-4 text-gray-600" />
+    </button>
+    <span className="absolute -top-8 left-1/2 -translate-x-1/2 
+                     bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded 
+                     shadow opacity-0 group-hover:opacity-100 
+                     pointer-events-none transition-all duration-150 
+                     scale-95 group-hover:scale-100">
+      Edit
+    </span>
+  </div>
+
+  <div className="relative group">
+    <button 
+    className="p-1 hover:bg-gray-100 rounded"
+    >
+      <Copy className="w-4 h-4 text-blue-500" />
+    </button>
+    <span className="absolute -top-8 left-1/2 -translate-x-1/2 
+                     bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded 
+                     shadow opacity-0 group-hover:opacity-100 
+                     pointer-events-none transition-all duration-150 
+                     scale-95 group-hover:scale-100">
+      Clone
+    </span>
+  </div>
+
+  <div className="relative group">
+    <button
+      className="p-1 hover:bg-gray-100 rounded"
+      onClick={() => deleteRule(rule)}
+    >
+      <Trash2 className="w-4 h-4 text-red-500" />
+    </button>
+    <span className="absolute -top-8 left-1/2 -translate-x-1/2 
+                     bg-red-100 text-red-800 text-xs px-2 py-1 rounded 
+                     shadow opacity-0 group-hover:opacity-100 
+                     pointer-events-none transition-all duration-150 
+                     scale-95 group-hover:scale-100">
+      Delete
+    </span>
+  </div>
+</div>
+
                                                 </div>
                                             </td>
 
                                             <td className="py-3 px-3 border-r border-gray-200">
                                                 <button
-                                                    onClick={() => openRuleForEdit(rule)}
+                                                    // onClick={() => openRuleForEdit(rule)}
                                                     className="text-left hover:text-blue-600 transition-colors font-medium text-sm text-gray-900"
                                                 >
                                                     {rule.name || `Unnamed ${rule.type}`}
@@ -453,10 +601,10 @@ const RulesDashboard = () => {
                                                 </div>
                                             </td>
 
-                                            <td className="text-sm text-gray-600 py-3 px-3">{rule.frequency}</td>
+                                            <td className="text-sm text-gray-600 border-r border-gray-200 py-3 px-3">{rule.frequency}</td>
 
-                                            <td className="py-3 px-3">
-                                                <div className="flex items-center">
+                                            <td className="py-3 px-3 border-r border-gray-200">
+                                                <div className="flex items-center justify-center">
                                                     <PlatformIcon platform={rule.platform} />
                                                 </div>
                                             </td>
@@ -465,16 +613,16 @@ const RulesDashboard = () => {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan="9" className="py-6 text-center text-gray-500">
-                                        No rules found. Create a new rule to get started.
-                                    </td>
-                                </tr>
-                            )}
-                            </tbody>
+        <td colSpan="9" className="py-6 text-center text-gray-500">
+            No rules found. Create a new rule to get started.
+        </td>
+    </tr>
+)}
+</tbody>
                         </table>
 
                         {/* Footer */}
-                        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+                        {/* <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
                             <div className="text-sm text-gray-600">Total: {rules.length}</div>
                             <div className="flex items-center gap-2">
                                 <div></div>
@@ -498,7 +646,99 @@ const RulesDashboard = () => {
                                     <button className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm">›</button>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
+{/* Footer */}
+<div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+  <div className="text-sm text-gray-600">Total: {rules.length}</div>
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-gray-600">Rows per page:</span>
+    <div className="relative" ref={rowsDropdownRef}>
+      <button 
+        className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm"
+        onClick={() => setRowsDropdownOpen(!rowsDropdownOpen)}
+      >
+        {rowsPerPage} <ChevronDown className="w-3 h-3" />
+      </button>
+      {rowsDropdownOpen && (
+        <div className="absolute right-0 top-full mt-1 bg-white border shadow-lg rounded-md z-10 p-2">
+          {[5, 10, 25, 50, 100].map((num) => (
+            <button 
+              key={num}
+              className={`block w-full text-left px-3 py-1 hover:bg-gray-50 ${
+                rowsPerPage === num ? 'bg-blue-50 text-blue-600' : ''
+              }`}
+              onClick={() => {
+                setRowsPerPage(num);
+                setCurrentPage(1); 
+                setRowsDropdownOpen(false);
+              }}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+    <div className="flex items-center gap-1 ml-4">
+      <button 
+        className={`px-3 py-1 border rounded-md text-sm flex items-center justify-center ${
+          currentPage === 1 
+            ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+        }`}
+        onClick={goToPrevPage}
+        disabled={currentPage === 1}
+      >
+        &#8249;
+      </button>
+      
+      {/* Page numbers */}
+      <div className="flex items-center space-x-1">
+        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+          // Show pages around current page
+          let pageNum = currentPage;
+          if (totalPages <= 5) {
+            pageNum = i + 1;
+          } else if (currentPage <= 3) {
+            pageNum = i + 1;
+          } else if (currentPage >= totalPages - 2) {
+            pageNum = totalPages - 4 + i;
+          } else {
+            pageNum = currentPage - 2 + i;
+          }
+          
+          return (
+            <button
+              key={pageNum}
+              className={`px-3 py-1 border ${
+                currentPage === pageNum 
+                  ? 'bg-blue-600 text-white border-blue-600 rounded-full' 
+                  : 'bg-white text-gray-700 border-gray-300 rounded-md hover:bg-gray-50'
+              }`}
+              onClick={() => setCurrentPage(pageNum)}
+            >
+              {pageNum}
+            </button>
+          );
+        })}
+      </div>
+      
+      <button 
+        className={`px-3 py-1 border rounded-md text-sm flex items-center justify-center ${
+          currentPage === totalPages || totalPages === 0 
+            ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' 
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+        }`}
+        onClick={goToNextPage}
+        disabled={currentPage === totalPages || totalPages === 0}
+      >
+        &#8250;
+      </button>
+    </div>
+  </div>
+</div>
+
+                        
                     </div>
                 </div>
             </div>
