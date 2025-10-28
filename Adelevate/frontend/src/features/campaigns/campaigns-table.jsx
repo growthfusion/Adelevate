@@ -351,10 +351,7 @@ function CampaignsTable({ platformFilter = [] }) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Campaign Analytics</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Showing {pageRows.length} of {sortedData.length} campaigns
-              {platformFilter.length > 0 && ` (filtered by ${platformFilter.join(', ')})`}
-            </p>
+           
           </div>
           
           {/* Controls */}
@@ -497,8 +494,8 @@ function CampaignsTable({ platformFilter = [] }) {
               {/* Totals Row */}
               <tr className="bg-blue-50 font-medium">
                 <td className={`${cellPadding[density]} text-center text-sm text-gray-600 ${isHidden(0) ? "hidden" : ""}`}>
-                  📊
-                </td>
+
+No                </td>
                 <td className={`${cellPadding[density]} font-bold text-sm text-gray-900 ${isHidden(1) ? "hidden" : ""}`}>
                   Total Summary
                 </td>

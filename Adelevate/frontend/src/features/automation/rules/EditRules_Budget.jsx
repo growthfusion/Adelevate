@@ -190,6 +190,9 @@ export default function EditRuleForm() {
   const [searchCampaign, setSearchCampaign] = useState("");
   const [selectedCampaignOptions, setSelectedCampaignOptions] = useState([]);
 
+
+  const [showTrafficDropdown, setShowTrafficDropdown] = useState(false);
+
   // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e) {
@@ -913,81 +916,123 @@ export default function EditRuleForm() {
                       </div>
                   )}
 
-                  {/* Add Campaigns multi-select (GRAY panel) */}
-                  <div className="relative" ref={campaignDropdownRef}>
-                    <Button
+                   <div className="flex gap-10">
+                    {/* =================== Add Campaigns =================== */}
+                    <div className="relative">
+                      <Button
                         variant="outline"
                         size="sm"
-                        className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto ${
-                            selectedPlatform ? "text-gray-600 bg-transparent" : "text-gray-400 bg-gray-50"
+                        className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
+                          selectedPlatform
+                            ? showCampaignDropdown
+                              ? "text-blue-600 border-blue-400 bg-blue-50"
+                              : "text-gray-600 bg-transparent"
+                            : "text-gray-400 bg-gray-50 cursor-not-allowed"
                         }`}
                         onClick={() => {
-                          if (selectedPlatform) setShowCampaignDropdown((s) => !s);
+                          if (selectedPlatform) {
+                            setShowCampaignDropdown((prev) => !prev);
+                            setShowTrafficDropdown(false); // close other dropdown
+                          }
                         }}
                         disabled={!selectedPlatform}
-                    >
-                      <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                      Add Campaigns
-                    </Button>
-                    {showCampaignDropdown && (
+                      >
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Add Campaigns
+                      </Button>
+                  
+                      {showCampaignDropdown && (
                         <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                          {/* Header */}
-                          <div className="px-3 py-2 border-t border-gray-100">
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">Found:</span>
-                              <button
-                                  className={`text-sm px-3 py-1 rounded-md ${
-                                      selectedCampaignOptions.length > 0
-                                          ? "text-blue-600 hover:bg-gray-100"
-                                          : "text-gray-400 cursor-not-allowed"
-                                  }`}
-                                  onClick={handleAddSelectedCampaigns}
-                                  disabled={selectedCampaignOptions.length === 0}
-                              >
-                                Add
-                              </button>
-                            </div>
+                          <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
+                            <span className="text-sm text-gray-600">Found:</span>
+                            <button
+                              className={`text-sm px-3 py-1 rounded-md ${
+                                selectedCampaignOptions.length > 0
+                                  ? "text-blue-600 hover:bg-gray-100"
+                                  : "text-gray-400 cursor-not-allowed"
+                              }`}
+                              onClick={handleAddSelectedCampaigns}
+                              disabled={selectedCampaignOptions.length === 0}
+                            >
+                              Add
+                            </button>
                           </div>
-                          {/* Options (ACTIVE/PAUSED counts from live data) */}
+                  
                           <div className="max-h-60 overflow-y-auto">
-                            {getCampaignOptionsByPlatform(selectedPlatform)
-                                .filter(
-                                    (opt) =>
-                                        searchCampaign === "" ||
-                                        (opt.name || "").toLowerCase().includes(searchCampaign.toLowerCase())
-                                )
-                                .map((opt) => (
-                                    <label
-                                        key={opt.id}
-                                        className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
-                                    >
-                                      <input
-                                          type="checkbox"
-                                          className="mr-1"
-                                          checked={selectedCampaignOptions.includes(opt.id)}
-                                          onChange={(e) => handleCampaignOptionChange(opt.id, e.target.checked)}
-                                      />
-                                      <img src={opt.icon} alt="" className="w-5 h-5" />
-                                      <span className="text-sm">{opt.name}</span>
-                                    </label>
-                                ))}
-                            {getCampaignOptionsByPlatform(selectedPlatform).length === 0 && (
-                                <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                  Select a platform to see available campaigns
-                                </div>
-                            )}
+                            {getCampaignOptionsByPlatform(selectedPlatform).map((opt) => (
+                              <label
+                                key={opt.id}
+                                className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="mr-1"
+                                  checked={selectedCampaignOptions.includes(opt.id)}
+                                  onChange={(e) =>
+                                    handleCampaignOptionChange(opt.id, e.target.checked)
+                                  }
+                                />
+                                <img src={opt.icon} alt="" className="w-5 h-5" />
+                                <span className="text-sm">{opt.name}</span>
+                              </label>
+                            ))}
                           </div>
-                          {/* Footer */}
+                  
                           <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
                             <button
-                                className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
-                                onClick={clearCampaignSelection}>
+                              className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
+                              onClick={clearCampaignSelection}
+                            >
                               Clear
                             </button>
                           </div>
                         </div>
-                    )}
+                      )}
+                    </div>
+                  
+                    {/* =================== Add Traffic =================== */}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
+                          selectedPlatform
+                            ? showTrafficDropdown
+                              ? "text-blue-600 border-blue-400 bg-blue-50"
+                              : "text-gray-600 bg-transparent"
+                            : "text-gray-400 bg-gray-50 cursor-not-allowed"
+                        }`}
+                        onClick={() => {
+                          if (selectedPlatform) {
+                            setShowTrafficDropdown((prev) => !prev);
+                            setShowCampaignDropdown(false); // close the other dropdown
+                          }
+                        }}
+                        disabled={!selectedPlatform}
+                      >
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                        Add Traffic
+                      </Button>
+                  
+                      {showTrafficDropdown && (
+                        <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
+                          <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
+                            <span className="text-sm text-gray-600">Found:</span>
+                            <button className="text-sm px-3 py-1 rounded-md text-blue-600 hover:bg-gray-100">
+                              Add
+                            </button>
+                          </div>
+                          <div className="max-h-60 overflow-y-auto">
+                            {/* You can use a separate traffic options list here */}
+                            <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                              Traffic options go here
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                
                 </div>
               </div>
             </div>
@@ -1009,7 +1054,8 @@ export default function EditRuleForm() {
                           <SelectValue placeholder="Select interval..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
+                             {selectedPlatform !== "snap" &&(
+                         <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>)}
                           <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
                           <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
                           <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>

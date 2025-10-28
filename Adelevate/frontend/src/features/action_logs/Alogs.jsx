@@ -17,7 +17,7 @@ export default function LogsDashboard() {
 
         fetchLogs();
 
-        // Realtime subscription
+      
         const channel = supabase
             .channel('action-log')
             .on(

@@ -201,6 +201,7 @@ const RulesDashboard = () => {
         { name: "Pause Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" },
         { name: "Activate Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" },
         { name: "Change Campaign Budget", platform: "facebook,google,snapchat,tiktok,newsbreak" },
+        { name: "Exclusion Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" },
     ];
 
     // close dropdown on outside
@@ -365,6 +366,7 @@ const goToPrevPage = () => {
     setCurrentPage(currentPage - 1);
   }
 };
+
 
 
 

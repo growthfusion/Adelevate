@@ -47,7 +47,7 @@ const BULK_PAUSED = "All_Pause_Campaigns";
 function parseIncomingCondition(raw, index) {
     const base = {
         id: index + 1,
-        logic: index === 0 ? "If" : "And",
+        logic: index === 0 ? "If" : "And ",
         metric: "",
         operator: "",
         value: "",
@@ -146,7 +146,7 @@ function getCampaignIcon(campaignId, platform) {
 }
 
 /* ---------- component ---------- */
-export default function EditRuleFormActivate() {
+export default function EditRuleFormExclusion() {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -480,7 +480,7 @@ export default function EditRuleFormActivate() {
                             </div>
                             <div>
                                 <span className="text-lg font-medium text-gray-900">Rule: </span>
-                                <span className="text-lg text-gray-600 font-medium">Activate Campaign</span>
+                                <span className="text-lg text-gray-600 font-medium">Exclusion Campaign</span>
                             </div>
                         </div>
                         {/* Rule Section */}
@@ -931,43 +931,7 @@ export default function EditRuleFormActivate() {
                         </div>
                     </div>
 
-                    {/* Schedule */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                            <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                                4
-                            </div>
-                            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                            <div className="space-y-5 sm:space-y-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
-                                        <Select value={scheduleInterval} onValueChange={setScheduleInterval}>
-                                            <SelectTrigger className="w-full sm:w-[33rem]">
-                                                <SelectValue placeholder="Select interval..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                               {selectedPlatform !== "snap" &&(
-                                                <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>)}
-                                                <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
-                                                <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
-                                                <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
-                                                <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
-                                                <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
-                                                <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
-                                                <SelectItem value="Once Daily (As soon as conditions are met)">
-                                                    Once Daily (As soon as conditions are met)
-                                                </SelectItem>
-                                                <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                   
 
                     {/* Footer actions */}
                     <div className="flex justify-end gap-9 pt-6 pb-[70px]">

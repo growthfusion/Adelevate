@@ -8,6 +8,7 @@ import ActionLogsDashboard from "./features/action_logs/Alogs";
 import EditRuleFormActivate from "./features/automation/rules/EditRules_Activate";
 import EditRuleFormBudget from "./features/automation/rules/EditRules_Budget";
 import EditRuleFormPause from "./features/automation/rules/EditRules_Pause";
+import EditRuleFormExclusion from "./features/automation/rules/ExclusionRules";
 
 import Campaigns from "./features/campaigns/page";
 
@@ -34,6 +35,7 @@ function App() {
                                     <Route path="editActivate" element={<EditRuleFormActivate />} />
                                     <Route path="editBudget" element={<EditRuleFormBudget />} />
                                     <Route path="editPause" element={<EditRuleFormPause />} />
+                                    <Route path="editExclusion" element={<EditRuleFormExclusion />} />
                                     <Route path="log" element={<LogsDashboard />} />
                                     <Route path="actionlog" element={<ActionLogsDashboard />} />
                                     <Route path="campaigns" element={<Campaigns />}/>
