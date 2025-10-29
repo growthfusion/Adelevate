@@ -194,7 +194,159 @@ export default function EditRuleFormPause() {
 
     const [showTrafficDropdown, setShowTrafficDropdown] = useState(false);
 
-    // fetch live Snapchat campaigns from /api/campaigns on mount ***
+
+
+
+    const [showLookBack, setShowLookBack] = useState(false);
+    const [lookBackPeriod, setLookBackPeriod] = useState("7_days");
+    const [selectedDay, setSelectedDay] = useState(null);
+    const [selectionMode, setSelectionMode] = useState(null); // 'start' or 'end'
+    
+    const [customScheduleTime, setCustomScheduleTime] = useState("12:00");
+    const [scheduleTimezone, setScheduleTimezone] = useState("UTC");
+    const [scheduleFrequency, setScheduleFrequency] = useState("daily");
+    const [scheduleDays, setScheduleDays] = useState(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+    
+    // Helper function to format dates for display
+    const formatDateForDisplay = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const options = { month: 'short', day: 'numeric', year: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    };
+    
+    // Calculate day count between two dates
+    const calculateDaysBetween = (startDate, endDate) => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays + 1; // Include both start and end days
+    };
+    
+    // Set default dates for the last 7 days
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    
+    const [startDate, setStartDate] = useState(sevenDaysAgo.toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
+    const [activeLookBack, setActiveLookBack] = useState("Last 7 days");
+    // Calendar days generation
+    const getDaysInMonth = (year, month) => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+    
+    const getFirstDayOfMonth = (year, month) => {
+      return new Date(year, month, 1).getDay();
+    };
+    
+    const generateCalendarDays = (year, month) => {
+      const daysInMonth = getDaysInMonth(year, month);
+      const firstDay = getFirstDayOfMonth(year, month);
+      
+      // Previous month days
+      const prevMonthDays = [];
+      if (firstDay > 0) {
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const prevMonthYear = month === 0 ? year - 1 : year;
+        const daysInPrevMonth = getDaysInMonth(prevMonthYear, prevMonth);
+        
+        for (let i = 0; i < firstDay; i++) {
+          prevMonthDays.push({
+            date: new Date(prevMonthYear, prevMonth, daysInPrevMonth - (firstDay - i - 1)),
+            isCurrentMonth: false
+          });
+        }
+      }
+      
+      // Current month days
+      const currentMonthDays = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        currentMonthDays.push({
+          date: new Date(year, month, i),
+          isCurrentMonth: true
+        });
+      }
+      
+      // Next month days
+      const remainingCells = (6 * 7) - (prevMonthDays.length + currentMonthDays.length);
+      const nextMonthDays = [];
+      const nextMonth = month === 11 ? 0 : month + 1;
+      const nextMonthYear = month === 11 ? year + 1 : year;
+      
+      for (let i = 1; i <= remainingCells; i++) {
+        nextMonthDays.push({
+          date: new Date(nextMonthYear, nextMonth, i),
+          isCurrentMonth: false
+        });
+      }
+      
+      return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
+    };
+    
+    // Current month and year state
+    const currentDate = new Date();
+    const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
+    const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
+    
+    // Days of the week
+    const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    
+    // Month navigation
+    const goToPreviousMonth = () => {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(currentYear - 1);
+      } else {
+        setCurrentMonth(currentMonth - 1);
+      }
+    };
+    
+    const goToNextMonth = () => {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(currentYear + 1);
+      } else {
+        setCurrentMonth(currentMonth + 1);
+      }
+    };
+    
+    // Date selection handler
+    const handleDateSelect = (date) => {
+      const dateString = date.toISOString().split('T')[0];
+      
+      if (selectionMode === 'start' || (!selectionMode && new Date(dateString) < new Date(endDate))) {
+        setStartDate(dateString);
+        setSelectionMode('end');
+      } else {
+        setEndDate(dateString);
+        setSelectionMode(null);
+      }
+    };
+    
+    // Check if a date is selected
+    const isDateSelected = (date) => {
+      const dateString = date.toISOString().split('T')[0];
+      return dateString === startDate || dateString === endDate;
+    };
+    
+    // Check if a date is in the selected range
+    const isDateInRange = (date) => {
+      const dateString = date.toISOString().split('T')[0];
+      return dateString > startDate && dateString < endDate;
+    };
+    
+    // Month names for display
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    // Generate calendar days
+    const calendarDays = generateCalendarDays(currentYear, currentMonth);
+    
+
     useEffect(() => {
         let isMounted = true;
         (async () => {
@@ -765,6 +917,7 @@ export default function EditRuleFormPause() {
                                         </div>
                                     </div>
                                 ))}
+    <div className=" relative flex gap-4">
 
                                 <Button
                                     variant="outline"
@@ -775,6 +928,260 @@ export default function EditRuleFormPause() {
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add
                                 </Button>
+
+                                <div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2"
+                                    onClick={() => setShowLookBack(!showLookBack)}
+                                  >
+                                    <span>Look Back:</span>
+                                    <span className="font-medium whitespace-nowrap">{activeLookBack}</span>
+                                    <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
+                                      {calculateDaysBetween(startDate, endDate)}d
+                                    </span>
+                                  </Button>
+                                  
+                                {showLookBack && (
+                                    <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
+                                      <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
+                                        <span className="text-base font-medium text-gray-800">Look Back Period</span>
+                                        <button 
+                                          className="p-1 h-8 w-8 hover:bg-gray-100 rounded-full flex items-center justify-center" 
+                                          onClick={() => setShowLookBack(false)}
+                                        >
+                                          <span className="text-gray-500 text-lg">×</span>
+                                        </button>
+                                      </div>
+                                      
+                                      <div className="p-4">
+                                        <Select
+                                          value={lookBackPeriod}
+                                          onValueChange={(value) => {
+                                            setLookBackPeriod(value);
+                                            
+                                            // Set default date ranges based on selection
+                                            const today = new Date();
+                                            let start = new Date();
+                                            let displayText = "";
+                                            
+                                            if (value === "today") {
+                                              start = today;
+                                              displayText = "Today";
+                                            } else if (value === "yesterday") {
+                                              start = new Date(today);
+                                              start.setDate(start.getDate() - 1);
+                                              setEndDate(start.toISOString().split('T')[0]);
+                                              displayText = "Yesterday";
+                                            } else if (value === "7_days") {
+                                              start = new Date(today);
+                                              start.setDate(start.getDate() - 7);
+                                              displayText = "Last 7 days";
+                                            } else if (value === "14_days") {
+                                              start = new Date(today);
+                                              start.setDate(start.getDate() - 14);
+                                              displayText = "Last 14 days";
+                                            } else if (value === "30_days") {
+                                              start = new Date(today);
+                                              start.setDate(start.getDate() - 30);
+                                              displayText = "Last 30 days";
+                                            } else if (value === "90_days") {
+                                              start = new Date(today);
+                                              start.setDate(start.getDate() - 90);
+                                              displayText = "Last 90 days";
+                                            } else if (value === "this_month") {
+                                              start = new Date(today.getFullYear(), today.getMonth(), 1);
+                                              displayText = "This month";
+                                            } else if (value === "last_month") {
+                                              start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                                              const end = new Date(today.getFullYear(), today.getMonth(), 0);
+                                              setEndDate(end.toISOString().split('T')[0]);
+                                              displayText = "Last month";
+                                            } else if (value === "this_year") {
+                                              start = new Date(today.getFullYear(), 0, 1);
+                                              displayText = "This year";
+                                            } else if (value === "last_year") {
+                                              start = new Date(today.getFullYear() - 1, 0, 1);
+                                              const end = new Date(today.getFullYear(), 0, 0);
+                                              setEndDate(end.toISOString().split('T')[0]);
+                                              displayText = "Last year";
+                                            } else if (value === "custom") {
+                                              displayText = "Custom range";
+                                            }
+                                            
+                                            if (value !== "yesterday" && value !== "last_month" && value !== "last_year") {
+                                              setEndDate(today.toISOString().split('T')[0]);
+                                            }
+                                            
+                                            if (value !== "custom") {
+                                              setStartDate(start.toISOString().split('T')[0]);
+                                              setActiveLookBack(displayText);
+                                            }
+                                            
+                                            // Apply the look back period to all conditions dynamically
+                                            const updatedConditions = conditions.map(condition => ({
+                                              ...condition,
+                                              lookBackPeriod: value,
+                                              lookBackStart: start.toISOString().split('T')[0],
+                                              lookBackEnd: value !== "yesterday" && value !== "last_month" && value !== "last_year" 
+                                                ? today.toISOString().split('T')[0]
+                                                : (value === "yesterday" 
+                                                  ? start.toISOString().split('T')[0] 
+                                                  : (value === "last_month" 
+                                                      ? new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0]
+                                                      : new Date(today.getFullYear(), 0, 0).toISOString().split('T')[0]))
+                                            }));
+                                            setConditions(updatedConditions);
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-full mb-3">
+                                            <SelectValue placeholder="Select period" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="today">Today</SelectItem>
+                                            <SelectItem value="yesterday">Yesterday</SelectItem>
+                                            <SelectItem value="1_days">Last 1 days</SelectItem>
+                                
+                                            <SelectItem value="7_days">Last 7 days</SelectItem>
+                                            <SelectItem value="14_days">Last 14 days</SelectItem>
+                                            <SelectItem value="30_days">Last 30 days</SelectItem>
+                                            <SelectItem value="90_days">Last 90 days</SelectItem>
+                                            <SelectItem value="this_month">This month</SelectItem>
+                                            <SelectItem value="last_month">Last month</SelectItem>
+                                            <SelectItem value="this_year">This year</SelectItem>
+                                            <SelectItem value="last_year">Last year</SelectItem>
+                                            <SelectItem value="custom">Custom date range</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        
+                                        {/* Display selected date range with day count */}
+                                        <div className="flex flex-col mb-3 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                          <div className="flex justify-between items-center mb-2">
+                                            <div className="flex flex-col">
+                                              <span className="text-xs text-blue-600 font-medium">From</span>
+                                              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(startDate)}</span>
+                                            </div>
+                                            
+                                            <div className="h-8 flex items-center">
+                                              <span className="px-2 text-gray-400">→</span>
+                                            </div>
+                                            
+                                            <div className="flex flex-col text-right">
+                                              <span className="text-xs text-blue-600 font-medium">To</span>
+                                              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(endDate)}</span>
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex items-center justify-end">
+                                            <div className="text-xs px-2 py-0.5 bg-white rounded border border-blue-200 text-blue-700 font-medium">
+                                              {calculateDaysBetween(startDate, endDate)} day{calculateDaysBetween(startDate, endDate) !== 1 ? 's' : ''}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        {lookBackPeriod === "custom" && (
+                                          <div className="mt-4 space-y-4">
+                                            {/* Calendar */}
+                                            <div className="border rounded-lg overflow-hidden shadow-sm">
+                                              {/* Calendar Header */}
+                                              <div className="bg-blue-50 p-3 border-b flex justify-between items-center">
+                                                <button 
+                                                  className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7" 
+                                                  onClick={goToPreviousMonth}
+                                                >
+                                                  <span className="text-blue-600">←</span>
+                                                </button>
+                                                <span className="font-medium text-blue-700">{monthNames[currentMonth]} {currentYear}</span>
+                                                <button 
+                                                  className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7" 
+                                                  onClick={goToNextMonth}
+                                                >
+                                                  <span className="text-blue-600">→</span>
+                                                </button>
+                                              </div>
+                                              
+                                              {/* Calendar Grid */}
+                                              <div className="p-3 bg-white">
+                                                {/* Days of Week */}
+                                                <div className="grid grid-cols-7 mb-1">
+                                                  {daysOfWeek.map((day, index) => (
+                                                    <div key={index} className="text-center text-xs font-medium text-gray-500 py-1">
+                                                      {day}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                                
+                                                {/* Calendar Days */}
+                                                <div className="grid grid-cols-7 gap-1">
+                                                  {calendarDays.map((day, index) => (
+                                                    <button 
+                                                      key={index}
+                                                      type="button"
+                                                      className={`
+                                                        h-9 w-full flex items-center justify-center text-sm rounded-full
+                                                        ${!day.isCurrentMonth ? 'text-gray-400' : 'text-gray-700'}
+                                                        ${isDateSelected(day.date) ? 'bg-blue-600 text-white hover:bg-blue-700' : 'hover:bg-gray-100'}
+                                                        ${isDateInRange(day.date) ? 'bg-blue-100 hover:bg-blue-200' : ''}
+                                                      `}
+                                                      onClick={() => handleDateSelect(day.date)}
+                                                    >
+                                                      {day.date.getDate()}
+                                                    </button>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            
+                                         
+                                            
+                                            {/* Helper text for selection mode */}
+                                            <div className="text-xs text-gray-500 italic mt-2 flex items-center">
+                                              <div className="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></div>
+                                              {selectionMode === 'start' 
+                                                ? 'Select start date' 
+                                                : (selectionMode === 'end' 
+                                                   ? 'Now select end date' 
+                                                   : 'Click dates to select a range')}
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        <div>
+                                            
+                                        </div>
+                                        <div className="mt-4">
+                                          <Button 
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                            onClick={() => {
+                                              // Apply the date range to all conditions
+                                              const updatedConditions = conditions.map(condition => ({
+                                                ...condition,
+                                                lookBackPeriod: lookBackPeriod,
+                                                lookBackStart: startDate,
+                                                lookBackEnd: endDate
+                                              }));
+                                              setConditions(updatedConditions);
+                                              
+                                              // For custom range, update the display text
+                                              if (lookBackPeriod === "custom") {
+                                                const dayCount = calculateDaysBetween(startDate, endDate);
+                                                setActiveLookBack(`Custom range`);
+                                              }
+                                              
+                                              setShowLookBack(false);
+                                            }}
+                                          >
+                                            Apply
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                
+                                       
+                                </div>
+</div>
                             </div>
                         </div>
                     </div>
@@ -1009,32 +1416,127 @@ export default function EditRuleFormPause() {
                         </div>
 
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                            <div className="space-y-5 sm:space-y-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
-                                        <Select value={scheduleInterval} onValueChange={setScheduleInterval}>
-                                            <SelectTrigger className="w-full sm:w-[33rem]">
-                                                <SelectValue placeholder="Select interval..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {selectedPlatform !== "snap" &&(
-                                                <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>)}
-                                                <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
-                                                <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
-                                                <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
-                                                <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
-                                                <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
-                                                <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
-                                                <SelectItem value="Once Daily (As soon as conditions are met)">
-                                                    Once Daily (As soon as conditions are met)
-                                                </SelectItem>
-                                                <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
+                          <div className="space-y-5 sm:space-y-6">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                                      <div className="space-y-2 w-full">
+                                          <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
+                                          <Select value={scheduleInterval} onValueChange={(value) => {
+                                              setScheduleInterval(value);
+                                              // Reset custom time if not custom
+                                              if (value !== "Custom") {
+                                                  setCustomScheduleTime("12:00");
+                                              }
+                                          }}>
+                                              <SelectTrigger className="w-full sm:w-[33rem]">
+                                                  <SelectValue placeholder="Select interval..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                  {selectedPlatform !== "snap" && (
+                                                      <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
+                                                  )}
+                                                  <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
+                                                  <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
+                                                  <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
+                                                  <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
+                                                  <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
+                                                  <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
+                                                  <SelectItem value="Once Daily (As soon as conditions are met)">
+                                                      Once Daily (As soon as conditions are met)
+                                                  </SelectItem>
+                                                  <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
+                                                  <SelectItem value="Daily (At 12:00 PM Local)">Daily (At 12:00 PM IST)</SelectItem>
+                                                  <SelectItem value="Custom">Custom Schedule...</SelectItem>
+                                              </SelectContent>
+                                          </Select>
+                                      </div>
+                                  </div>
+                                  
+                                  {scheduleInterval === "Custom" && (
+                                      <div className="space-y-4 border-t border-gray-200 pt-4">
+                                          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                              <div className="space-y-2">
+                                                  <Label className="text-sm font-medium text-gray-700">Run at specific time</Label>
+                                                  <input
+                                                      type="time"
+                                                      className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-48"
+                                                      value={customScheduleTime}
+                                                      onChange={(e) => setCustomScheduleTime(e.target.value)}
+                                                  />
+                                              </div>
+                                              
+                                              <div className="space-y-2">
+                                                  <Label className="text-sm font-medium text-gray-700">Timezone</Label>
+                                                  <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
+                                                      <SelectTrigger className="w-full sm:w-48">
+                                                          <SelectValue placeholder="Select timezone" />
+                                                      </SelectTrigger>
+                                                      <SelectContent>
+                                                          <SelectItem value="UTC">UTC</SelectItem>
+                                                          <SelectItem value="Local">IST</SelectItem>
+                                                        
+                                                      </SelectContent>
+                                                  </Select>
+                                              </div>
+                                              
+                                              <div className="space-y-2">
+                                                  <Label className="text-sm font-medium text-gray-700">Frequency</Label>
+                                                  <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
+                                                      <SelectTrigger className="w-full sm:w-48">
+                                                          <SelectValue placeholder="Select frequency" />
+                                                      </SelectTrigger>
+                                                      <SelectContent>
+                                                          <SelectItem value="daily">Daily</SelectItem>
+                                                          <SelectItem value="weekdays">Weekdays only</SelectItem>
+                                                          <SelectItem value="weekends">Weekends only</SelectItem>
+                                                          <SelectItem value="custom">Custom days</SelectItem>
+                                                      </SelectContent>
+                                                  </Select>
+                                              </div>
+                                          </div>
+                                          
+                                          {scheduleFrequency === "custom" && (
+                                              <div className="space-y-2">
+                                                  <Label className="text-sm font-medium text-gray-700">Select days</Label>
+                                                  <div className="flex flex-wrap gap-2">
+                                                      {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                                                          <Button
+                                                              key={day}
+                                                              type="button"
+                                                              variant={scheduleDays.includes(day) ? "default" : "outline"}
+                                                              size="sm"
+                                                              onClick={() => {
+                                                                  if (scheduleDays.includes(day)) {
+                                                                      setScheduleDays(scheduleDays.filter(d => d !== day));
+                                                                  } else {
+                                                                      setScheduleDays([...scheduleDays, day]);
+                                                                  }
+                                                              }}
+                                                              className={scheduleDays.includes(day) ? "bg-blue-600" : ""}
+                                                          >
+                                                              {day.substring(0, 3)}
+                                                          </Button>
+                                                      ))}
+                                                  </div>
+                                              </div>
+                                          )}
+                                          
+                                          <div className="pt-2">
+                                              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                                  <div className="font-medium text-blue-800 mb-1">Schedule Summary</div>
+                                                  <p>
+                                                      {scheduleFrequency === "daily" && "Run every day"}
+                                                      {scheduleFrequency === "weekdays" && "Run on weekdays (Mon-Fri)"}
+                                                      {scheduleFrequency === "weekends" && "Run on weekends (Sat-Sun)"}
+                                                      {scheduleFrequency === "custom" && `Run on ${scheduleDays.join(", ")}`}
+                                                      {` at ${customScheduleTime} ${scheduleTimezone}`}
+                                                  </p>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )}
+                                  
+                                 
+                              </div>
                         </div>
                     </div>
 

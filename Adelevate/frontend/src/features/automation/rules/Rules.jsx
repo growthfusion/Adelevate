@@ -35,6 +35,7 @@ function routeForType(t = "") {
     if (s.includes("activate") || s.includes("active")) return "/editActivate";
     if (s.includes("budget")) return "/editBudget";
     if (s.includes("change_budget")) return "/editBudget";
+    if (s.includes("exclusion")) return "/editExclusion";
     return "/editActivate";
 }
 
