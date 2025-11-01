@@ -1,33 +1,61 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/supabaseClient';
 import '@/App.css';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [err, setErr] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { search } = useLocation();
 
-    const handleLogin = async (e) => {
+    React.useEffect(() => {
+        const params = new URLSearchParams(search);
+        const raw = params.get('msg');
+        if (raw) setErr(decodeURIComponent(raw)); // show real provider error if present
+    }, [search]);
+
+    const handlePasswordLogin = async (e) => {
         e.preventDefault();
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+        setErr('');
+        setLoading(true);
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        setLoading(false);
+        if (error) setErr(error.message);
+        else navigate('/dashboard');
+    };
+
+    const handleMicrosoftSSO = async () => {
+        setErr('');
+        setLoading(true);
+
+        const redirect = `${window.location.origin}/auth/callback`;
+        console.log('[Login] redirectTo =', redirect);
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'azure',
+            options: {
+                redirectTo: redirect,
+                scopes: 'openid profile email offline_access',
+                queryParams: { prompt: 'select_account' },
+            },
         });
 
+        setLoading(false);
         if (error) {
-            setError(error.message);
-        } else {
-            localStorage.setItem('supabase-session', JSON.stringify(data.session));
-            navigate('/'); // Redirect to dashboard
+            console.error('[signInWithOAuth] error:', error);
+            setErr(error.message);
         }
     };
 
     return (
         <div className="login-container">
             <h2 className="login-heading">Login</h2>
-            <form onSubmit={handleLogin} className="login-form">
+
+            {/* Email/Password */}
+            <form onSubmit={handlePasswordLogin} className="login-form">
                 <input
                     type="email"
                     placeholder="Email"
@@ -44,11 +72,19 @@ const Login = () => {
                     className="input-field"
                     required
                 />
-                <button type="submit" className="submit-button">
-                    Login
+                <button type="submit" className="submit-button" disabled={loading}>
+                    {loading ? 'Please wait…' : 'Login'}
                 </button>
             </form>
-            {error && <p className="error-message">{error}</p>}
+
+            <div className="divider">or</div>
+
+            {/* Microsoft SSO */}
+            <button onClick={handleMicrosoftSSO} className="submit-button sso-button" disabled={loading}>
+                {loading ? 'Redirecting…' : 'Continue with Microsoft'}
+            </button>
+
+            {err && <p className="error-message">{err}</p>}
         </div>
     );
 };

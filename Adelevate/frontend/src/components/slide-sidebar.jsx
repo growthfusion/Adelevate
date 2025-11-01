@@ -5,7 +5,8 @@ import { TbAutomation } from "react-icons/tb";
 import Search from "./search-bar";
 import { MdOutlineDataSaverOff } from "react-icons/md";
 import { MdDataSaverOn } from "react-icons/md";
-import  social from "@/assets/images/dashboard_img/social-media-marketing.png" 
+import  social from "@/assets/images/dashboard_img/social-media-marketing.png"
+import { KeyRound } from 'lucide-react';
 
 const SlideSidebar = () => {
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
@@ -181,7 +182,7 @@ const SlideSidebar = () => {
           {/* Dashboard */}
           <li>
             <a
-              href="/"
+              href="/dashboard"
               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
                 isSidebarCollapsed ? "justify-center" : "space-x-3"
               }`}
@@ -252,8 +253,7 @@ const SlideSidebar = () => {
             </a>
           </li>
 
-
-           <li>
+          <li>
             <a href="/campaigns"
                 className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
                     isSidebarCollapsed ? "justify-center" : "space-x-3"
@@ -264,6 +264,16 @@ const SlideSidebar = () => {
             </a>
           </li>
 
+          <li>
+            <a href="/authorization"
+               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                   isSidebarCollapsed ? "justify-center" : "space-x-3"
+               }`}
+               title={isSidebarCollapsed ? "Log" : ""}>
+              <KeyRound className="w-5 h-5" />
+              {!isSidebarCollapsed && <span>Authorization</span>}
+            </a>
+          </li>
           
         </ul>
       </nav>

@@ -441,9 +441,9 @@ export default function EditRuleFormExclusion() {
 
         const uiPayload = {
             id: ruleId || crypto.randomUUID(),
-            name: ruleName || "Unnamed Active Campaign",
+            name: ruleName || "Unnamed Exclusion Campaign",
             status: "Running",
-            type: "Activate Campaign",
+            type: "Exclusion Campaign",
             platform: selectedPlatform || "meta",
             frequency: scheduleInterval,
             campaigns: campaignsToPersist,
@@ -455,14 +455,25 @@ export default function EditRuleFormExclusion() {
                 type: "value",
                 target: c.target || "",
             })),
+            // 🔵 CHANGE: explicitly null out unrelated fields
+            lookback: null,
+            schedule: null,
+            actionType: null,
+            actionValue: null,
+            actionUnit: null,
+            actionTarget: null,
+            minBudget: null,
+            maxBudget: null,
         };
+
         try {
-            await addConfig(uiPayload); // service decides collection
+            await addConfig(uiPayload);
             navigate("/rules");
         } catch (e) {
             alert(`Error saving: ${e.message}`);
         }
     };
+
 
     return (
         <>
@@ -524,203 +535,11 @@ export default function EditRuleFormExclusion() {
                         </div>
                     </div>
 
-                    {/* Conditions */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-2 sm:gap-3 mb-6">
-                            <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                                2
-                            </div>
-                            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-                            <div className="space-y-6">
-                                {conditions.map((condition, index) => (
-                                    <div key={condition.id} className="flex flex-col sm:flex-row items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                                        <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
-                                          {condition.logic}
-                                        </span>
-                                        <div className="flex flex-col sm:flex-row w-full gap-3">
-                                            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
-                                                {/* Metric */}
-                                                <Select
-                                                    value={condition.metric}
-                                                    onValueChange={(value) => {
-                                                        const next = [...conditions];
-                                                        next[index].metric = value;
-                                                        setConditions(next);
-                                                    }}
-                                                    className="sm:col-span-2"
-                                                >
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Select Metric" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectGroup>
-                                                            <SelectLabel>Traffic Source Metrics</SelectLabel>
-                                                            <SelectItem value="days_since_creation">Days since creation</SelectItem>
-                                                            <SelectItem value="days_since_started">Days since started</SelectItem>
-                                                            <SelectItem value="days_until_end">Days until end</SelectItem>
-                                                            <SelectItem value="created_date">Created Date</SelectItem>
-                                                            <SelectItem value="start_date">Start Date</SelectItem>
-                                                            <SelectItem value="end_date">End Date</SelectItem>
-                                                            <SelectItem value="tags">Tags</SelectItem>
-                                                            <SelectItem value="campaign_status">Campaign Status</SelectItem>
-                                                            <SelectItem value="budget">Budget</SelectItem>
-                                                        </SelectGroup>
-                                                        <SelectSeparator />
-                                                        <SelectGroup>
-                                                            <SelectLabel>Tracker Metrics</SelectLabel>
-                                                            <SelectItem value="impressions">Impressions</SelectItem>
-                                                            <SelectItem value="clicks">Clicks</SelectItem>
-                                                            <SelectItem value="ctr">CTR</SelectItem>
-                                                            <SelectItem value="conversions">Conversions</SelectItem>
-                                                            <SelectItem value="roi">ROI</SelectItem>
-                                                            <SelectItem value="roas">ROAS</SelectItem>
-                                                            <SelectItem value="cpr">CPR</SelectItem>
-                                                            <SelectItem value="lpcpc">LPCPC</SelectItem>
-                                                            <SelectItem value="epc">EPC</SelectItem>
-                                                            <SelectItem value="spend">COST</SelectItem>
-                                                            <SelectItem value="revenue">REVENUE</SelectItem>
-                                                            <SelectItem value="profit">PROFIT</SelectItem>
-                                                        </SelectGroup>
-                                                        <SelectSeparator />
-                                                        <SelectGroup>
-                                                            <SelectLabel>Facebook Metrics</SelectLabel>
-                                                            <SelectItem value="fb_engagement">Engagement</SelectItem>
-                                                            <SelectItem value="fb_reach">Reach</SelectItem>
-                                                            <SelectItem value="fb_impressions">Impressions</SelectItem>
-                                                        </SelectGroup>
-                                                    </SelectContent>
-                                                </Select>
-                                                {/* 'is' */}
-                                                <div className="flex items-center justify-center">
-                                                    <span className="text-sm text-gray-600">is</span>
-                                                </div>
-                                                {/* Operator */}
-                                                <Select
-                                                    value={condition.operator}
-                                                    onValueChange={(value) => {
-                                                        const next = [...conditions];
-                                                        next[index].operator = value;
-                                                        setConditions(next);
-                                                    }}
-                                                    className="sm:col-span-1"
-                                                >
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Operator" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Greater">Greater</SelectItem>
-                                                        <SelectItem value="Greater or Equal">Greater or Equal</SelectItem>
-                                                        <SelectItem value="Less">Less</SelectItem>
-                                                        <SelectItem value="Less or Equal">Less or Equal</SelectItem>
-                                                        <SelectItem value="Equal to">Equal to</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {/* 'than' */}
-                                                <div className="flex items-center justify-center">
-                                                    <span className="text-sm text-gray-600">than</span>
-                                                </div>
-                                                {/* value + unit (+ optional target when %) */}
-                                                <div className="flex items-center gap-2 sm:col-span-2">
-                                                    <Input
-                                                        value={condition.value}
-                                                        onChange={(e) => {
-                                                            const next = [...conditions];
-                                                            next[index].value = e.target.value;
-                                                            setConditions(next);
-                                                        }}
-                                                        className="w-full"
-                                                        placeholder=""
-                                                    />
-                                                    <Select
-                                                        value={condition.unit}
-                                                        onValueChange={(value) => {
-                                                            const next = [...conditions];
-                                                            next[index].unit = value;
-                                                            if (value !== "%") next[index].target = "";
-                                                            setConditions(next);
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="w-16">
-                                                            <SelectValue placeholder="%" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="none">—</SelectItem>
-                                                            <SelectItem value="%">%</SelectItem>
-                                                            <SelectItem value="$">$</SelectItem>
-                                                            <SelectItem value="days">days</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    {condition.unit === "%" && (
-                                                        <>
-                                                            <span className="text-sm text-gray-600">of</span>
-                                                            <Select
-                                                                value={condition.target}
-                                                                onValueChange={(value) => {
-                                                                    const next = [...conditions];
-                                                                    next[index].target = value;
-                                                                    setConditions(next);
-                                                                }}
-                                                            >
-                                                                <SelectTrigger className="w-56">
-                                                                    <SelectValue placeholder="Select Option" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectGroup>
-                                                                        <SelectLabel>Metrics</SelectLabel>
-                                                                        {ALL_METRICS.map((m) => (
-                                                                            <SelectItem key={m.value} value={m.value}>
-                                                                                {m.label}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectGroup>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                {condition.unit === "%" && !condition.target && (
-                                                    <div className="sm:col-span-6 mt-1">
-                                                        <p className="text-[12px] text-red-500">
-                                                            Type is not valid. Please choose the target metric for “% of”.
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {/* delete row */}
-                                            <div className="flex justify-end mt-3 sm:mt-0">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className={`text-gray-400 p-1 hover:bg-gray-200 ${conditions.length <= 1 ? "opacity-50" : ""}`}
-                                                    onClick={() => removeCondition(condition.id)}
-                                                    disabled={conditions.length <= 1}
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto"
-                                    onClick={addCondition}
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Apply Rule */}
                     <div className="mb-8">
                         <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
                             <div className="min-w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
-                                3
+                                2
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Apply Rule</h2>
                         </div>

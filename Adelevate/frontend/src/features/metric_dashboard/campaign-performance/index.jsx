@@ -253,7 +253,7 @@ const CampaignPerformanceHub = () => {
   return (
     <>
       <Helmet>
-        <title>Performance Analytics Hub - Advanced Multi-Platform Intelligence</title>
+        <title>Dashboard</title>
         <meta name="description" content="Advanced analytics dashboard with AI-powered insights, real-time platform comparison, and strategic optimization recommendations" />
       </Helmet>
       <div className="min-h-screen bg-background">

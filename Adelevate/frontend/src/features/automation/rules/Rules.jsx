@@ -113,18 +113,23 @@ const COLLECTION_ORDER = [
     "meta_pause_campaign",
     "meta_active_campaign",
     "meta_change_budget_campaign",
+    "meta_exclusion_campaign",
     "snap_pause_campaign",
     "snap_active_campaign",
     "snap_change_budget_campaign",
+    "snap_exclusion_campaign",
     "tiktok_pause_campaign",
     "tiktok_active_campaign",
     "tiktok_change_budget_campaign",
+    "tiktok_exclusion_campaign",
     "google_pause_campaign",
     "google_active_campaign",
     "google_change_budget_campaign",
+    "google_exclusion_campaign",
     "newsbreak_pause_campaign",
     "newsbreak_active_campaign",
     "newsbreak_change_budget_campaign",
+    "newsbreak_exclusion_campaign",
 ];
 
 const sortRulesStable = (a, b) => {

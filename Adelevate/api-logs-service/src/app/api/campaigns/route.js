@@ -155,6 +155,20 @@ const BUSINESS_MANAGERS = [
             {"id": "act_575303005054340", "label": "Sharp Ads CHA - A3"},
         ],
     },
+    {
+        "bm_name": "China BM",
+        "access_token": process.env.META_China_BM_Token,
+        "accounts": [
+            {"id": "act_3144464092546266", "label": "RJ -3"},
+            {"id": "act_625844069988263", "label": "TSW Auto Insurance - PST"},
+            {"id": "act_1734318133824884", "label": "SW-TSW-EST3N"},
+            {"id": "act_1018289783162709", "label": "SW-TSW-EST4"},
+            {"id": "act_1085095093436833", "label": "SW-TSW-EST2"},
+            {"id": "act_929396515808029", "label": "SW-TSW-EST1"},
+            {"id": "act_694005663288572", "label": "SW-TSW-EST"},
+            {"id": "act_984339970431964", "label": "Wise - auto"},
+        ],
+    },
 ]
 
 // ---------- META (BM tokens only) ----------

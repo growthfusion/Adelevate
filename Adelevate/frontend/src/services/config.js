@@ -56,6 +56,13 @@ function ensureArray(x) {
     return Array.isArray(x) ? x : (x ? [x] : []);
 }
 
+// normalize AND/OR joiner; first row is always "If"
+function normalizeLogic(val, index) {
+    if (index === 0) return "If";
+    const s = String(val || "AND").toUpperCase();
+    return s === "OR" ? "OR" : "AND";
+}
+
 /* ------------------------ collection resolver ------------------------ */
 
 function getCollectionName(platform, type) {
@@ -66,6 +73,7 @@ function getCollectionName(platform, type) {
     if (t.includes("activate")) return `${p}_active_campaign`;
     if (t.includes("budget") || t.includes("change"))
         return `${p}_change_budget_campaign`;
+    if (t.includes("exclusion")) return `${p}_exclusion_campaign`;
 
     return `${p}_configs`; // fallback
 }
@@ -77,7 +85,10 @@ export function fromFirestoreDoc(docSnap) {
     const d = docSnap.data() || {};
     const rawConds = Array.isArray(d.condition) ? d.condition : [];
 
-    const readableConditions = rawConds.map((c) => {
+    const schedule = d.schedule ?? null;
+    const lookback = d.lookback ?? null;
+
+    const readableConditions = rawConds.map((c, i) => {
         const cmp = normalizeComparison(c.comparison);
         const sym = CODE_TO_SYMBOL[cmp] ?? "=";
         const thr =
@@ -88,6 +99,9 @@ export function fromFirestoreDoc(docSnap) {
                     : Number(c.threshold || 0);
         const unit = c.unit ? c.unit : "";
         const metric = String(c.metric || "").toUpperCase();
+
+        // 🆕 include joiner text (skip "If" word if you prefer)
+        const joinTxt = i === 0 ? "IF " : normalizeLogic(c.logic || c.join, i) + " ";
         return `${metric} ${sym} ${thr}${unit}`;
     });
 
@@ -99,7 +113,8 @@ export function fromFirestoreDoc(docSnap) {
         status: d.status || "Running",
 
         // normalized conditions array
-        condition: rawConds.map((c) => ({
+        condition: rawConds.map((c, i) => ({
+            logic: normalizeLogic(c.logic || c.join, i),
             metric: String(c.metric || "").toLowerCase(),
             comparison: normalizeComparison(c.comparison || c.operator),
             threshold:
@@ -112,14 +127,16 @@ export function fromFirestoreDoc(docSnap) {
         // optional stringified version
         conditions: readableConditions,
         frequency: d.frequency || "",
+        schedule,
+        lookback,
         campaigns: d.campaigns || [],
 
-        actionType: d.actionType,
-        actionValue: d.actionValue,
-        actionUnit: d.actionUnit,
-        actionTarget: d.actionTarget,
-        minBudget: d.minBudget,
-        maxBudget: d.maxBudget,
+        actionType: d.actionType ?? null,
+        actionValue: d.actionValue ?? null,
+        actionUnit: d.actionUnit ?? null,
+        actionTarget: d.actionTarget ?? null,
+        minBudget: d.minBudget ?? null,
+        maxBudget: d.maxBudget ?? null,
     };
 }
 
@@ -130,10 +147,13 @@ export function toFirestoreDoc(ui, id) {
 
     const normalizedCondition = incoming
         .filter((c) => c && c.metric && (c.value ?? c.threshold ?? "") !== "")
-        .map((c) => {
+        .map((c, i) => {
             const comparison = normalizeComparison(c.comparison || c.operator);
             const threshold = c.threshold !== undefined ? c.threshold : c.value;
+            const logic = normalizeLogic(c.logic, i);
+
             return {
+                logic,
                 type: c.type || "value",
                 metric: String(c.metric || "").toLowerCase(),
                 comparison,
@@ -143,6 +163,32 @@ export function toFirestoreDoc(ui, id) {
             };
         });
 
+    const isExclusion = /exclusion/i.test(ui.type || "");
+
+    if (isExclusion) {
+        // 🔵 CHANGE: Return a minimal document for Exclusion Campaigns
+        return {
+            id,
+            name: ui.name || "",
+            type: "Exclusion Campaign",
+            platform: platformArray.length ? platformArray : ["meta"],
+            status: ui.status || "Running",
+            frequency: ui.frequency || "",
+            campaigns: (ui.campaigns || []).map(String),
+            condition: normalizedCondition,
+
+            // Explicitly null out unrelated fields so downstream code won't assume them
+            schedule: null,
+            lookback: null,
+            actionType: null,
+            actionValue: null,
+            actionUnit: null,
+            actionTarget: null,
+            minBudget: null,
+            maxBudget: null,
+        };
+    }
+
     const base = {
         id,
         name: ui.name || "",
@@ -150,6 +196,27 @@ export function toFirestoreDoc(ui, id) {
         platform: platformArray.length ? platformArray : ["meta"],
         status: ui.status || "Paused",
         frequency: ui.frequency || "",
+
+        // === ADDED: schedule & root lookback
+        lookback: ui.lookback ? {
+            period: ui.lookback.period || "",
+            start: ui.lookback.start || "",
+            end: ui.lookback.end || "",
+            display: ui.lookback.display || "",
+        } : undefined,
+
+        schedule: ui.schedule ? {
+            mode: ui.schedule.mode,
+            preset: ui.schedule.preset || "",
+            timezone: ui.schedule.timezone || "UTC",
+            time: ui.schedule.time || "",
+            frequency: ui.schedule.frequency || "",
+            days: ui.schedule.days || [],
+            cron: ui.schedule.cron || "",
+            rrule: ui.schedule.rrule || "",
+            summary: ui.schedule.summary || "",
+        } : undefined,
+
         campaigns: (ui.campaigns || []).map(String),
         condition: normalizedCondition,
     };

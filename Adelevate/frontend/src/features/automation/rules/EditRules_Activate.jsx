@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-
 // UI
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,10 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 // Firestore
 import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { addConfig } from "@/services/config.js"; // ⬅️ no getCollectionName here
+import { addConfig } from "@/services/config.js";
+
+// Supabase to fetch my role & platform access
+import { supabase } from "@/supabaseClient";
 
 /* ---------- helpers ---------- */
 const PLATFORM_OPTIONS = [
@@ -47,7 +49,7 @@ const BULK_PAUSED = "All_Pause_Campaigns";
 function parseIncomingCondition(raw, index) {
     const base = {
         id: index + 1,
-        logic: index === 0 ? "If" : "And",
+        logic: index === 0 ? "If" : "AND",
         metric: "",
         operator: "",
         value: "",
@@ -70,11 +72,16 @@ function parseIncomingCondition(raw, index) {
                             : "Equal to");
         return {
             ...base,
+            logic: index === 0 ? "If" : (String(raw.logic || "AND").toUpperCase() === "OR" ? "OR" : "AND"),
             metric: String(raw.metric || "").toLowerCase(),
             operator: op,
             value: raw.value ?? raw.threshold ?? "",
             unit: raw.unit || "none",
             target: raw.target || "",
+            // === ADDED === propagate lookback if present on doc
+            lookBackPeriod: raw.lookback?.period || undefined,
+            lookBackStart: raw.lookback?.start || undefined,
+            lookBackEnd: raw.lookback?.end || undefined,
         };
     }
     // string form e.g. "CTR <= 2%"
@@ -88,7 +95,7 @@ function parseIncomingCondition(raw, index) {
         else if (s.includes("<")) operator = "Less";
         const valueToken = s.split(" ").pop() || "";
         const hasPct = valueToken.includes("%");
-        return { ...base, metric, operator, value: valueToken.replace("%", ""), unit: hasPct ? "%" : "none" };
+        return { ...base, logic: index === 0 ? "If" : "AND", metric, operator, value: valueToken.replace("%", ""), unit: hasPct ? "%" : "none" };
     }
     return base;
 }
@@ -155,6 +162,14 @@ export default function EditRuleFormActivate() {
     const ruleId = location.state?.id || null;
     const colName = location.state?.colName || null;
 
+    // my session role & platforms ===
+    const [myRole, setMyRole] = useState('user');
+    const [allowedPlatforms, setAllowedPlatforms] = useState([]); // ['meta','snap',...]
+    const [accessLoaded, setAccessLoaded] = useState(false);
+
+    // read-only mode if role === 'user'
+    const isReadOnly = myRole === 'user';
+
     // UI state
     const [ruleName, setRuleName] = useState("");
     const [selectedPlatform, setSelectedPlatform] = useState("");
@@ -181,157 +196,198 @@ export default function EditRuleFormActivate() {
 
     const [showTrafficDropdown, setShowTrafficDropdown] = useState(false);
 
-const [showLookBack, setShowLookBack] = useState(false);
-const [lookBackPeriod, setLookBackPeriod] = useState("7_days");
-const [selectedDay, setSelectedDay] = useState(null);
-const [selectionMode, setSelectionMode] = useState(null); // 'start' or 'end'
+    const [showLookBack, setShowLookBack] = useState(false);
+    const [lookBackPeriod, setLookBackPeriod] = useState("7_days");
+    const [selectedDay, setSelectedDay] = useState(null);
+    const [selectionMode, setSelectionMode] = useState(null); // 'start' or 'end'
 
-const [customScheduleTime, setCustomScheduleTime] = useState("12:00");
-const [scheduleTimezone, setScheduleTimezone] = useState("UTC");
-const [scheduleFrequency, setScheduleFrequency] = useState("daily");
-const [scheduleDays, setScheduleDays] = useState(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
+    const [customScheduleTime, setCustomScheduleTime] = useState("12:00");
+    const [scheduleTimezone, setScheduleTimezone] = useState("UTC");
+    const [scheduleFrequency, setScheduleFrequency] = useState("daily");
+    const [scheduleDays, setScheduleDays] = useState(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
 
-// Helper function to format dates for display
-const formatDateForDisplay = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const options = { month: 'short', day: 'numeric', year: 'numeric' };
-  return date.toLocaleDateString('en-US', options);
-};
+    // Helper function to format dates for display
+    const formatDateForDisplay = (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const options = { month: 'short', day: 'numeric', year: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    };
 
-// Calculate day count between two dates
-const calculateDaysBetween = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end - start);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays + 1; // Include both start and end days
-};
+    // Calculate day count between two dates
+    const calculateDaysBetween = (startDate, endDate) => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays + 1; // Include both start and end days
+    };
 
-// Set default dates for the last 7 days
-const today = new Date();
-const sevenDaysAgo = new Date();
-sevenDaysAgo.setDate(today.getDate() - 7);
+    // Set default dates for the last 7 days
+    const today = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(today.getDate() - 7);
 
-const [startDate, setStartDate] = useState(sevenDaysAgo.toISOString().split('T')[0]);
-const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
-const [activeLookBack, setActiveLookBack] = useState("Last 7 days");
-// Calendar days generation
-const getDaysInMonth = (year, month) => {
-  return new Date(year, month + 1, 0).getDate();
-};
+    const [startDate, setStartDate] = useState(sevenDaysAgo.toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
+    const [activeLookBack, setActiveLookBack] = useState("Last 7 days");
+    // Calendar days generation
+    const getDaysInMonth = (year, month) => {
+      return new Date(year, month + 1, 0).getDate();
+    };
 
-const getFirstDayOfMonth = (year, month) => {
-  return new Date(year, month, 1).getDay();
-};
+    const getFirstDayOfMonth = (year, month) => {
+      return new Date(year, month, 1).getDay();
+    };
 
-const generateCalendarDays = (year, month) => {
-  const daysInMonth = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfMonth(year, month);
-  
-  // Previous month days
-  const prevMonthDays = [];
-  if (firstDay > 0) {
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevMonthYear = month === 0 ? year - 1 : year;
-    const daysInPrevMonth = getDaysInMonth(prevMonthYear, prevMonth);
-    
-    for (let i = 0; i < firstDay; i++) {
-      prevMonthDays.push({
-        date: new Date(prevMonthYear, prevMonth, daysInPrevMonth - (firstDay - i - 1)),
-        isCurrentMonth: false
-      });
-    }
-  }
-  
-  // Current month days
-  const currentMonthDays = [];
-  for (let i = 1; i <= daysInMonth; i++) {
-    currentMonthDays.push({
-      date: new Date(year, month, i),
-      isCurrentMonth: true
-    });
-  }
-  
-  // Next month days
-  const remainingCells = (6 * 7) - (prevMonthDays.length + currentMonthDays.length);
-  const nextMonthDays = [];
-  const nextMonth = month === 11 ? 0 : month + 1;
-  const nextMonthYear = month === 11 ? year + 1 : year;
-  
-  for (let i = 1; i <= remainingCells; i++) {
-    nextMonthDays.push({
-      date: new Date(nextMonthYear, nextMonth, i),
-      isCurrentMonth: false
-    });
-  }
-  
-  return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
-};
+    const generateCalendarDays = (year, month) => {
+        const daysInMonth = getDaysInMonth(year, month);
+        const firstDay = getFirstDayOfMonth(year, month);
+        // Previous month days
+        const prevMonthDays = [];
+        if (firstDay > 0) {
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const prevMonthYear = month === 0 ? year - 1 : year;
+        const daysInPrevMonth = getDaysInMonth(prevMonthYear, prevMonth);
+        for (let i = 0; i < firstDay; i++) {
+            prevMonthDays.push({
+                date: new Date(prevMonthYear, prevMonth, daysInPrevMonth - (firstDay - i - 1)),
+                isCurrentMonth: false
+            });
+        }
+        }
+        // Current month days
+        const currentMonthDays = [];
+        for (let i = 1; i <= daysInMonth; i++) {
+            currentMonthDays.push({
+                date: new Date(year, month, i),
+                isCurrentMonth: true
+            });
+        }
 
-// Current month and year state
-const currentDate = new Date();
-const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
-const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
+        // Next month days
+        const remainingCells = (6 * 7) - (prevMonthDays.length + currentMonthDays.length);
+        const nextMonthDays = [];
+        const nextMonth = month === 11 ? 0 : month + 1;
+        const nextMonthYear = month === 11 ? year + 1 : year;
 
-// Days of the week
-const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+        for (let i = 1; i <= remainingCells; i++) {
+            nextMonthDays.push({
+                date: new Date(nextMonthYear, nextMonth, i),
+                isCurrentMonth: false
+            });
+        }
 
-// Month navigation
-const goToPreviousMonth = () => {
-  if (currentMonth === 0) {
-    setCurrentMonth(11);
-    setCurrentYear(currentYear - 1);
-  } else {
-    setCurrentMonth(currentMonth - 1);
-  }
-};
+        return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
+    };
 
-const goToNextMonth = () => {
-  if (currentMonth === 11) {
-    setCurrentMonth(0);
-    setCurrentYear(currentYear + 1);
-  } else {
-    setCurrentMonth(currentMonth + 1);
-  }
-};
+    // Current month and year state
+    const currentDate = new Date();
+    const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
+    const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
 
-// Date selection handler
-const handleDateSelect = (date) => {
-  const dateString = date.toISOString().split('T')[0];
-  
-  if (selectionMode === 'start' || (!selectionMode && new Date(dateString) < new Date(endDate))) {
-    setStartDate(dateString);
-    setSelectionMode('end');
-  } else {
-    setEndDate(dateString);
-    setSelectionMode(null);
-  }
-};
+    // Days of the week
+    const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-// Check if a date is selected
-const isDateSelected = (date) => {
-  const dateString = date.toISOString().split('T')[0];
-  return dateString === startDate || dateString === endDate;
-};
+    // Month navigation
+    const goToPreviousMonth = () => {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(currentYear - 1);
+      } else {
+        setCurrentMonth(currentMonth - 1);
+      }
+    };
 
-// Check if a date is in the selected range
-const isDateInRange = (date) => {
-  const dateString = date.toISOString().split('T')[0];
-  return dateString > startDate && dateString < endDate;
-};
+    const goToNextMonth = () => {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(currentYear + 1);
+      } else {
+        setCurrentMonth(currentMonth + 1);
+      }
+    };
 
-// Month names for display
-const monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
+    // Date selection handler
+    const handleDateSelect = (date) => {
+      const dateString = date.toISOString().split('T')[0];
 
-// Generate calendar days
-const calendarDays = generateCalendarDays(currentYear, currentMonth);
+      if (selectionMode === 'start' || (!selectionMode && new Date(dateString) < new Date(endDate))) {
+        setStartDate(dateString);
+        setSelectionMode('end');
+      } else {
+        setEndDate(dateString);
+        setSelectionMode(null);
+      }
+    };
+
+    // Check if a date is selected
+    const isDateSelected = (date) => {
+      const dateString = date.toISOString().split('T')[0];
+      return dateString === startDate || dateString === endDate;
+    };
+
+    // Check if a date is in the selected range
+    const isDateInRange = (date) => {
+      const dateString = date.toISOString().split('T')[0];
+      return dateString > startDate && dateString < endDate;
+    };
+
+    // Month names for display
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    // Generate calendar days
+    const calendarDays = generateCalendarDays(currentYear, currentMonth);
+
+    // fetch my access (role + platforms) ===
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!mounted) return;
+
+            let role = 'user';
+            let platforms = [];
+
+            if (session?.user?.id) {
+                const { data: me, error: meErr } = await supabase
+                    .from('user_roles')
+                    .select('role, platforms')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
+                if (!meErr && me) {
+                    role = me.role || 'user';
+                    platforms = Array.from(new Set((me.platforms || []).map(v => String(v).toLowerCase())));
+                }
+            }
+
+            // SuperAdmin can access all platforms
+            if (role === 'SuperAdmin') {
+                platforms = ['meta','snap','newsbreak','google','tiktok'];
+            }
+
+            setMyRole(role);
+            setAllowedPlatforms(platforms);
+            setAccessLoaded(true);
+        })();
+
+        return () => { mounted = false; };
+    }, []);
+
+    // === 🔵 ADDED: filter platform options by allowedPlatforms ===
+    const visiblePlatformOptions = useMemo(() => {
+        if (!accessLoaded) return [];
+        const set = new Set(allowedPlatforms);
+        return PLATFORM_OPTIONS.filter(p => set.has(p.value));
+    }, [accessLoaded, allowedPlatforms]);
 
     // fetch live Snapchat campaigns from /api/campaigns on mount
     useEffect(() => {
+        if (!accessLoaded) return;
         let isMounted = true;
         (async () => {
             try {
@@ -364,7 +420,7 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
         };
     }, []);
 
-    // flatten helpers from catalog
+    // SNAP flatten helpers from catalog
     const snapCampaignList = useMemo(() => {
         const snap = catalog.snap;
         if (!snap?.accounts) return [];
@@ -505,14 +561,44 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
             const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
             setSelectedPlatform(platform);
             setRuleName(d.name || "");
-            setScheduleInterval(d.frequency || "");
+
+            // === CHANGED: show literal "Custom" in the select when mode is custom
+            if (d.schedule?.mode === "custom") {
+                setScheduleInterval("Custom");
+            } else if (d.schedule?.mode === "preset") {
+                setScheduleInterval(d.schedule.preset || "");
+            } else {
+                // legacy fallback
+                setScheduleInterval(d.frequency || "");
+            }
+
             setCampaigns(d.campaigns || []);
             const raw = Array.isArray(d.condition) ? d.condition : [];
             const rows =
                 raw.length > 0
-                    ? raw.map((c, i) => ({ ...parseIncomingCondition(c, i), id: i + 1, logic: i === 0 ? "If" : "And" }))
+                    ? raw.map((c, i) => ({
+                        ...parseIncomingCondition(c, i),
+                        id: i + 1,
+                        logic: i === 0 ? "If" : (String(c?.logic).toUpperCase() === "OR" ? "OR" : "AND"),
+                    }))
                     : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
+
             setConditions(rows);
+
+            // === ADDED: restore lookback root if present
+            if (d.lookback?.start) setStartDate(d.lookback.start);
+            if (d.lookback?.end) setEndDate(d.lookback.end);
+            if (d.lookback?.period) setLookBackPeriod(d.lookback.period);
+            if (d.lookback?.display) setActiveLookBack(d.lookback.display);
+
+            // === ADDED: restore schedule custom pieces if present
+            if (d.schedule) {
+                if (d.schedule.time) setCustomScheduleTime(d.schedule.time);
+                if (d.schedule.timezone === "Asia/Kolkata") setScheduleTimezone("Local");
+                else if (d.schedule.timezone === "UTC") setScheduleTimezone("UTC");
+                if (d.schedule.frequency) setScheduleFrequency(d.schedule.frequency);
+                if (Array.isArray(d.schedule.days)) setScheduleDays(d.schedule.days);
+            }
         });
         return () => unsub();
     }, [ruleId, colName]);
@@ -539,7 +625,12 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
             if (prev.length <= 1) {
                 return [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
             }
-            return prev.filter((c) => c.id !== id).map((c, i) => ({ ...c, id: i + 1, logic: i === 0 ? "If" : "And" }));
+            const filtered = prev.filter((c) => c.id !== id);
+            return filtered.map((c, i) => ({
+                ...c,
+                id: i + 1,
+                logic: i === 0 ? "If" : (String(c.logic).toUpperCase() === "OR" ? "OR" : "AND"),
+            }));
         });
     };
     
@@ -589,25 +680,102 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
 
     /* ----- Save ----- */
     const handleSave = async () => {
+        // === CHANGED === map "Local" explicitly to Asia/Kolkata
+        const tzResolved =
+            scheduleTimezone === "Local" ? "Asia/Kolkata" : "UTC"; // IST region string
+
+        // === ADDED === build schedule payload (cron + rrule + meta)
+        function buildSchedulePayload() {
+            const [hh = "12", mm = "00"] = (customScheduleTime || "12:00").split(":");
+
+            if (scheduleInterval !== "Custom") {
+                return {
+                    mode: "preset",
+                    preset: scheduleInterval,
+                    timezone: tzResolved,
+                    summary: scheduleInterval,
+                };
+            }
+
+            let rrule = "";
+            let summary = `Run ${scheduleFrequency} at ${customScheduleTime} ${tzResolved}`;
+            let byDay = [];
+
+            const dayMap = {
+                Sunday: "SU", Monday: "MO", Tuesday: "TU", Wednesday: "WE",
+                Thursday: "TH", Friday: "FR", Saturday: "SA",
+            };
+
+            if (scheduleFrequency === "daily") {
+                rrule = `FREQ=DAILY;BYHOUR=${hh};BYMINUTE=${mm};BYSECOND=0`;
+            } else if (scheduleFrequency === "weekdays") {
+                rrule = `FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=${hh};BYMINUTE=${mm};BYSECOND=0`;
+            } else if (scheduleFrequency === "weekends") {
+                rrule = `FREQ=WEEKLY;BYDAY=SA,SU;BYHOUR=${hh};BYMINUTE=${mm};BYSECOND=0`;
+            } else {
+                // custom days
+                byDay = (scheduleDays || []).map(d => dayMap[d]).filter(Boolean);
+                const by = byDay.length ? byDay.join(",") : "MO,TU,WE,TH,FR,SA,SU"; // fallback all days
+                rrule = `FREQ=WEEKLY;BYDAY=${by};BYHOUR=${hh};BYMINUTE=${mm};BYSECOND=0`;
+                summary = `Run on ${byDay.length ? scheduleDays.join(", ") : "all days"} at ${customScheduleTime} ${tzResolved}`;
+            }
+
+            const cron = `${mm} ${hh} * * *`; // daily cron (workers can further gate by RRULE)
+
+            return {
+                mode: "custom",
+                timezone: tzResolved,
+                time: customScheduleTime,
+                frequency: scheduleFrequency,   // daily | weekdays | weekends | custom
+                days: scheduleFrequency === "custom" ? scheduleDays : [],
+                cron,
+                rrule,
+                summary,
+            };
+        }
+
+        const schedulePayload = buildSchedulePayload(); // === ADDED ===
+
+        // === ADDED === root-level lookback payload
+        const lookbackPayload = {
+            period: lookBackPeriod, // "7_days" | "custom" | ...
+            start: startDate,       // "YYYY-MM-DD"
+            end: endDate,           // "YYYY-MM-DD"
+            display: activeLookBack // "Last 7 days", "Custom range", etc.
+        };
+
+        // existing campaigns normalization
         const campaignsToPersist = campaigns.map(toPlainCampaignName);
 
+        // === CHANGED === conditions now carry per-condition lookback context
+        const serializedConditions = conditions.map((c) => ({
+            metric: c.metric,
+            operator: c.operator,
+            value: c.value,
+            unit: c.unit,
+            type: "value",
+            target: c.target || "",
+        }));
+
+        // === CHANGED === uiPayload now includes schedule + lookback
         const uiPayload = {
             id: ruleId || crypto.randomUUID(),
             name: ruleName || "Unnamed Active Campaign",
             status: "Running",
             type: "Activate Campaign",
             platform: selectedPlatform || "meta",
-            frequency: scheduleInterval,
+            frequency:
+                schedulePayload.mode === "preset"
+                    ? scheduleInterval
+                    : schedulePayload.summary, // === CHANGED ===
+
+            schedule: schedulePayload,     // === ADDED ===
+            lookback: lookbackPayload,     // === ADDED ===
+
             campaigns: campaignsToPersist,
-            conditions: conditions.map((c) => ({
-                metric: c.metric,
-                operator: c.operator,
-                value: c.value,
-                unit: c.unit,
-                type: "value",
-                target: c.target || "",
-            })),
+            conditions: serializedConditions,
         };
+
         try {
             await addConfig(uiPayload); // service decides collection
             navigate("/rules");
@@ -688,9 +856,35 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
                             <div className="space-y-6">
                                 {conditions.map((condition, index) => (
                                     <div key={condition.id} className="flex flex-col sm:flex-row items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                                        <span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">
-                                          {condition.logic}
-                                        </span>
+
+                                        <div className="w-full sm:w-24 mb-2 sm:mb-0">
+                                            {index === 0 ? (
+                                                <span className="text-sm font-medium text-gray-600">If</span>
+                                            ) : (
+                                                // 🆕 ADDED: AND/OR Select
+                                                <Select
+                                                    value={condition.logic === "OR" ? "OR" : "AND"}
+                                                    onValueChange={(value) => {
+                                                        const next = [...conditions];
+                                                        next[index].logic = value; // "AND" or "OR"
+                                                        setConditions(next);
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="w-24">
+                                                        <SelectValue placeholder="AND/OR" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="AND">AND</SelectItem>
+                                                        <SelectItem value="OR">OR</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        </div>
+
+                                        {/*<span className="text-sm font-medium text-gray-600 w-full sm:w-12 mb-2 sm:mb-0">*/}
+                                        {/*  {condition.logic}*/}
+                                        {/*</span>*/}
+
                                         <div className="flex flex-col sm:flex-row w-full gap-3">
                                             <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full items-center">
                                                 {/* Metric */}
@@ -855,275 +1049,250 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
                                         </div>
                                     </div>
                                 ))}
-    <div className=" relative flex gap-4">
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto"
-                                    onClick={addCondition}
-                                >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Add
-                                </Button>
-
- <div>
-  <Button
-    variant="outline"
-    size="sm"
-    className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2"
-    onClick={() => setShowLookBack(!showLookBack)}
-  >
-    <span>Look Back:</span>
-    <span className="font-medium whitespace-nowrap">{activeLookBack}</span>
-    <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
-      {calculateDaysBetween(startDate, endDate)}d
-    </span>
-  </Button>
+                                <div className=" relative flex gap-4">
+                                    <Button variant="outline" size="sm" className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto" onClick={addCondition}>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Add
+                                    </Button>
+                                    <div>
+                                        <Button variant="outline" size="sm" className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2" onClick={() => setShowLookBack(!showLookBack)}>
+                                            <span>Look Back:</span>
+                                            <span className="font-medium whitespace-nowrap">{activeLookBack}</span>
+                                            <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
+                                              {calculateDaysBetween(startDate, endDate)}d
+                                            </span>
+                                          </Button>
   
-{showLookBack && (
-    <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
-      <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
-        <span className="text-base font-medium text-gray-800">Look Back Period</span>
-        <button 
-          className="p-1 h-8 w-8 hover:bg-gray-100 rounded-full flex items-center justify-center" 
-          onClick={() => setShowLookBack(false)}
-        >
-          <span className="text-gray-500 text-lg">×</span>
-        </button>
-      </div>
-      
-      <div className="p-4">
-        <Select
-          value={lookBackPeriod}
-          onValueChange={(value) => {
-            setLookBackPeriod(value);
-            
-            // Set default date ranges based on selection
-            const today = new Date();
-            let start = new Date();
-            let displayText = "";
-            
-            if (value === "today") {
-              start = today;
-              displayText = "Today";
-            } else if (value === "yesterday") {
-              start = new Date(today);
-              start.setDate(start.getDate() - 1);
-              setEndDate(start.toISOString().split('T')[0]);
-              displayText = "Yesterday";
-            } else if (value === "7_days") {
-              start = new Date(today);
-              start.setDate(start.getDate() - 7);
-              displayText = "Last 7 days";
-            } else if (value === "14_days") {
-              start = new Date(today);
-              start.setDate(start.getDate() - 14);
-              displayText = "Last 14 days";
-            } else if (value === "30_days") {
-              start = new Date(today);
-              start.setDate(start.getDate() - 30);
-              displayText = "Last 30 days";
-            } else if (value === "90_days") {
-              start = new Date(today);
-              start.setDate(start.getDate() - 90);
-              displayText = "Last 90 days";
-            } else if (value === "this_month") {
-              start = new Date(today.getFullYear(), today.getMonth(), 1);
-              displayText = "This month";
-            } else if (value === "last_month") {
-              start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-              const end = new Date(today.getFullYear(), today.getMonth(), 0);
-              setEndDate(end.toISOString().split('T')[0]);
-              displayText = "Last month";
-            } else if (value === "this_year") {
-              start = new Date(today.getFullYear(), 0, 1);
-              displayText = "This year";
-            } else if (value === "last_year") {
-              start = new Date(today.getFullYear() - 1, 0, 1);
-              const end = new Date(today.getFullYear(), 0, 0);
-              setEndDate(end.toISOString().split('T')[0]);
-              displayText = "Last year";
-            } else if (value === "custom") {
-              displayText = "Custom range";
-            }
-            
-            if (value !== "yesterday" && value !== "last_month" && value !== "last_year") {
-              setEndDate(today.toISOString().split('T')[0]);
-            }
-            
-            if (value !== "custom") {
-              setStartDate(start.toISOString().split('T')[0]);
-              setActiveLookBack(displayText);
-            }
-            
-            // Apply the look back period to all conditions dynamically
-            const updatedConditions = conditions.map(condition => ({
-              ...condition,
-              lookBackPeriod: value,
-              lookBackStart: start.toISOString().split('T')[0],
-              lookBackEnd: value !== "yesterday" && value !== "last_month" && value !== "last_year" 
-                ? today.toISOString().split('T')[0]
-                : (value === "yesterday" 
-                  ? start.toISOString().split('T')[0] 
-                  : (value === "last_month" 
-                      ? new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0]
-                      : new Date(today.getFullYear(), 0, 0).toISOString().split('T')[0]))
-            }));
-            setConditions(updatedConditions);
-          }}
-        >
-          <SelectTrigger className="w-full mb-3">
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="yesterday">Yesterday</SelectItem>
-            <SelectItem value="1_days">Last 1 days</SelectItem>
+                                        {showLookBack && (
+                                            <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
+                                                <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
+                                                    <span className="text-base font-medium text-gray-800">Look Back Period</span>
+                                                    <button
+                                                      className="p-1 h-8 w-8 hover:bg-gray-100 rounded-full flex items-center justify-center"
+                                                      onClick={() => setShowLookBack(false)}>
+                                                      <span className="text-gray-500 text-lg">×</span>
+                                                    </button>
+                                                  </div>
 
-            <SelectItem value="7_days">Last 7 days</SelectItem>
-            <SelectItem value="14_days">Last 14 days</SelectItem>
-            <SelectItem value="30_days">Last 30 days</SelectItem>
-            <SelectItem value="90_days">Last 90 days</SelectItem>
-            <SelectItem value="this_month">This month</SelectItem>
-            <SelectItem value="last_month">Last month</SelectItem>
-            <SelectItem value="this_year">This year</SelectItem>
-            <SelectItem value="last_year">Last year</SelectItem>
-            <SelectItem value="custom">Custom date range</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        {/* Display selected date range with day count */}
-        <div className="flex flex-col mb-3 bg-blue-50 p-3 rounded-md border border-blue-100">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex flex-col">
-              <span className="text-xs text-blue-600 font-medium">From</span>
-              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(startDate)}</span>
-            </div>
-            
-            <div className="h-8 flex items-center">
-              <span className="px-2 text-gray-400">→</span>
-            </div>
-            
-            <div className="flex flex-col text-right">
-              <span className="text-xs text-blue-600 font-medium">To</span>
-              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(endDate)}</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-end">
-            <div className="text-xs px-2 py-0.5 bg-white rounded border border-blue-200 text-blue-700 font-medium">
-              {calculateDaysBetween(startDate, endDate)} day{calculateDaysBetween(startDate, endDate) !== 1 ? 's' : ''}
-            </div>
-          </div>
-        </div>
-        
-        {lookBackPeriod === "custom" && (
-          <div className="mt-4 space-y-4">
-            {/* Calendar */}
-            <div className="border rounded-lg overflow-hidden shadow-sm">
-              {/* Calendar Header */}
-              <div className="bg-blue-50 p-3 border-b flex justify-between items-center">
-                <button 
-                  className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7" 
-                  onClick={goToPreviousMonth}
-                >
-                  <span className="text-blue-600">←</span>
-                </button>
-                <span className="font-medium text-blue-700">{monthNames[currentMonth]} {currentYear}</span>
-                <button 
-                  className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7" 
-                  onClick={goToNextMonth}
-                >
-                  <span className="text-blue-600">→</span>
-                </button>
-              </div>
-              
-              {/* Calendar Grid */}
-              <div className="p-3 bg-white">
-                {/* Days of Week */}
-                <div className="grid grid-cols-7 mb-1">
-                  {daysOfWeek.map((day, index) => (
-                    <div key={index} className="text-center text-xs font-medium text-gray-500 py-1">
-                      {day}
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Calendar Days */}
-                <div className="grid grid-cols-7 gap-1">
-                  {calendarDays.map((day, index) => (
-                    <button 
-                      key={index}
-                      type="button"
-                      className={`
-                        h-9 w-full flex items-center justify-center text-sm rounded-full
-                        ${!day.isCurrentMonth ? 'text-gray-400' : 'text-gray-700'}
-                        ${isDateSelected(day.date) ? 'bg-blue-600 text-white hover:bg-blue-700' : 'hover:bg-gray-100'}
-                        ${isDateInRange(day.date) ? 'bg-blue-100 hover:bg-blue-200' : ''}
-                      `}
-                      onClick={() => handleDateSelect(day.date)}
-                    >
-                      {day.date.getDate()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-         
-            
-            {/* Helper text for selection mode */}
-            <div className="text-xs text-gray-500 italic mt-2 flex items-center">
-              <div className="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></div>
-              {selectionMode === 'start' 
-                ? 'Select start date' 
-                : (selectionMode === 'end' 
-                   ? 'Now select end date' 
-                   : 'Click dates to select a range')}
-            </div>
-          </div>
-        )}
-        
-        <div>
-            
-        </div>
-        <div className="mt-4">
-          <Button 
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => {
-              // Apply the date range to all conditions
-              const updatedConditions = conditions.map(condition => ({
-                ...condition,
-                lookBackPeriod: lookBackPeriod,
-                lookBackStart: startDate,
-                lookBackEnd: endDate
-              }));
-              setConditions(updatedConditions);
-              
-              // For custom range, update the display text
-              if (lookBackPeriod === "custom") {
-                const dayCount = calculateDaysBetween(startDate, endDate);
-                setActiveLookBack(`Custom range`);
-              }
-              
-              setShowLookBack(false);
-            }}
-          >
-            Apply
-          </Button>
-        </div>
-      </div>
-    </div>
-  )}
+                                                <div className="p-4">
+                                                    <Select
+                                                        value={lookBackPeriod}
+                                                        onValueChange={(value) => {
+                                                            setLookBackPeriod(value);
 
-       
-</div>
-</div>
-                     </div>
+                                                            // Set default date ranges based on selection
+                                                            const today = new Date();
+                                                            let start = new Date();
+                                                            let displayText = "";
+
+                                                            if (value === "today") {
+                                                              start = today;
+                                                              displayText = "Today";
+                                                            } else if (value === "yesterday") {
+                                                              start = new Date(today);
+                                                              start.setDate(start.getDate() - 1);
+                                                              setEndDate(start.toISOString().split('T')[0]);
+                                                              displayText = "Yesterday";
+                                                            } else if (value === "7_days") {
+                                                              start = new Date(today);
+                                                              start.setDate(start.getDate() - 7);
+                                                              displayText = "Last 7 days";
+                                                            } else if (value === "14_days") {
+                                                              start = new Date(today);
+                                                              start.setDate(start.getDate() - 14);
+                                                              displayText = "Last 14 days";
+                                                            } else if (value === "30_days") {
+                                                              start = new Date(today);
+                                                              start.setDate(start.getDate() - 30);
+                                                              displayText = "Last 30 days";
+                                                            } else if (value === "90_days") {
+                                                              start = new Date(today);
+                                                              start.setDate(start.getDate() - 90);
+                                                              displayText = "Last 90 days";
+                                                            } else if (value === "this_month") {
+                                                              start = new Date(today.getFullYear(), today.getMonth(), 1);
+                                                              displayText = "This month";
+                                                            } else if (value === "last_month") {
+                                                              start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                                                              const end = new Date(today.getFullYear(), today.getMonth(), 0);
+                                                              setEndDate(end.toISOString().split('T')[0]);
+                                                              displayText = "Last month";
+                                                            } else if (value === "this_year") {
+                                                              start = new Date(today.getFullYear(), 0, 1);
+                                                              displayText = "This year";
+                                                            } else if (value === "last_year") {
+                                                              start = new Date(today.getFullYear() - 1, 0, 1);
+                                                              const end = new Date(today.getFullYear(), 0, 0);
+                                                              setEndDate(end.toISOString().split('T')[0]);
+                                                              displayText = "Last year";
+                                                            } else if (value === "custom") {
+                                                              displayText = "Custom range";
+                                                            }
+                                                            if (value !== "yesterday" && value !== "last_month" && value !== "last_year") {
+                                                              setEndDate(today.toISOString().split('T')[0]);
+                                                            }
+
+                                                            if (value !== "custom") {
+                                                              setStartDate(start.toISOString().split('T')[0]);
+                                                              setActiveLookBack(displayText);
+                                                            }
+
+                                                            // Apply the look back period to all conditions dynamically
+                                                            const updatedConditions = conditions.map(condition => ({
+                                                              ...condition,
+                                                                lookBackPeriod: value,
+                                                                lookBackStart: start.toISOString().split('T')[0],
+                                                                lookBackEnd: value !== "yesterday" && value !== "last_month" && value !== "last_year"
+                                                                    ? today.toISOString().split('T')[0]
+                                                                    : (value === "yesterday"
+                                                                        ? start.toISOString().split('T')[0]
+                                                                        : (value === "last_month"
+                                                                            ? new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0]
+                                                                            : new Date(today.getFullYear(), 0, 0).toISOString().split('T')[0]))
+                                                            }));
+                                                            setConditions(updatedConditions);
+                                                          }}>
+                                                        <SelectTrigger className="w-full mb-3">
+                                                            <SelectValue placeholder="Select period" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="today">Today</SelectItem>
+                                                            <SelectItem value="yesterday">Yesterday</SelectItem>
+                                                            <SelectItem value="1_days">Last 1 days</SelectItem>
+                                                            <SelectItem value="7_days">Last 7 days</SelectItem>
+                                                            <SelectItem value="14_days">Last 14 days</SelectItem>
+                                                            <SelectItem value="30_days">Last 30 days</SelectItem>
+                                                            <SelectItem value="90_days">Last 90 days</SelectItem>
+                                                            <SelectItem value="this_month">This month</SelectItem>
+                                                            <SelectItem value="last_month">Last month</SelectItem>
+                                                            <SelectItem value="this_year">This year</SelectItem>
+                                                            <SelectItem value="last_year">Last year</SelectItem>
+                                                            <SelectItem value="custom">Custom date range</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+
+                                                    {/* Display selected date range with day count */}
+                                                    <div className="flex flex-col mb-3 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <div className="flex flex-col">
+                                                              <span className="text-xs text-blue-600 font-medium">From</span>
+                                                              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(startDate)}</span>
+                                                            </div>
+
+                                                            <div className="h-8 flex items-center">
+                                                              <span className="px-2 text-gray-400">→</span>
+                                                            </div>
+
+                                                            <div className="flex flex-col text-right">
+                                                              <span className="text-xs text-blue-600 font-medium">To</span>
+                                                              <span className="text-sm text-blue-800 font-medium">{formatDateForDisplay(endDate)}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-end">
+                                                            <div className="text-xs px-2 py-0.5 bg-white rounded border border-blue-200 text-blue-700 font-medium">
+                                                                {calculateDaysBetween(startDate, endDate)} day{calculateDaysBetween(startDate, endDate) !== 1 ? 's' : ''}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {lookBackPeriod === "custom" && (
+                                                        <div className="mt-4 space-y-4">
+                                                            {/* Calendar */}
+                                                            <div className="border rounded-lg overflow-hidden shadow-sm">
+                                                                {/* Calendar Header */}
+                                                                <div className="bg-blue-50 p-3 border-b flex justify-between items-center">
+                                                                    <button
+                                                                      className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7"
+                                                                      onClick={goToPreviousMonth}
+                                                                    >
+                                                                      <span className="text-blue-600">←</span>
+                                                                    </button>
+                                                                    <span className="font-medium text-blue-700">{monthNames[currentMonth]} {currentYear}</span>
+                                                                    <button
+                                                                      className="p-1 hover:bg-blue-100 rounded flex items-center justify-center h-7 w-7"
+                                                                      onClick={goToNextMonth}
+                                                                    >
+                                                                      <span className="text-blue-600">→</span>
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Calendar Grid */}
+                                                                <div className="p-3 bg-white">
+                                                                    {/* Days of Week */}
+                                                                    <div className="grid grid-cols-7 mb-1">
+                                                                        {daysOfWeek.map((day, index) => (
+                                                                        <div key={index} className="text-center text-xs font-medium text-gray-500 py-1">
+                                                                          {day}
+                                                                        </div>
+                                                                      ))}
+                                                                    </div>
+
+                                                                    {/* Calendar Days */}
+                                                                    <div className="grid grid-cols-7 gap-1">
+                                                                        {calendarDays.map((day, index) => (
+                                                                            <button
+                                                                              key={index}
+                                                                              type="button"
+                                                                              className={`
+                                                                                h-9 w-full flex items-center justify-center text-sm rounded-full
+                                                                                ${!day.isCurrentMonth ? 'text-gray-400' : 'text-gray-700'}
+                                                                                ${isDateSelected(day.date) ? 'bg-blue-600 text-white hover:bg-blue-700' : 'hover:bg-gray-100'}
+                                                                                ${isDateInRange(day.date) ? 'bg-blue-100 hover:bg-blue-200' : ''}
+                                                                              `}
+                                                                              onClick={() => handleDateSelect(day.date)}
+                                                                            >
+                                                                              {day.date.getDate()}
+                                                                            </button>
+                                                                          ))}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Helper text for selection mode */}
+                                                            <div className="text-xs text-gray-500 italic mt-2 flex items-center">
+                                                                <div className="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></div>
+                                                                {selectionMode === 'start'
+                                                                    ? 'Select start date'
+                                                                    : (selectionMode === 'end'
+                                                                       ? 'Now select end date'
+                                                                       : 'Click dates to select a range')}
+                                                                </div>
+                                                            </div>
+                                                    )}
+                                                    <div></div>
+                                                    <div className="mt-4">
+                                                        <Button
+                                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                                            onClick={() => {
+                                                              // Apply the date range to all conditions
+                                                              const updatedConditions = conditions.map(condition => ({
+                                                                ...condition,
+                                                                lookBackPeriod: lookBackPeriod,
+                                                                lookBackStart: startDate,
+                                                                lookBackEnd: endDate
+                                                              }));
+                                                              setConditions(updatedConditions);
+
+                                                              // For custom range, update the display text
+                                                              if (lookBackPeriod === "custom") {
+                                                                const dayCount = calculateDaysBetween(startDate, endDate);
+                                                                setActiveLookBack(`Custom range`);
+                                                              }
+
+                                                              setShowLookBack(false);
+                                                            }}
+                                                          >
+                                                            Apply
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
                     {/* Apply Rule */}
                     <div className="mb-8">
                         <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -1218,123 +1387,117 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
                                 )}
 
                                 {/* Add Campaigns multi-select (GRAY panel) */}
-                              <div className="flex gap-10">
-                               {/* =================== Add Campaigns =================== */}
-                               <div className="relative">
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
-                                     selectedPlatform
-                                       ? showCampaignDropdown
-                                         ? "text-blue-600 border-blue-400 bg-blue-50"
-                                         : "text-gray-600 bg-transparent"
-                                       : "text-gray-400 bg-gray-50 cursor-not-allowed"
-                                   }`}
-                                   onClick={() => {
-                                     if (selectedPlatform) {
-                                       setShowCampaignDropdown((prev) => !prev);
-                                       setShowTrafficDropdown(false); // close other dropdown
-                                     }
-                                   }}
-                                   disabled={!selectedPlatform}
-                                 >
-                                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                                   Add Campaigns
-                                 </Button>
-                             
-                                 {showCampaignDropdown && (
-                                   <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                                     <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
-                                       <span className="text-sm text-gray-600">Found:</span>
-                                       <button
-                                         className={`text-sm px-3 py-1 rounded-md ${
-                                           selectedCampaignOptions.length > 0
-                                             ? "text-blue-600 hover:bg-gray-100"
-                                             : "text-gray-400 cursor-not-allowed"
-                                         }`}
-                                         onClick={handleAddSelectedCampaigns}
-                                         disabled={selectedCampaignOptions.length === 0}
-                                       >
-                                         Add
-                                       </button>
-                                     </div>
-                             
-                                     <div className="max-h-60 overflow-y-auto">
-                                       {getCampaignOptionsByPlatform(selectedPlatform).map((opt) => (
-                                         <label
-                                           key={opt.id}
-                                           className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
-                                         >
-                                           <input
-                                             type="checkbox"
-                                             className="mr-1"
-                                             checked={selectedCampaignOptions.includes(opt.id)}
-                                             onChange={(e) =>
-                                               handleCampaignOptionChange(opt.id, e.target.checked)
+                                <div className="flex gap-10">
+                                    {/* =================== Add Campaigns =================== */}
+                                    <div className="relative">
+                                        <Button
+                                           variant="outline"
+                                           size="sm"
+                                           className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
+                                             selectedPlatform
+                                               ? showCampaignDropdown
+                                                 ? "text-blue-600 border-blue-400 bg-blue-50"
+                                                 : "text-gray-600 bg-transparent"
+                                               : "text-gray-400 bg-gray-50 cursor-not-allowed"
+                                           }`}
+                                           onClick={() => {
+                                             if (selectedPlatform) {
+                                               setShowCampaignDropdown((prev) => !prev);
+                                               setShowTrafficDropdown(false); // close other dropdown
                                              }
-                                           />
-                                           <img src={opt.icon} alt="" className="w-5 h-5" />
-                                           <span className="text-sm">{opt.name}</span>
-                                         </label>
-                                       ))}
-                                     </div>
-                             
-                                     <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
-                                       <button
-                                         className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
-                                         onClick={clearCampaignSelection}
-                                       >
-                                         Clear
-                                       </button>
-                                     </div>
-                                   </div>
-                                 )}
-                               </div>
-                             
-                               {/* =================== Add Traffic =================== */}
-                               <div className="relative">
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
-                                     selectedPlatform
-                                       ? showTrafficDropdown
-                                         ? "text-blue-600 border-blue-400 bg-blue-50"
-                                         : "text-gray-600 bg-transparent"
-                                       : "text-gray-400 bg-gray-50 cursor-not-allowed"
-                                   }`}
-                                   onClick={() => {
-                                     if (selectedPlatform) {
-                                       setShowTrafficDropdown((prev) => !prev);
-                                       setShowCampaignDropdown(false); // close the other dropdown
-                                     }
-                                   }}
-                                   disabled={!selectedPlatform}
-                                 >
-                                   <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                                   Add Traffic
-                                 </Button>
-                             
-                                 {showTrafficDropdown && (
-                                   <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                                     <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
-                                       <span className="text-sm text-gray-600">Found:</span>
-                                       <button className="text-sm px-3 py-1 rounded-md text-blue-600 hover:bg-gray-100">
-                                         Add
-                                       </button>
-                                     </div>
-                                     <div className="max-h-60 overflow-y-auto">
-                                       {/* You can use a separate traffic options list here */}
-                                       <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                                         Traffic options go here
-                                       </div>
-                                     </div>
-                                   </div>
-                                 )}
-                               </div>
-                             </div>
-
+                                           }}
+                                           disabled={!selectedPlatform}
+                                        >
+                                           <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                                            Add Campaigns
+                                        </Button>
+                                        {showCampaignDropdown && (
+                                            <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
+                                               <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
+                                                   <span className="text-sm text-gray-600">Found:</span>
+                                                   <button
+                                                     className={`text-sm px-3 py-1 rounded-md ${
+                                                       selectedCampaignOptions.length > 0
+                                                         ? "text-blue-600 hover:bg-gray-100"
+                                                         : "text-gray-400 cursor-not-allowed"
+                                                     }`}
+                                                     onClick={handleAddSelectedCampaigns}
+                                                     disabled={selectedCampaignOptions.length === 0}
+                                                   >
+                                                     Add
+                                                   </button>
+                                               </div>
+                                               <div className="max-h-60 overflow-y-auto">
+                                                   {getCampaignOptionsByPlatform(selectedPlatform).map((opt) => (
+                                                       <label
+                                                           key={opt.id}
+                                                           className="px-3 py-2 flex items-center gap-2 hover:bg-gray-100 cursor-pointer"
+                                                         >
+                                                       <input
+                                                         type="checkbox"
+                                                         className="mr-1"
+                                                         checked={selectedCampaignOptions.includes(opt.id)}
+                                                         onChange={(e) =>
+                                                           handleCampaignOptionChange(opt.id, e.target.checked)
+                                                         }
+                                                       />
+                                                       <img src={opt.icon} alt="" className="w-5 h-5" />
+                                                       <span className="text-sm">{opt.name}</span>
+                                                     </label>
+                                                   ))}
+                                               </div>
+                                               <div className="px-3 py-2 border-t border-gray-100 flex justify-end">
+                                                   <button
+                                                     className="text-sm text-gray-600 px-3 py-1 rounded-md hover:bg-gray-100"
+                                                     onClick={clearCampaignSelection}
+                                                   >
+                                                     Clear
+                                                   </button>
+                                               </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* =================== Add Traffic =================== */}
+                                    <div className="relative">
+                                        <Button
+                                           variant="outline"
+                                           size="sm"
+                                           className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
+                                             selectedPlatform
+                                               ? showTrafficDropdown
+                                                 ? "text-blue-600 border-blue-400 bg-blue-50"
+                                                 : "text-gray-600 bg-transparent"
+                                               : "text-gray-400 bg-gray-50 cursor-not-allowed"
+                                           }`}
+                                           onClick={() => {
+                                             if (selectedPlatform) {
+                                               setShowTrafficDropdown((prev) => !prev);
+                                               setShowCampaignDropdown(false); // close the other dropdown
+                                             }
+                                           }}
+                                           disabled={!selectedPlatform}
+                                        >
+                                           <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                                           Add Traffic
+                                        </Button>
+                                        {showTrafficDropdown && (
+                                            <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
+                                                <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
+                                                    <span className="text-sm text-gray-600">Found:</span>
+                                                    <button className="text-sm px-3 py-1 rounded-md text-blue-600 hover:bg-gray-100">
+                                                        Add
+                                                    </button>
+                                                </div>
+                                                <div className="max-h-60 overflow-y-auto">
+                                                    {/* You can use a separate traffic options list here */}
+                                                    <div className="px-3 py-4 text-center text-gray-500 text-sm">
+                                                        Traffic options go here
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1347,130 +1510,127 @@ const calendarDays = generateCalendarDays(currentYear, currentMonth);
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
                         </div>
-                     <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
-    <div className="space-y-5 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-            <div className="space-y-2 w-full">
-                <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
-                <Select value={scheduleInterval} onValueChange={(value) => {
-                    setScheduleInterval(value);
-                    // Reset custom time if not custom
-                    if (value !== "Custom") {
-                        setCustomScheduleTime("12:00");
-                    }
-                }}>
-                    <SelectTrigger className="w-full sm:w-[33rem]">
-                        <SelectValue placeholder="Select interval..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {selectedPlatform !== "snap" && (
-                            <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
-                        )}
-                        <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
-                        <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
-                        <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
-                        <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
-                        <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
-                        <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
-                        <SelectItem value="Once Daily (As soon as conditions are met)">
-                            Once Daily (As soon as conditions are met)
-                        </SelectItem>
-                        <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
-                        <SelectItem value="Daily (At 12:00 PM Local)">Daily (At 12:00 PM IST)</SelectItem>
-                        <SelectItem value="Custom">Custom Schedule...</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-        </div>
-        
-        {scheduleInterval === "Custom" && (
-            <div className="space-y-4 border-t border-gray-200 pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Run at specific time</Label>
-                        <input
-                            type="time"
-                            className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-48"
-                            value={customScheduleTime}
-                            onChange={(e) => setCustomScheduleTime(e.target.value)}
-                        />
-                    </div>
-                    
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Timezone</Label>
-                        <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Select timezone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="UTC">UTC</SelectItem>
-                                <SelectItem value="Local">IST</SelectItem>
-                              
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Frequency</Label>
-                        <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Select frequency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="daily">Daily</SelectItem>
-                                <SelectItem value="weekdays">Weekdays only</SelectItem>
-                                <SelectItem value="weekends">Weekends only</SelectItem>
-                                <SelectItem value="custom">Custom days</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                
-                {scheduleFrequency === "custom" && (
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Select days</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
-                                <Button
-                                    key={day}
-                                    type="button"
-                                    variant={scheduleDays.includes(day) ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => {
-                                        if (scheduleDays.includes(day)) {
-                                            setScheduleDays(scheduleDays.filter(d => d !== day));
-                                        } else {
-                                            setScheduleDays([...scheduleDays, day]);
+                        <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
+                            <div className="space-y-5 sm:space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                                <div className="space-y-2 w-full">
+                                    <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
+                                    <Select value={scheduleInterval} onValueChange={(value) => {
+                                        setScheduleInterval(value);
+                                        // Reset custom time if not custom
+                                        if (value !== "Custom") {
+                                            setCustomScheduleTime("12:00");
                                         }
-                                    }}
-                                    className={scheduleDays.includes(day) ? "bg-blue-600" : ""}
-                                >
-                                    {day.substring(0, 3)}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                
-                <div className="pt-2">
-                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-100">
-                        <div className="font-medium text-blue-800 mb-1">Schedule Summary</div>
-                        <p>
-                            {scheduleFrequency === "daily" && "Run every day"}
-                            {scheduleFrequency === "weekdays" && "Run on weekdays (Mon-Fri)"}
-                            {scheduleFrequency === "weekends" && "Run on weekends (Sat-Sun)"}
-                            {scheduleFrequency === "custom" && `Run on ${scheduleDays.join(", ")}`}
-                            {` at ${customScheduleTime} ${scheduleTimezone}`}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        )}
-        
-       
-    </div>
-</div>
+                                    }}>
+                                        <SelectTrigger className="w-full sm:w-[33rem]">
+                                            <SelectValue placeholder="Select interval..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {selectedPlatform !== "snap" && (
+                                                <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
+                                            )}
+                                            <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
+                                            <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
+                                            <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
+                                            <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
+                                            <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
+                                            <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
+                                            <SelectItem value="Once Daily (As soon as conditions are met)">
+                                                Once Daily (As soon as conditions are met)
+                                            </SelectItem>
+                                            <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
+                                            <SelectItem value="Daily (At 12:00 PM Local)">Daily (At 12:00 PM IST)</SelectItem>
+                                            <SelectItem value="Custom">Custom Schedule...</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
 
+                            {scheduleInterval === "Custom" && (
+                                <div className="space-y-4 border-t border-gray-200 pt-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700">Run at specific time</Label>
+                                            <input
+                                                type="time"
+                                                className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-48 ml-3"
+                                                value={customScheduleTime}
+                                                onChange={(e) => setCustomScheduleTime(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700">Timezone</Label>
+                                            <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
+                                                <SelectTrigger className="w-full sm:w-48">
+                                                    <SelectValue placeholder="Select timezone" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="UTC">UTC</SelectItem>
+                                                    <SelectItem value="Local">IST</SelectItem>
+
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700">Frequency</Label>
+                                            <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
+                                                <SelectTrigger className="w-full sm:w-48">
+                                                    <SelectValue placeholder="Select frequency" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="daily">Daily</SelectItem>
+                                                    <SelectItem value="weekdays">Weekdays only</SelectItem>
+                                                    <SelectItem value="weekends">Weekends only</SelectItem>
+                                                    <SelectItem value="custom">Custom days</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {scheduleFrequency === "custom" && (
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700">Select days</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                                                    <Button
+                                                        key={day}
+                                                        type="button"
+                                                        variant={scheduleDays.includes(day) ? "default" : "outline"}
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            if (scheduleDays.includes(day)) {
+                                                                setScheduleDays(scheduleDays.filter(d => d !== day));
+                                                            } else {
+                                                                setScheduleDays([...scheduleDays, day]);
+                                                            }
+                                                        }}
+                                                        className={scheduleDays.includes(day) ? "bg-blue-600" : ""}
+                                                    >
+                                                        {day.substring(0, 3)}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2">
+                                        <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                            <div className="font-medium text-blue-800 mb-1">Schedule Summary</div>
+                                            <p>
+                                                {scheduleFrequency === "daily" && "Run every day"}
+                                                {scheduleFrequency === "weekdays" && "Run on weekdays (Mon-Fri)"}
+                                                {scheduleFrequency === "weekends" && "Run on weekends (Sat-Sun)"}
+                                                {scheduleFrequency === "custom" && `Run on ${scheduleDays.join(", ")}`}
+                                                {` at ${customScheduleTime} ${scheduleTimezone}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        </div>
                     </div>
 
                     {/* Footer actions */}
