@@ -29,7 +29,10 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 // Firestore
 import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { addConfig } from "@/services/config.js"; // ⬅️ no getCollectionName here
+import { addConfig } from "@/services/config.js";
+
+// Supabase to fetch my role & platform access
+import { supabase } from "@/supabaseClient";
 
 /* ---------- helpers ---------- */
 const PLATFORM_OPTIONS = [
@@ -154,6 +157,14 @@ export default function EditRuleFormExclusion() {
     const ruleId = location.state?.id || null;
     const colName = location.state?.colName || null;
 
+    // my session role & platforms ===
+    const [myRole, setMyRole] = useState('user');
+    const [allowedPlatforms, setAllowedPlatforms] = useState([]); // ['meta','snap',...]
+    const [accessLoaded, setAccessLoaded] = useState(false);
+
+    // read-only mode if role === 'user'
+    const isReadOnly = myRole === 'user';
+
     // UI state
     const [ruleName, setRuleName] = useState("");
     const [selectedPlatform, setSelectedPlatform] = useState("");
@@ -180,28 +191,83 @@ export default function EditRuleFormExclusion() {
 
     const [showTrafficDropdown, setShowTrafficDropdown] = useState(false);
 
+    // fetch my access (role + platforms) ===
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!mounted) return;
+
+            let role = 'user';
+            let platforms = [];
+
+            if (session?.user?.id) {
+                const { data: me, error: meErr } = await supabase
+                    .from('user_roles')
+                    .select('role, platforms')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
+                if (!meErr && me) {
+                    role = me.role || 'user';
+                    platforms = Array.from(new Set((me.platforms || []).map(v => String(v).toLowerCase())));
+                }
+            }
+
+            // SuperAdmin can access all platforms
+            if (role === 'SuperAdmin') {
+                platforms = ['meta','snap','newsbreak','google','tiktok'];
+            }
+
+            setMyRole(role);
+            setAllowedPlatforms(platforms);
+            setAccessLoaded(true);
+        })();
+
+        return () => { mounted = false; };
+    }, []);
+
+    // === 🔵 ADDED: filter platform options by allowedPlatforms ===
+    const visiblePlatformOptions = useMemo(() => {
+        if (!accessLoaded) return [];
+        const set = new Set(allowedPlatforms);
+        return PLATFORM_OPTIONS.filter(p => set.has(p.value));
+    }, [accessLoaded, allowedPlatforms]);
+
     // fetch live Snapchat campaigns from /api/campaigns on mount
     useEffect(() => {
+        if (!accessLoaded) return;
         let isMounted = true;
         (async () => {
             try {
                 setLoadingCatalog(true);
                 setCatalogError("");
-                const [snapRes, metaRes, nbRes] = await Promise.all([
-                    fetch(`${API_BASE}/api/campaigns?platform=snap`, { cache: "no-store" }),
-                    fetch(`${API_BASE}/api/campaigns?platform=meta`, { cache: "no-store" }),
-                    fetch(`${API_BASE}/api/campaigns?platform=newsbreak`, { cache: "no-store" }),
-                ]);
-                const [snapJson, metaJson, nbJson] = await Promise.all([
-                    snapRes.json(),
-                    metaRes.json(),
-                    nbRes.json(),
-                ]);
-                if (!snapRes.ok) throw new Error(snapJson?.error || "Failed to load Snap campaigns");
-                if (!metaRes.ok) throw new Error(metaJson?.error || "Failed to load Meta campaigns");
-                if (!nbRes.ok) throw new Error(nbJson?.error || "Failed to load NewsBreak campaigns");
-                if (!isMounted) return;
 
+                // === 🟡 CHANGED: only fetch what user can see ===
+                const fetches = [];
+                if (allowedPlatforms.includes('snap')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=snap`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                if (allowedPlatforms.includes('meta')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=meta`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                if (allowedPlatforms.includes('newsbreak')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=newsbreak`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                const [snapRes, metaRes, nbRes] = await Promise.all(fetches);
+
+                const snapJson = snapRes ? await snapRes.json() : null;
+                const metaJson = metaRes ? await metaRes.json() : null;
+                const nbJson   = nbRes   ? await nbRes.json()   : null;
+
+                if (snapRes && !snapRes.ok) throw new Error(snapJson?.error || "Failed to load Snap campaigns");
+                if (metaRes && !metaRes.ok) throw new Error(metaJson?.error || "Failed to load Meta campaigns");
+                if (nbRes   && !nbRes.ok)   throw new Error(nbJson?.error   || "Failed to load NewsBreak campaigns");
+
+                if (!isMounted) return;
                 setCatalog({ snap: snapJson, meta: metaJson, newsbreak: nbJson });
             } catch (e) {
                 if (isMounted) setCatalogError(String(e?.message || e));
@@ -209,12 +275,10 @@ export default function EditRuleFormExclusion() {
                 if (isMounted) setLoadingCatalog(false);
             }
         })();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+        return () => { isMounted = false; };
+    }, [accessLoaded, allowedPlatforms, API_BASE]);
 
-    // flatten helpers from catalog
+    //SNAP flatten helpers from catalog
     const snapCampaignList = useMemo(() => {
         const snap = catalog.snap;
         if (!snap?.accounts) return [];
@@ -346,25 +410,60 @@ export default function EditRuleFormExclusion() {
 
     // Load from Firestore when editing
     useEffect(() => {
-        if (!ruleId || !colName) return;
+        if (!ruleId || !colName || !accessLoaded) return;
         const ref = doc(db, colName, ruleId);
         const unsub = onSnapshot(ref, (snap) => {
             if (!snap.exists()) return;
             const d = snap.data();
             const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
-            setSelectedPlatform(platform);
+
+            // If user is not SuperAdmin and platform not allowed, force read-only via state
+            // (We still show it but cannot switch to disallowed platform)
+            if (myRole !== 'SuperAdmin' && !allowedPlatforms.includes(platform)) {
+                // Auto-fallback to first allowed platform for safety in UI
+                const fallback = allowedPlatforms[0] || "";
+                setSelectedPlatform(fallback);
+            } else {
+                setSelectedPlatform(platform);
+            }
+
             setRuleName(d.name || "");
-            setScheduleInterval(d.frequency || "");
+
+            if (d.schedule?.mode === "custom") {
+                setScheduleInterval("Custom");
+            } else if (d.schedule?.mode === "preset") {
+                setScheduleInterval(d.schedule.preset || "");
+            } else {
+                setScheduleInterval(d.frequency || "");
+            }
+
             setCampaigns(d.campaigns || []);
             const raw = Array.isArray(d.condition) ? d.condition : [];
             const rows =
                 raw.length > 0
-                    ? raw.map((c, i) => ({ ...parseIncomingCondition(c, i), id: i + 1, logic: i === 0 ? "If" : "And" }))
+                    ? raw.map((c, i) => ({
+                        ...parseIncomingCondition(c, i),
+                        id: i + 1,
+                        logic: i === 0 ? "If" : (String(c?.logic).toUpperCase() === "OR" ? "OR" : "AND"),
+                    }))
                     : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
             setConditions(rows);
+
+            if (d.lookback?.start) setStartDate(d.lookback.start);
+            if (d.lookback?.end) setEndDate(d.lookback.end);
+            if (d.lookback?.period) setLookBackPeriod(d.lookback.period);
+            if (d.lookback?.display) setActiveLookBack(d.lookback.display);
+
+            if (d.schedule) {
+                if (d.schedule.time) setCustomScheduleTime(d.schedule.time);
+                if (d.schedule.timezone === "Asia/Kolkata") setScheduleTimezone("Local");
+                else if (d.schedule.timezone === "UTC") setScheduleTimezone("UTC");
+                if (d.schedule.frequency) setScheduleFrequency(d.schedule.frequency);
+                if (Array.isArray(d.schedule.days)) setScheduleDays(d.schedule.days);
+            }
         });
         return () => unsub();
-    }, [ruleId, colName]);
+    }, [ruleId, colName, accessLoaded, allowedPlatforms, myRole]);
 
     // close dropdowns on outside click
     useEffect(() => {
@@ -437,6 +536,9 @@ export default function EditRuleFormExclusion() {
 
     /* ----- Save ----- */
     const handleSave = async () => {
+
+        if (isReadOnly) return;
+
         const campaignsToPersist = campaigns.map(toPlainCampaignName);
 
         const uiPayload = {
@@ -474,6 +576,14 @@ export default function EditRuleFormExclusion() {
         }
     };
 
+    useEffect(() => {
+        if (!accessLoaded) return;
+        if (!selectedPlatform) {
+            setSelectedPlatform(allowedPlatforms[0] || "");
+        } else if (selectedPlatform && !allowedPlatforms.includes(selectedPlatform)) {
+            setSelectedPlatform(allowedPlatforms[0] || "");
+        }
+    }, [accessLoaded, allowedPlatforms, selectedPlatform]);
 
     return (
         <>
@@ -485,6 +595,12 @@ export default function EditRuleFormExclusion() {
                         <h1 className="text-2xl font-semibold text-blue-600 mb-4 pt-5">
                             {ruleId ? "Edit Rule" : "Create New Rule"}
                         </h1>
+                        {/* === 🔵 ADDED: read-only banner for 'user' role === */}
+                        {isReadOnly && (
+                            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3">
+                                You have <strong>view-only</strong> access. Contact an admin to create or modify rules.
+                            </div>
+                        )}
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
                                 1
@@ -507,6 +623,7 @@ export default function EditRuleFormExclusion() {
                                         onChange={(e) => setRuleName(e.target.value)}
                                         className="w-full"
                                         placeholder=""
+                                        disabled={isReadOnly}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -514,12 +631,12 @@ export default function EditRuleFormExclusion() {
                                         Platform
                                     </Label>
                                     <div className="flex gap-2">
-                                        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                                        <Select value={selectedPlatform} onValueChange={setSelectedPlatform} disabled={isReadOnly || visiblePlatformOptions.length === 0}>
                                             <SelectTrigger className="flex-1">
                                                 <SelectValue placeholder="Select Platform..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {PLATFORM_OPTIONS.map((p) => (
+                                                {visiblePlatformOptions.map((p) => (
                                                     <SelectItem key={p.value} value={p.value}>
                                                         <div className="flex items-center gap-2">
                                                             <img src={p.icon} alt="" className="w-4 h-4" />
@@ -757,7 +874,7 @@ export default function EditRuleFormExclusion() {
                         <Button variant="outline" className="text-gray-600 bg-transparent" onClick={() => navigate("/rules")}>
                             Back
                         </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave} disabled={isReadOnly}>
                             Save
                         </Button>
                     </div>

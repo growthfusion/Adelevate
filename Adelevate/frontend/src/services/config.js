@@ -197,13 +197,19 @@ export function toFirestoreDoc(ui, id) {
         status: ui.status || "Paused",
         frequency: ui.frequency || "",
 
-        // === ADDED: schedule & root lookback
-        lookback: ui.lookback ? {
-            period: ui.lookback.period || "",
-            start: ui.lookback.start || "",
-            end: ui.lookback.end || "",
-            display: ui.lookback.display || "",
-        } : undefined,
+        // === CHANGED === Lookback handling: accept null OR map object OR skip when undefined
+        ...(ui.lookback === null
+            ? { lookback: null } // explicit null when toggle OFF
+            : ui.lookback
+                ? {
+                    lookback: {
+                        period: ui.lookback.period || "",
+                        start: ui.lookback.start || "",
+                        end: ui.lookback.end || "",
+                        display: ui.lookback.display || "",
+                    },
+                }
+                : {}),
 
         schedule: ui.schedule ? {
             mode: ui.schedule.mode,

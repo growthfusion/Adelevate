@@ -201,6 +201,8 @@ export default function EditRuleFormPause() {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
 
+    const [enableLookback, setEnableLookback] = useState(false);
+
     // multi-select Add Campaigns dropdown
     const campaignDropdownRef = useRef(null);
     const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
@@ -624,6 +626,12 @@ export default function EditRuleFormPause() {
                     : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
             setConditions(rows);
 
+            // Turn ON if doc has a non-empty lookback; else OFF
+            const hasLookback =
+                d.lookback &&
+                (d.lookback.period || d.lookback.start || d.lookback.end || d.lookback.display);
+            setEnableLookback(Boolean(hasLookback));
+
             if (d.lookback?.start) setStartDate(d.lookback.start);
             if (d.lookback?.end) setEndDate(d.lookback.end);
             if (d.lookback?.period) setLookBackPeriod(d.lookback.period);
@@ -788,12 +796,14 @@ export default function EditRuleFormPause() {
         const schedulePayload = buildSchedulePayload(); // === ADDED ===
 
         // === ADDED === root-level lookback payload
-        const lookbackPayload = {
-            period: lookBackPeriod, // "7_days" | "custom" | ...
-            start: startDate,       // "YYYY-MM-DD"
-            end: endDate,           // "YYYY-MM-DD"
-            display: activeLookBack // "Last 7 days", "Custom range", etc.
-        };
+        const lookbackPayload = enableLookback
+            ? {
+                period: lookBackPeriod,
+                start: startDate,
+                end: endDate,
+                display: activeLookBack,
+            }
+            : null;
 
         // existing campaigns normalization
         const campaignsToPersist = campaigns.map(toPlainCampaignName);
@@ -1153,20 +1163,38 @@ export default function EditRuleFormPause() {
                                         <Plus className="w-4 h-4 mr-2" />
                                         Add
                                     </Button>
+                                    {/* === ADDED === Lookback enable toggle */}
+                                    <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4"
+                                            checked={enableLookback}
+                                            onChange={(e) => setEnableLookback(e.target.checked)}
+                                            disabled={isReadOnly}
+                                        />
+                                        <span className="text-sm text-gray-700">
+                                            Enable Lookback
+                                        </span>
+                                    </label>
                                     <div>
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2"
-                                            onClick={() => setShowLookBack(!showLookBack)}
+                                            onClick={() => enableLookback && setShowLookBack(!showLookBack)} // === CHANGED === guard by toggle
+                                            disabled={!enableLookback}
                                         >
                                             <span>Look Back:</span>
-                                            <span className="font-medium whitespace-nowrap">{activeLookBack}</span>
-                                            <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
-                                              {calculateDaysBetween(startDate, endDate)}d
+                                            <span className="font-medium whitespace-nowrap">
+                                                {enableLookback ? activeLookBack : "Disabled"}
                                             </span>
+                                            {enableLookback && (
+                                                <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
+                                                  {calculateDaysBetween(startDate, endDate)}d
+                                                </span>
+                                            )}
                                         </Button>
-                                        {showLookBack && (
+                                        {enableLookback && showLookBack && (
                                             <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
                                                 <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
                                                     <span className="text-base font-medium text-gray-800">Look Back Period</span>

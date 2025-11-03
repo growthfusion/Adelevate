@@ -188,6 +188,8 @@ export default function EditRuleFormActivate() {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
 
+    const [enableLookback, setEnableLookback] = useState(false);
+
     // Add-campaigns dropdown (multi-select)
     const campaignDropdownRef = useRef(null);
     const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
@@ -393,21 +395,32 @@ export default function EditRuleFormActivate() {
             try {
                 setLoadingCatalog(true);
                 setCatalogError("");
-                const [snapRes, metaRes, nbRes] = await Promise.all([
-                    fetch(`${API_BASE}/api/campaigns?platform=snap`, { cache: "no-store" }),
-                    fetch(`${API_BASE}/api/campaigns?platform=meta`, { cache: "no-store" }),
-                    fetch(`${API_BASE}/api/campaigns?platform=newsbreak`, { cache: "no-store" }),
-                ]);
-                const [snapJson, metaJson, nbJson] = await Promise.all([
-                    snapRes.json(),
-                    metaRes.json(),
-                    nbRes.json(),
-                ]);
-                if (!snapRes.ok) throw new Error(snapJson?.error || "Failed to load Snap campaigns");
-                if (!metaRes.ok) throw new Error(metaJson?.error || "Failed to load Meta campaigns");
-                if (!nbRes.ok) throw new Error(nbJson?.error || "Failed to load NewsBreak campaigns");
-                if (!isMounted) return;
 
+                // === 🟡 CHANGED: only fetch what user can see ===
+                const fetches = [];
+                if (allowedPlatforms.includes('snap')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=snap`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                if (allowedPlatforms.includes('meta')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=meta`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                if (allowedPlatforms.includes('newsbreak')) {
+                    fetches.push(fetch(`${API_BASE}/api/campaigns?platform=newsbreak`, { cache: "no-store" }));
+                } else fetches.push(Promise.resolve(null));
+
+                const [snapRes, metaRes, nbRes] = await Promise.all(fetches);
+
+                const snapJson = snapRes ? await snapRes.json() : null;
+                const metaJson = metaRes ? await metaRes.json() : null;
+                const nbJson   = nbRes   ? await nbRes.json()   : null;
+
+                if (snapRes && !snapRes.ok) throw new Error(snapJson?.error || "Failed to load Snap campaigns");
+                if (metaRes && !metaRes.ok) throw new Error(metaJson?.error || "Failed to load Meta campaigns");
+                if (nbRes   && !nbRes.ok)   throw new Error(nbJson?.error   || "Failed to load NewsBreak campaigns");
+
+                if (!isMounted) return;
                 setCatalog({ snap: snapJson, meta: metaJson, newsbreak: nbJson });
             } catch (e) {
                 if (isMounted) setCatalogError(String(e?.message || e));
@@ -415,10 +428,8 @@ export default function EditRuleFormActivate() {
                 if (isMounted) setLoadingCatalog(false);
             }
         })();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+        return () => { isMounted = false; };
+    }, [accessLoaded, allowedPlatforms, API_BASE]);
 
     // SNAP flatten helpers from catalog
     const snapCampaignList = useMemo(() => {
@@ -553,22 +564,27 @@ export default function EditRuleFormActivate() {
 
     // Load from Firestore when editing
     useEffect(() => {
-        if (!ruleId || !colName) return;
+        if (!ruleId || !colName || !accessLoaded) return;
         const ref = doc(db, colName, ruleId);
         const unsub = onSnapshot(ref, (snap) => {
             if (!snap.exists()) return;
             const d = snap.data();
             const platform = (Array.isArray(d.platform) ? d.platform[0] : d.platform) || "meta";
-            setSelectedPlatform(platform);
+
+            if (myRole !== 'SuperAdmin' && !allowedPlatforms.includes(platform)) {
+                const fallback = allowedPlatforms[0] || "";
+                setSelectedPlatform(fallback);
+            } else {
+                setSelectedPlatform(platform);
+            }
+
             setRuleName(d.name || "");
 
-            // === CHANGED: show literal "Custom" in the select when mode is custom
             if (d.schedule?.mode === "custom") {
                 setScheduleInterval("Custom");
             } else if (d.schedule?.mode === "preset") {
                 setScheduleInterval(d.schedule.preset || "");
             } else {
-                // legacy fallback
                 setScheduleInterval(d.frequency || "");
             }
 
@@ -584,6 +600,12 @@ export default function EditRuleFormActivate() {
                     : [{ id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }];
 
             setConditions(rows);
+
+            // Turn ON if doc has a non-empty lookback; else OFF
+            const hasLookback =
+                d.lookback &&
+                (d.lookback.period || d.lookback.start || d.lookback.end || d.lookback.display);
+            setEnableLookback(Boolean(hasLookback));
 
             // === ADDED: restore lookback root if present
             if (d.lookback?.start) setStartDate(d.lookback.start);
@@ -601,7 +623,7 @@ export default function EditRuleFormActivate() {
             }
         });
         return () => unsub();
-    }, [ruleId, colName]);
+    }, [ruleId, colName, accessLoaded, allowedPlatforms, myRole]);
 
     // close dropdowns on outside click
     useEffect(() => {
@@ -680,6 +702,9 @@ export default function EditRuleFormActivate() {
 
     /* ----- Save ----- */
     const handleSave = async () => {
+
+        if (isReadOnly) return;
+
         // === CHANGED === map "Local" explicitly to Asia/Kolkata
         const tzResolved =
             scheduleTimezone === "Local" ? "Asia/Kolkata" : "UTC"; // IST region string
@@ -737,18 +762,24 @@ export default function EditRuleFormActivate() {
         const schedulePayload = buildSchedulePayload(); // === ADDED ===
 
         // === ADDED === root-level lookback payload
-        const lookbackPayload = {
-            period: lookBackPeriod, // "7_days" | "custom" | ...
-            start: startDate,       // "YYYY-MM-DD"
-            end: endDate,           // "YYYY-MM-DD"
-            display: activeLookBack // "Last 7 days", "Custom range", etc.
-        };
+        const lookbackPayload = enableLookback
+            ? {
+                period: lookBackPeriod,
+                start: startDate,
+                end: endDate,
+                display: activeLookBack,
+            }
+            : null;
 
         // existing campaigns normalization
         const campaignsToPersist = campaigns.map(toPlainCampaignName);
 
         // === CHANGED === conditions now carry per-condition lookback context
-        const serializedConditions = conditions.map((c) => ({
+        const serializedConditions = conditions.map((c, i) => ({
+            logic:
+                i === 0
+                    ? "If"
+                    : (String(c.logic).toUpperCase() === "OR" ? "OR" : "AND"),
             metric: c.metric,
             operator: c.operator,
             value: c.value,
@@ -784,6 +815,15 @@ export default function EditRuleFormActivate() {
         }
     };
 
+    useEffect(() => {
+        if (!accessLoaded) return;
+        if (!selectedPlatform) {
+            setSelectedPlatform(allowedPlatforms[0] || "");
+        } else if (selectedPlatform && !allowedPlatforms.includes(selectedPlatform)) {
+            setSelectedPlatform(allowedPlatforms[0] || "");
+        }
+    }, [accessLoaded, allowedPlatforms, selectedPlatform]);
+
     return (
         <>
             <Search />
@@ -794,6 +834,12 @@ export default function EditRuleFormActivate() {
                         <h1 className="text-2xl font-semibold text-blue-600 mb-4 pt-5">
                             {ruleId ? "Edit Rule" : "Create New Rule"}
                         </h1>
+                        {/* === 🔵 ADDED: read-only banner for 'user' role === */}
+                        {isReadOnly && (
+                            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3">
+                                You have <strong>view-only</strong> access. Contact an admin to create or modify rules.
+                            </div>
+                        )}
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-6 h-6 bg-cyan-500 rounded flex items-center justify-center text-white text-sm font-medium">
                                 1
@@ -816,6 +862,7 @@ export default function EditRuleFormActivate() {
                                         onChange={(e) => setRuleName(e.target.value)}
                                         className="w-full"
                                         placeholder=""
+                                        disabled={isReadOnly}
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -823,12 +870,12 @@ export default function EditRuleFormActivate() {
                                         Platform
                                     </Label>
                                     <div className="flex gap-2">
-                                        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+                                        <Select value={selectedPlatform} onValueChange={setSelectedPlatform} disabled={isReadOnly || visiblePlatformOptions.length === 0}>
                                             <SelectTrigger className="flex-1">
                                                 <SelectValue placeholder="Select Platform..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {PLATFORM_OPTIONS.map((p) => (
+                                                {visiblePlatformOptions.map((p) => (
                                                     <SelectItem key={p.value} value={p.value}>
                                                         <div className="flex items-center gap-2">
                                                             <img src={p.icon} alt="" className="w-4 h-4" />
@@ -1054,16 +1101,38 @@ export default function EditRuleFormActivate() {
                                         <Plus className="w-4 h-4 mr-2" />
                                         Add
                                     </Button>
+                                    {/* === ADDED === Lookback enable toggle */}
+                                    <label className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4"
+                                            checked={enableLookback}
+                                            onChange={(e) => setEnableLookback(e.target.checked)}
+                                            disabled={isReadOnly}
+                                        />
+                                        <span className="text-sm text-gray-700">
+                                            Enable Lookback
+                                        </span>
+                                    </label>
                                     <div>
-                                        <Button variant="outline" size="sm" className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2" onClick={() => setShowLookBack(!showLookBack)}>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto flex items-center gap-2"
+                                            onClick={() => enableLookback && setShowLookBack(!showLookBack)} // === CHANGED === guard by toggle
+                                            disabled={!enableLookback}
+                                        >
                                             <span>Look Back:</span>
-                                            <span className="font-medium whitespace-nowrap">{activeLookBack}</span>
-                                            <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
-                                              {calculateDaysBetween(startDate, endDate)}d
+                                            <span className="font-medium whitespace-nowrap">
+                                                {enableLookback ? activeLookBack : "Disabled"}
                                             </span>
-                                          </Button>
-  
-                                        {showLookBack && (
+                                            {enableLookback && (
+                                                <span className="bg-blue-100 text-blue-800 text-xs font-medium rounded px-1.5 py-0.5 ml-1">
+                                                  {calculateDaysBetween(startDate, endDate)}d
+                                                </span>
+                                            )}
+                                        </Button>
+                                        {enableLookback && showLookBack && (
                                             <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
                                                 <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
                                                     <span className="text-base font-medium text-gray-800">Look Back Period</span>
@@ -1293,6 +1362,7 @@ export default function EditRuleFormActivate() {
                             </div>
                         </div>
                     </div>
+
                     {/* Apply Rule */}
                     <div className="mb-8">
                         <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -1510,126 +1580,128 @@ export default function EditRuleFormActivate() {
                             </div>
                             <h2 className="text-base sm:text-lg font-semibold text-gray-900">Schedule Rule</h2>
                         </div>
+
                         <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
                             <div className="space-y-5 sm:space-y-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                                <div className="space-y-2 w-full">
-                                    <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
-                                    <Select value={scheduleInterval} onValueChange={(value) => {
-                                        setScheduleInterval(value);
-                                        // Reset custom time if not custom
-                                        if (value !== "Custom") {
-                                            setCustomScheduleTime("12:00");
-                                        }
-                                    }}>
-                                        <SelectTrigger className="w-full sm:w-[33rem]">
-                                            <SelectValue placeholder="Select interval..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {selectedPlatform !== "snap" && (
-                                                <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
-                                            )}
-                                            <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
-                                            <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
-                                            <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
-                                            <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
-                                            <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
-                                            <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
-                                            <SelectItem value="Once Daily (As soon as conditions are met)">
-                                                Once Daily (As soon as conditions are met)
-                                            </SelectItem>
-                                            <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM UTC)</SelectItem>
-                                            <SelectItem value="Daily (At 12:00 PM Local)">Daily (At 12:00 PM IST)</SelectItem>
-                                            <SelectItem value="Custom">Custom Schedule...</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            {scheduleInterval === "Custom" && (
-                                <div className="space-y-4 border-t border-gray-200 pt-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-gray-700">Run at specific time</Label>
-                                            <input
-                                                type="time"
-                                                className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-48 ml-3"
-                                                value={customScheduleTime}
-                                                onChange={(e) => setCustomScheduleTime(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-gray-700">Timezone</Label>
-                                            <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
-                                                <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select timezone" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="UTC">UTC</SelectItem>
-                                                    <SelectItem value="Local">IST</SelectItem>
-
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-gray-700">Frequency</Label>
-                                            <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
-                                                <SelectTrigger className="w-full sm:w-48">
-                                                    <SelectValue placeholder="Select frequency" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="daily">Daily</SelectItem>
-                                                    <SelectItem value="weekdays">Weekdays only</SelectItem>
-                                                    <SelectItem value="weekends">Weekends only</SelectItem>
-                                                    <SelectItem value="custom">Custom days</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                                    <div className="space-y-2 w-full">
+                                        <Label className="text-sm font-medium text-gray-700">Run this rule every</Label>
+                                        <Select value={scheduleInterval} onValueChange={(value) => {
+                                            setScheduleInterval(value);
+                                            // Reset custom time if not custom
+                                            if (value !== "Custom") {
+                                                setCustomScheduleTime("12:00");
+                                            }
+                                        }}>
+                                            <SelectTrigger className="w-full sm:w-[33rem]">
+                                                <SelectValue placeholder="Select interval..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {selectedPlatform !== "snap" && (
+                                                    <SelectItem value="Every 10 Minutes">Every 10 Minutes</SelectItem>
+                                                )}
+                                                <SelectItem value="Every 20 Minutes">Every 20 Minutes</SelectItem>
+                                                <SelectItem value="Every 30 Minutes">Every 30 Minutes</SelectItem>
+                                                <SelectItem value="Every 1 Hour">Every 1 Hour</SelectItem>
+                                                <SelectItem value="Every 3 Hours">Every 3 Hours</SelectItem>
+                                                <SelectItem value="Every 6 Hours">Every 6 Hours</SelectItem>
+                                                <SelectItem value="Every 12 Hours">Every 12 Hours</SelectItem>
+                                                <SelectItem value="Once Daily (As soon as conditions are met)">
+                                                    Once Daily (As soon as conditions are met)
+                                                </SelectItem>
+                                                <SelectItem value="Daily (At 12:00 PM UTC)">Daily (At 12:00 PM
+                                                    UTC)</SelectItem>
+                                                <SelectItem value="Daily (At 12:00 PM Local)">Daily (At 12:00 PM
+                                                    IST)</SelectItem>
+                                                <SelectItem value="Custom">Custom Schedule...</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
+                                </div>
+                                {scheduleInterval === "Custom" && (
+                                    <div className="space-y-4 border-t border-gray-200 pt-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700">Run at specific
+                                                    time</Label>
+                                                <input
+                                                    type="time"
+                                                    className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-48"
+                                                    value={customScheduleTime}
+                                                    onChange={(e) => setCustomScheduleTime(e.target.value)}
+                                                />
+                                            </div>
 
-                                    {scheduleFrequency === "custom" && (
-                                        <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-gray-700">Select days</Label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
-                                                    <Button
-                                                        key={day}
-                                                        type="button"
-                                                        variant={scheduleDays.includes(day) ? "default" : "outline"}
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            if (scheduleDays.includes(day)) {
-                                                                setScheduleDays(scheduleDays.filter(d => d !== day));
-                                                            } else {
-                                                                setScheduleDays([...scheduleDays, day]);
-                                                            }
-                                                        }}
-                                                        className={scheduleDays.includes(day) ? "bg-blue-600" : ""}
-                                                    >
-                                                        {day.substring(0, 3)}
-                                                    </Button>
-                                                ))}
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700">Timezone</Label>
+                                                <Select value={scheduleTimezone} onValueChange={setScheduleTimezone}>
+                                                    <SelectTrigger className="w-full sm:w-48">
+                                                        <SelectValue placeholder="Select timezone"/>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="UTC">UTC</SelectItem>
+                                                        <SelectItem value="Local">IST</SelectItem>
+
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700">Frequency</Label>
+                                                <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
+                                                    <SelectTrigger className="w-full sm:w-48">
+                                                        <SelectValue placeholder="Select frequency"/>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="daily">Daily</SelectItem>
+                                                        <SelectItem value="weekdays">Weekdays only</SelectItem>
+                                                        <SelectItem value="weekends">Weekends only</SelectItem>
+                                                        <SelectItem value="custom">Custom days</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
-                                    )}
 
-                                    <div className="pt-2">
-                                        <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-100">
-                                            <div className="font-medium text-blue-800 mb-1">Schedule Summary</div>
-                                            <p>
-                                                {scheduleFrequency === "daily" && "Run every day"}
-                                                {scheduleFrequency === "weekdays" && "Run on weekdays (Mon-Fri)"}
-                                                {scheduleFrequency === "weekends" && "Run on weekends (Sat-Sun)"}
-                                                {scheduleFrequency === "custom" && `Run on ${scheduleDays.join(", ")}`}
-                                                {` at ${customScheduleTime} ${scheduleTimezone}`}
-                                            </p>
+                                        {scheduleFrequency === "custom" && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-gray-700">Select days</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                                                        <Button
+                                                            key={day}
+                                                            type="button"
+                                                            variant={scheduleDays.includes(day) ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                if (scheduleDays.includes(day)) {
+                                                                    setScheduleDays(scheduleDays.filter(d => d !== day));
+                                                                } else {
+                                                                    setScheduleDays([...scheduleDays, day]);
+                                                                }
+                                                            }}
+                                                            className={scheduleDays.includes(day) ? "bg-blue-600" : ""}
+                                                        >
+                                                            {day.substring(0, 3)}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="pt-2">
+                                            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                                <div className="font-medium text-blue-800 mb-1">Schedule Summary</div>
+                                                <p>
+                                                    {scheduleFrequency === "daily" && "Run every day"}
+                                                    {scheduleFrequency === "weekdays" && "Run on weekdays (Mon-Fri)"}
+                                                    {scheduleFrequency === "weekends" && "Run on weekends (Sat-Sun)"}
+                                                    {scheduleFrequency === "custom" && `Run on ${scheduleDays.join(", ")}`}
+                                                    {` at ${customScheduleTime} ${scheduleTimezone}`}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -1638,7 +1710,7 @@ export default function EditRuleFormActivate() {
                         <Button variant="outline" className="text-gray-600 bg-transparent" onClick={() => navigate("/rules")}>
                             Back
                         </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave}>
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleSave} disabled={isReadOnly}>
                             Save
                         </Button>
                     </div>
