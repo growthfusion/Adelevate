@@ -6,6 +6,7 @@ import AnalyticsChart from './components/AnalyticsChart';
 import AIInsightsPanel from './components/AIInsightsPanel';
 import PlatformDistribution from './components/PlatformDistribution';
 import PlatformComparison from './components/PlatformComparison';
+import Search from "@/components/search-bar";
 
 const CampaignPerformanceHub = () => {
   const [selectedPlatforms, setSelectedPlatforms] = useState('all');
@@ -252,11 +253,8 @@ const CampaignPerformanceHub = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Dashboard</title>
-        <meta name="description" content="Advanced analytics dashboard with AI-powered insights, real-time platform comparison, and strategic optimization recommendations" />
-      </Helmet>
-      <div className="min-h-screen bg-background">
+      <Search />
+      <div className="min-h-screen">
         {/* Enhanced Platform Filter Header */}
         <PlatformFilter
           selectedPlatforms={selectedPlatforms}
@@ -274,23 +272,21 @@ const CampaignPerformanceHub = () => {
           {/* Top 6 Metrics Grid with Graphs */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
-             <MediaBuyerDashboard/>
-              
+              <MediaBuyerDashboard />
             </div>
-            
           </div>
 
           {/* Analytics and AI Insights Section */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
             {/* Enhanced Analytics Chart */}
-            <AnalyticsChart 
+            <AnalyticsChart
               data={chartData}
               selectedPlatform={selectedPlatforms}
               className="xl:col-span-2"
             />
 
             {/* Advanced AI Insights Panel */}
-            <AIInsightsPanel 
+            <AIInsightsPanel
               className="xl:col-span-1"
               platformData={metricsData}
               selectedPlatform={selectedPlatforms}
@@ -298,7 +294,7 @@ const CampaignPerformanceHub = () => {
           </div>
 
           {/* Platform Comparison Section */}
-          <PlatformComparison 
+          <PlatformComparison
             metricsData={metricsData}
             chartData={chartData}
             className="mb-8"
@@ -308,7 +304,6 @@ const CampaignPerformanceHub = () => {
           <PlatformDistribution />
 
           {/* Enhanced Status Footer */}
-        
         </div>
       </div>
     </>

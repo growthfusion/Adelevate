@@ -167,9 +167,11 @@ const SlideSidebar = () => {
             <span className="font-semibold text-gray-800">Adelevate</span>
           </div>
         )}
-        <button 
-          onClick={toggleSidebarCollapse} 
-          className={`p-1 rounded-md hover:bg-gray-100 transition-colors ${isSidebarCollapsed ? "mx-auto" : ""}`}
+        <button
+          onClick={toggleSidebarCollapse}
+          className={`p-1 rounded-md hover:bg-gray-100 transition-colors ${
+            isSidebarCollapsed ? "mx-auto" : ""
+          }`}
           title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <BsLayoutSidebar className="w-5 h-5" />
@@ -199,21 +201,26 @@ const SlideSidebar = () => {
               <button
                 onClick={toggleAutomation}
                 className={`flex items-center w-full px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                  isSidebarCollapsed ? "justify-center" : "justify-between space-x-3"
+                  isSidebarCollapsed
+                    ? "justify-center"
+                    : "justify-between space-x-3"
                 }`}
                 title={isSidebarCollapsed ? "Automation" : ""}
               >
-                <div className={`flex items-center ${isSidebarCollapsed ? "" : "space-x-3"}`}>
+                <div
+                  className={`flex items-center ${
+                    isSidebarCollapsed ? "" : "space-x-3"
+                  }`}
+                >
                   <TbAutomation className="w-5 h-5 min-w-[20px]" />
                   {!isSidebarCollapsed && <span>Automation</span>}
                 </div>
-                {!isSidebarCollapsed && (
-                  isAutomationOpen ? (
+                {!isSidebarCollapsed &&
+                  (isAutomationOpen ? (
                     <ChevronUp className="w-4 h-4" />
                   ) : (
                     <ChevronDown className="w-4 h-4" />
-                  )
-                )}
+                  ))}
               </button>
 
               {/* Automation Submenu - only show when not collapsed */}
@@ -232,49 +239,56 @@ const SlideSidebar = () => {
             </div>
           </li>
           <li>
-            <a href="/log"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
+            <a
+              href="/log"
+              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                isSidebarCollapsed ? "justify-center" : "space-x-3"
+              }`}
+              title={isSidebarCollapsed ? "Log" : ""}
+            >
               <MdOutlineDataSaverOff className="w-5 h-5 min-w-[20px]" />
               {!isSidebarCollapsed && <span>Logs</span>}
             </a>
           </li>
 
           <li>
-            <a href="/actionLog"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
+            <a
+              href="/actionLog"
+              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                isSidebarCollapsed ? "justify-center" : "space-x-3"
+              }`}
+              title={isSidebarCollapsed ? "Log" : ""}
+            >
               <MdDataSaverOn className="w-5 h-5 min-w-[20px]" />
               {!isSidebarCollapsed && <span>Action Logs</span>}
             </a>
           </li>
 
           <li>
-            <a href="/campaigns"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
+            <a
+              href="/campaigns"
+              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                isSidebarCollapsed ? "justify-center" : "space-x-3"
+              }`}
+              title={isSidebarCollapsed ? "Log" : ""}
+            >
               <img src={social} alt="" className="w-6 h-6 min-w-[20px]" />
               {!isSidebarCollapsed && <span>Campaigns</span>}
             </a>
           </li>
 
           <li>
-            <a href="/authorization"
-               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                   isSidebarCollapsed ? "justify-center" : "space-x-3"
-               }`}
-               title={isSidebarCollapsed ? "Log" : ""}>
-              <KeyRound className="w-5 h-5" />
+            <a
+              href="/authorization"
+              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
+                isSidebarCollapsed ? "justify-center" : "space-x-3"
+              }`}
+              title={isSidebarCollapsed ? "Log" : ""}
+            >
+              <KeyRound className="w-5 h-5  min-w-[20px]" />
               {!isSidebarCollapsed && <span>Authorization</span>}
             </a>
           </li>
-          
         </ul>
       </nav>
     </>

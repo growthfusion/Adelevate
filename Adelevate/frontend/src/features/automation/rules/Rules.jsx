@@ -382,9 +382,6 @@ const goToPrevPage = () => {
                 <Search />
             </div>
 
-            <div className="pt-6">
-                <h1>Rules</h1>
-            </div>
 
             {/* Fixed action bar when scrolled */}
             {isScrolled && (

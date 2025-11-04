@@ -3,7 +3,6 @@ import React from "react";
 
 import SlideSidebar from "./components/slide-sidebar";
 import Page from "./features/dashboard/Page";
-import LoginPage from "./components/login";
 import RulesDashboard from "./features/automation/rules/Rules";
 import LogsDashboard from "./features/table_logs/logs_table";
 import ActionLogsDashboard from "./features/action_logs/Alogs";
@@ -19,6 +18,7 @@ import { supabase } from "@/supabaseClient";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import AuthCallback from "@/pages/AuthCallback.jsx";
 
+import AnimatedLoginPage from "./components/login"
 
 function AuthEventLogger() {
     React.useEffect(() => {
@@ -32,42 +32,64 @@ function AuthEventLogger() {
 
 function App() {
     return (
-        <BrowserRouter>
-            <AuthEventLogger />
+      <BrowserRouter>
+        <AuthEventLogger />
 
-            <Routes>
-                <Route path="/login" element={<LoginPage />} />
+        <Routes>
+          {/* <Route path="/ll" element={<LoginPage />} /> */}
 
-                <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-                <Route
-                    path="/*"
-                    element={
-                        <PrivateRoute>
-                            <div className="flex h-screen">
-                                <SlideSidebar />
-                                <main className="flex-1 overflow-auto">
-                                    <Routes>
-                                        <Route path="logout" element={<Page />} />
-                                        <Route path="rules" element={<RulesDashboard />} />
-                                        <Route path="editActivate" element={<EditRuleFormActivate />} />
-                                        <Route path="editBudget" element={<EditRuleFormBudget />} />
-                                        <Route path="editPause" element={<EditRuleFormPause />} />
-                                        <Route path="editExclusion" element={<EditRuleFormExclusion />} />
-                                        <Route path="log" element={<LogsDashboard />} />
-                                        <Route path="actionlog" element={<ActionLogsDashboard />} />
-                                        <Route path="campaigns" element={<Campaigns />} />
-                                        <Route path="dashboard" element={<CampaignPerformanceHub />} />
-                                        <Route path="authorization" element={<AuthorizationPage />} />
-                                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                                    </Routes>
-                                </main>
-                            </div>
-                        </PrivateRoute>
-                    }
-                />
-            </Routes>
-        </BrowserRouter>
+          <Route
+            path="/*"
+            element={
+              <PrivateRoute>
+                <div className="flex h-screen">
+                  <SlideSidebar />
+                  <main className="flex-1 overflow-auto">
+                    <Routes>
+                      <Route path="logout" element={<Page />} />
+                      <Route path="rules" element={<RulesDashboard />} />
+                      <Route
+                        path="editActivate"
+                        element={<EditRuleFormActivate />}
+                      />
+                      <Route
+                        path="editBudget"
+                        element={<EditRuleFormBudget />}
+                      />
+                      <Route path="editPause" element={<EditRuleFormPause />} />
+                      <Route
+                        path="editExclusion"
+                        element={<EditRuleFormExclusion />}
+                      />
+                      <Route path="log" element={<LogsDashboard />} />
+                      <Route
+                        path="actionlog"
+                        element={<ActionLogsDashboard />}
+                      />
+                      <Route path="campaigns" element={<Campaigns />} />
+                      <Route
+                        path="dashboard"
+                        element={<CampaignPerformanceHub />}
+                      />
+                      <Route
+                        path="authorization"
+                        element={<AuthorizationPage />}
+                      />
+                      <Route
+                        path="*"
+                        element={<Navigate to="/dashboard" replace />}
+                      />
+                    </Routes>
+                  </main>
+                </div>
+              </PrivateRoute>
+            }
+          />
+          <Route path="login" element={<AnimatedLoginPage />} />
+        </Routes>
+      </BrowserRouter>
     );
 }
 

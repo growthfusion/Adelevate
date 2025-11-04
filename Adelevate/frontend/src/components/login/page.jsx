@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FaMicrosoft } from "react-icons/fa";
-import { supabase } from '@/supabaseClient';
-import { useNavigate, useLocation } from 'react-router-dom';
-
-
 
 function PlayfulLetterAnimation() {
   const [activeLetterIndex, setActiveLetterIndex] = useState(-1);
@@ -12,14 +8,8 @@ function PlayfulLetterAnimation() {
   const [fallAnimation, setFallAnimation] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [showBackdrop, setShowBackdrop] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [err, setErr] = useState('');
-    const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
-    const { search } = useLocation();
 
-  const brandLetters = "ADELEVATE".split("");
+  const brandLetters = "ADELVATE".split("");
 
   useEffect(() => {
     setTimeout(() => setShowBackdrop(true), 300);
@@ -48,48 +38,6 @@ function PlayfulLetterAnimation() {
   }, [activeLetterIndex, animationComplete, brandLetters.length]);
 
   const getRandom = (min, max) => Math.random() * (max - min) + min;
-
-
-    React.useEffect(() => {
-          const params = new URLSearchParams(search);
-          const raw = params.get('msg');
-          if (raw) setErr(decodeURIComponent(raw)); // show real provider error if present
-    }, [search]);
-  
-  
- const handlePasswordLogin = async (e) => {
-        e.preventDefault();
-        setErr('');
-        setLoading(true);
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        setLoading(false);
-        if (error) setErr(error.message);
-        else navigate('/dashboard');
-    };
-
- const handleMicrosoftSSO = async () => {
-        setErr('');
-        setLoading(true);
-
-        const redirect = `${window.location.origin}/auth/callback`;
-        console.log('[Login] redirectTo =', redirect);
-
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'azure',
-            options: {
-                redirectTo: redirect,
-                scopes: 'openid profile email offline_access',
-                queryParams: { prompt: 'select_account' },
-            },
-        });
-
-        setLoading(false);
-        if (error) {
-            console.error('[signInWithOAuth] error:', error);
-            setErr(error.message);
-        }
-    };
-
 
   const getCharColor = (idx) => {
     const colors = [
@@ -147,7 +95,7 @@ function PlayfulLetterAnimation() {
                 duration: fallAnimation ? 0.4 : 0.5,
                 times: [0, 0.3, 0.6, 1],
                 repeat: Infinity,
-                repeatDelay: fallAnimation ? 0 : 3,
+                repeatDelay: fallAnimation ? 0 : 3, 
               }}
             />
 
@@ -168,11 +116,12 @@ function PlayfulLetterAnimation() {
 
             <div className="flex justify-center items-baseline relative">
               {brandLetters.map((letter, index) => {
+              
                 const levelHeight = index * 35;
 
                 const isActive = activeLetterIndex === index;
                 const hasJumped = activeLetterIndex > index;
-                const isPreparing = activeLetterIndex === index - 1;
+                const isPreparing = activeLetterIndex === index - 1; 
                 const isFalling = fallAnimation;
 
                 const eyeState = isFalling
@@ -192,17 +141,24 @@ function PlayfulLetterAnimation() {
                     initial={{ y: 0 }}
                     animate={{
                       y: isFalling
-                        ? [-levelHeight, 0]
+                        ? 
+                          [
+                            -levelHeight, 
+                            0, 
+                          ]
                         : activeLetterIndex === index
-                        ? [
+                        ? 
+                          [
                             0,
                             -levelHeight - 50,
                             -levelHeight - 10,
                             -levelHeight,
                           ]
                         : activeLetterIndex > index
-                        ? -levelHeight
-                        : 0,
+                        ? 
+                          -levelHeight
+                        :
+                          0,
 
                       x: isFalling ? [0, 0] : 0,
                     }}
@@ -210,7 +166,7 @@ function PlayfulLetterAnimation() {
                       y: isFalling
                         ? {
                             duration: 0.5,
-                            delay: index * 0.1,
+                            delay: index * 0.1, 
                             ease: "easeIn", // Accelerate like gravity
                             times: [0, 1],
                           }
@@ -767,6 +723,7 @@ function PlayfulLetterAnimation() {
         </div>
       </div>
 
+      {/* Right side with improved login form */}
       <div className="lg:w-1/2 bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center p-8">
         <motion.div
           initial={{ opacity: 0 }}
@@ -786,6 +743,8 @@ function PlayfulLetterAnimation() {
             transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
             {/* Logo/branding at top */}
+       
+
             <div className="text-center mb-10">
               <motion.h2
                 className="text-3xl font-bold text-gray-800 mb-3"
@@ -801,14 +760,10 @@ function PlayfulLetterAnimation() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.9 }}
               >
-                Adelevate
+                Adelvate
               </motion.p>
             </div>
 
-          
-        
-
-            {/* Microsoft SSO Button */}
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -829,8 +784,6 @@ function PlayfulLetterAnimation() {
                     ? "0 8px 20px -6px rgba(79, 70, 229, 0.4)"
                     : "0 6px 15px -6px rgba(79, 70, 229, 0.3)",
                 }}
-                onClick={handleMicrosoftSSO}
-                disabled={loading}
               >
                 {/* Button shine effect */}
                 <div
@@ -852,25 +805,22 @@ function PlayfulLetterAnimation() {
 
                 <FaMicrosoft className="mr-3 text-xl" />
                 <span className="font-medium text-lg">
-                  {loading ? "Redirecting…" : "Continue with Microsoft"}
+                  Sign in with Microsoft
                 </span>
               </button>
             </motion.div>
 
-            {/* Error message */}
-            {err && (
-              <motion.p
-                className="text-red-500 text-center mt-4 text-sm"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {err}
-              </motion.p>
-            )}
+            {/* Decorative divider */}
 
-         
+            {/* Additional info */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 1.3 }}
+              className="bg-indigo-50 rounded-xl p-4"
+            ></motion.div>
           </motion.div>
+
         </motion.div>
       </div>
 

@@ -10,8 +10,8 @@ export default function ActionLogsDashboard({ onBack }) {
     const [selectedStartDate, setSelectedStartDate] = useState(new Date(0));
     const [selectedEndDate, setSelectedEndDate] = useState(new Date());
 
-    const [allLogs, setAllLogs] = useState([]);   // ← entire dataset
-    const [logs, setLogs] = useState([]);         // ← filtered by date locally
+    const [allLogs, setAllLogs] = useState([]);  
+    const [logs, setLogs] = useState([]);        
 
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");

@@ -1,361 +1,575 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { Button } from '@/components/ui/Button';
-import { generatePlatformComparison } from '@/utils/aiInsights';
+import React, { useState, useEffect } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
+} from "recharts";
+import { motion } from "framer-motion";
 
-// Dummy implementation for getPlatformColors function
-const getPlatformColors = (platform) => {
-  const colors = {
-    'all': {
-      gradient: 'from-blue-500 to-blue-600',
-      background: 'bg-blue-50',
-      border: 'border-blue-200',
-      accent: 'text-blue-500'
-    },
-    'google-ads': {
-      gradient: 'from-blue-500 to-blue-600',
-      background: 'bg-blue-50',
-      border: 'border-blue-200',
-      accent: 'text-blue-500'
-    },
-    'facebook': {
-      gradient: 'from-indigo-500 to-indigo-600',
-      background: 'bg-indigo-50',
-      border: 'border-indigo-200',
-      accent: 'text-indigo-500'
-    },
-    'tiktok': {
-      gradient: 'from-black to-gray-800',
-      background: 'bg-gray-100',
-      border: 'border-gray-300',
-      accent: 'text-gray-800'
-    },
-    'snapchat': {
-      gradient: 'from-yellow-400 to-yellow-500',
-      background: 'bg-yellow-50',
-      border: 'border-yellow-200',
-      accent: 'text-yellow-500'
-    }
-  };
-  
-  return colors[platform] || colors['all'];
+// Import icons
+import nb from "@/assets/images/automation_img/NewsBreak.svg";
+import fb from "@/assets/images/automation_img/Facebook.svg";
+import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
+import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
+import googleIcon from "@/assets/images/automation_img/google.svg";
+
+// Platform configuration
+const PLATFORM_CONFIG = {
+  "google-ads": {
+    name: "Google Ads",
+    icon: googleIcon,
+    color: "#4285F4",
+    bgColor: "rgba(66, 133, 244, 0.08)",
+  },
+  facebook: {
+    name: "Facebook",
+    icon: fb,
+    color: "#1877F2",
+    bgColor: "rgba(24, 119, 242, 0.08)",
+  },
+  tiktok: {
+    name: "TikTok",
+    icon: tiktokIcon,
+    color: "#FF0050",
+    bgColor: "rgba(255, 0, 80, 0.08)",
+  },
+  snapchat: {
+    name: "Snapchat",
+    icon: snapchatIcon,
+    color: "#FFFC00",
+    bgColor: "rgba(255, 252, 0, 0.08)",
+  },
+  newsbreak: {
+    name: "NewsBreak",
+    icon: nb,
+    color: "#00D4AA",
+    bgColor: "rgba(0, 212, 170, 0.08)",
+  },
 };
 
-// Dummy implementation for getPlatformIcon function
-const getPlatformIcon = (platform) => {
-  // This would normally return an icon name based on the platform
-  // We'll just return a placeholder since we're not using icons
-  return platform;
-};
-
-const PlatformComparison = ({ metricsData = [], chartData = [], className = '' }) => {
+const PlatformComparison = ({ metricsData = [], className = "" }) => {
   const [comparisonData, setComparisonData] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [viewMode, setViewMode] = useState('overview'); // overview, detailed, ai-analysis
-  const [selectedMetric, setSelectedMetric] = useState('roi');
+  const [selectedMetric, setSelectedMetric] = useState("revenue");
+  const [viewMode, setViewMode] = useState("overview");
 
   useEffect(() => {
     generateComparisonData();
   }, [metricsData]);
 
-  const generateComparisonData = async () => {
-    setIsLoading(true);
-    try {
-      // Process platform data for comparison
-      const platforms = ['google-ads', 'facebook', 'tiktok', 'snapchat'];
-      const processedData = platforms?.map(platform => {
-        const spend = metricsData?.find(m => m?.title === 'Amount Spent')?.platformBreakdown?.[platform] || 0;
-        const revenue = metricsData?.find(m => m?.title === 'Revenue')?.platformBreakdown?.[platform] || 0;
-        const conversions = metricsData?.find(m => m?.title === 'Conversions')?.platformBreakdown?.[platform] || 0;
-        const clicks = metricsData?.find(m => m?.title === 'Clicks')?.platformBreakdown?.[platform] || 0;
-        const cpa = metricsData?.find(m => m?.title === 'CPA')?.platformBreakdown?.[platform] || 0;
-        const roi = spend > 0 ? (revenue - spend) / spend : 0;
+  const generateComparisonData = () => {
+    const platforms = [
+      "google-ads",
+      "facebook",
+      "tiktok",
+      "snapchat",
+      "newsbreak",
+    ];
 
-        return {
-          platform,
-          name: platform?.replace('-', ' ')?.replace(/\b\w/g, l => l?.toUpperCase()),
-          spend,
-          revenue,
-          roi: roi * 100,
-          conversions,
-          clicks,
-          cpa,
-          ctr: clicks > 0 ? (conversions / clicks) * 100 : 0,
-          profitMargin: revenue > 0 ? ((revenue - spend) / revenue) * 100 : 0,
-          costEfficiency: spend > 0 ? revenue / spend : 0,
-          score: Math.min(100, Math.max(0, (roi * 30) + (conversions / 100) + ((clicks / 10000) * 10)))
-        };
-      });
+    const processedData = platforms.map((platform) => {
+      const config = PLATFORM_CONFIG[platform];
 
-      setComparisonData(processedData);
-    } catch (error) {
-      console.error('Error generating comparison data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // Use real data if available, otherwise use sample data
+      const spend =
+        metricsData?.find((m) => m?.title === "Amount Spent")
+          ?.platformBreakdown?.[platform] ||
+        Math.floor(Math.random() * 30000) + 10000;
+      const revenue =
+        metricsData?.find((m) => m?.title === "Revenue")?.platformBreakdown?.[
+          platform
+        ] || Math.floor(Math.random() * 50000) + 20000;
+      const conversions =
+        metricsData?.find((m) => m?.title === "Conversions")
+          ?.platformBreakdown?.[platform] ||
+        Math.floor(Math.random() * 500) + 100;
+      const clicks =
+        metricsData?.find((m) => m?.title === "Clicks")?.platformBreakdown?.[
+          platform
+        ] || Math.floor(Math.random() * 5000) + 1000;
 
-  const getMetricData = () => {
-    return comparisonData?.map(platform => ({
-      ...platform,
-      value: platform?.[selectedMetric] || 0
-    }));
-  };
+      const roi = spend > 0 ? ((revenue - spend) / spend) * 100 : 0;
+      const cpa = conversions > 0 ? spend / conversions : 0;
+      const ctr = clicks > 0 ? (conversions / clicks) * 100 : 0;
 
-  const getRadarData = () => {
-    return comparisonData?.map(platform => ({
-      platform: platform?.name,
-      ROI: Math.min(100, platform?.roi * 2),
-      'Conversion Rate': platform?.ctr * 20,
-      'Cost Efficiency': Math.min(100, platform?.costEfficiency * 25),
-      'Volume': Math.min(100, platform?.conversions / 50),
-      'Profit Margin': Math.max(0, platform?.profitMargin)
-    }));
+      return {
+        platform,
+        ...config,
+        spend,
+        revenue,
+        roi,
+        conversions,
+        clicks,
+        cpa,
+        ctr,
+        profit: revenue - spend,
+      };
+    });
+
+    setComparisonData(processedData);
   };
 
   const metricOptions = [
-    { value: 'roi', label: 'ROI %', format: 'percentage' },
-    { value: 'revenue', label: 'Revenue', format: 'currency' },
-    { value: 'conversions', label: 'Conversions', format: 'number' },
-    { value: 'cpa', label: 'CPA', format: 'currency' },
-    { value: 'ctr', label: 'CTR %', format: 'percentage' },
-    { value: 'score', label: 'Overall Score', format: 'number' }
+    { value: "revenue", label: "Revenue", format: "currency" },
+    { value: "spend", label: "Ad Spend", format: "currency" },
+    { value: "profit", label: "Profit", format: "currency" },
+    { value: "conversions", label: "Conversions", format: "number" },
+    { value: "roi", label: "ROI %", format: "percentage" },
+    { value: "clicks", label: "Clicks", format: "number" },
   ];
 
   const formatValue = (value, format) => {
+    if (!value && value !== 0) return "0";
+
     switch (format) {
-      case 'currency':
-        return `$${value?.toLocaleString()}`;
-      case 'percentage':
-        return `${value?.toFixed(1)}%`;
+      case "currency":
+        return `$${Math.round(value).toLocaleString()}`;
+      case "percentage":
+        return `${value.toFixed(1)}%`;
       default:
-        return value?.toLocaleString();
+        return Math.round(value).toLocaleString();
     }
   };
 
-  const getTopPerformer = () => {
-    const metric = selectedMetric;
-    return comparisonData?.reduce((best, current) => 
-      (current?.[metric] || 0) > (best?.[metric] || 0) ? current : best
-    , comparisonData?.[0] || {});
+  const currentMetric = metricOptions.find((m) => m.value === selectedMetric);
+
+  // Custom Tooltip
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 rounded-lg shadow-lg border">
+          <p className="font-semibold text-sm mb-1">{data.name}</p>
+          <p className="text-sm">
+            {currentMetric.label}:{" "}
+            <span className="font-bold" style={{ color: data.color }}>
+              {formatValue(payload[0].value, currentMetric.format)}
+            </span>
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
-  const topPerformer = getTopPerformer();
-  const selectedMetricConfig = metricOptions?.find(m => m?.value === selectedMetric);
-
   return (
-    <div className={`bg-card border border-border rounded-2xl shadow-lg ${className}`}>
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Platform Comparison</h3>
-              <p className="text-sm text-muted-foreground">Cross-platform performance analysis</p>
-            </div>
+    <div
+      className={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}
+    >
+      {/* Header */}
+      <div className="p-4 lg:p-6 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              Platform Comparison
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Analytics across all platforms
+            </p>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center bg-muted rounded-lg p-1">
-              {['overview', 'detailed']?.map((mode) => (
-                <Button
-                  key={mode}
-                  variant={viewMode === mode ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode(mode)}
-                  className="text-xs h-7 px-3"
-                >
-                  {mode?.replace('-', ' ')?.replace(/\b\w/g, l => l?.toUpperCase())}
-                </Button>
-              ))}
-            </div>
+
+          <div className="flex gap-2">
+            {["overview", "detailed", "compare"].map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  viewMode === mode
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-      <div className="p-6">
-        {viewMode === 'overview' && (
+
+      <div className="p-4 lg:p-6">
+        {/* Overview View */}
+        {viewMode === "overview" && (
           <div className="space-y-6">
             {/* Metric Selector */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-foreground">Compare by:</span>
-                <select
-                  value={selectedMetric}
-                  onChange={(e) => setSelectedMetric(e?.target?.value)}
-                  className="px-3 py-1 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {metricOptions?.map(option => (
-                    <option key={option?.value} value={option?.value}>
-                      {option?.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              {topPerformer && (
-                <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-muted-foreground">Top Performer:</span>
-                  <div className="flex items-center space-x-1">
-                    <span className={`font-bold ${getPlatformColors(topPerformer?.platform)?.accent}`}>
-                      {topPerformer?.platform?.charAt(0).toUpperCase()}
-                    </span>
-                    <span className="font-semibold text-foreground">{topPerformer?.name}</span>
-                    <span className="text-success">
-                      {formatValue(topPerformer?.[selectedMetric], selectedMetricConfig?.format)}
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm font-medium text-gray-600">Metric:</span>
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value)}
+                className="px-3 py-1.5 bg-white border border-gray-200 rounded text-sm focus:outline-none"
+              >
+                {metricOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Bar Chart */}
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={getMetricData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="name" 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    tickFormatter={(value) => formatValue(value, selectedMetricConfig?.format)}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--foreground))'
+            {/* Main Chart */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={comparisonData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => {
+                      if (currentMetric.format === "currency") {
+                        return `$${(value / 1000).toFixed(0)}k`;
+                      }
+                      return value > 1000
+                        ? `${(value / 1000).toFixed(0)}k`
+                        : value;
                     }}
-                    formatter={(value) => [formatValue(value, selectedMetricConfig?.format), selectedMetricConfig?.label]}
                   />
-                  <Bar 
-                    dataKey="value" 
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]}>
+                    {comparisonData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
             {/* Platform Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {comparisonData?.map((platform) => {
-                const colors = getPlatformColors(platform?.platform);
-                return (
-                  <div
-                    key={platform?.platform}
-                    className={`${colors?.background} ${colors?.border} border rounded-xl p-4 hover:shadow-md transition-all`}
-                  >
-                    <div className="flex items-center space-x-2 mb-3">
-                      <span className={`font-medium ${colors?.accent}`}>
-                        {platform?.platform?.substring(0, 2).toUpperCase()}
-                      </span>
-                      <span className="font-medium text-foreground">{platform?.name}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {comparisonData.map((platform) => (
+                <motion.div
+                  key={platform.platform}
+                  whileHover={{ y: -4 }}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all"
+                  style={{ backgroundColor: platform.bgColor }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <img
+                      src={platform.icon}
+                      alt={platform.name}
+                      className="w-6 h-6"
+                    />
+                    <span className="font-semibold text-sm">
+                      {platform.name}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-500">Revenue</p>
+                      <p className="font-bold text-gray-900">
+                        ${(platform.revenue / 1000).toFixed(1)}k
+                      </p>
                     </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Revenue:</span>
-                        <span className="font-medium text-foreground">{formatValue(platform?.revenue, 'currency')}</span>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs text-gray-500">ROI</p>
+                        <p
+                          className={`text-sm font-semibold ${
+                            platform.roi > 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {platform.roi.toFixed(0)}%
+                        </p>
                       </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Conv</p>
+                        <p className="text-sm font-semibold">
+                          {platform.conversions}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed View */}
+        {viewMode === "detailed" && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="p-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                    Platform
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Spend
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Revenue
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Profit
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    ROI
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Clicks
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    Conversions
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    CPA
+                  </th>
+                  <th className="p-3 text-right text-xs font-semibold text-gray-600 uppercase">
+                    CTR
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonData.map((platform) => (
+                  <tr
+                    key={platform.platform}
+                    className="border-b hover:bg-gray-50"
+                  >
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={platform.icon}
+                          alt={platform.name}
+                          className="w-5 h-5"
+                        />
+                        <span className="font-medium text-sm">
+                          {platform.name}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      {formatValue(platform.spend, "currency")}
+                    </td>
+                    <td className="p-3 text-right text-sm font-medium">
+                      {formatValue(platform.revenue, "currency")}
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      <span
+                        className={
+                          platform.profit > 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {formatValue(platform.profit, "currency")}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          platform.roi > 0
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {platform.roi.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      {formatValue(platform.clicks, "number")}
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      {formatValue(platform.conversions, "number")}
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      {formatValue(platform.cpa, "currency")}
+                    </td>
+                    <td className="p-3 text-right text-sm">
+                      {platform.ctr.toFixed(2)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Compare View */}
+        {viewMode === "compare" && (
+          <div className="space-y-6">
+            {/* Side by Side Metrics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Revenue Comparison */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-3">
+                  Revenue Comparison
+                </h4>
+                <div className="space-y-2">
+                  {comparisonData
+                    .sort((a, b) => b.revenue - a.revenue)
+                    .map((platform) => (
+                      <div
+                        key={platform.platform}
+                        className="flex items-center gap-3"
+                      >
+                        <img
+                          src={platform.icon}
+                          alt={platform.name}
+                          className="w-5 h-5"
+                        />
+                        <span className="text-sm font-medium w-24">
+                          {platform.name}
+                        </span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
+                          <div
+                            className="h-full rounded-full flex items-center justify-end pr-2"
+                            style={{
+                              width: `${
+                                (platform.revenue /
+                                  Math.max(
+                                    ...comparisonData.map((p) => p.revenue)
+                                  )) *
+                                100
+                              }%`,
+                              backgroundColor: platform.color,
+                            }}
+                          >
+                            <span className="text-xs text-white font-medium">
+                              ${(platform.revenue / 1000).toFixed(1)}k
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* ROI Comparison */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-gray-800 mb-3">
+                  ROI Comparison
+                </h4>
+                <div className="space-y-2">
+                  {comparisonData
+                    .sort((a, b) => b.roi - a.roi)
+                    .map((platform) => (
+                      <div
+                        key={platform.platform}
+                        className="flex items-center gap-3"
+                      >
+                        <img
+                          src={platform.icon}
+                          alt={platform.name}
+                          className="w-5 h-5"
+                        />
+                        <span className="text-sm font-medium w-24">
+                          {platform.name}
+                        </span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-6 relative">
+                          <div
+                            className="h-full rounded-full flex items-center justify-end pr-2"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.max(0, platform.roi)
+                              )}%`,
+                              backgroundColor:
+                                platform.roi > 0 ? "#10b981" : "#ef4444",
+                            }}
+                          >
+                            <span className="text-xs text-white font-medium">
+                              {platform.roi.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Matrix */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-800 mb-4">
+                Performance Matrix
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {comparisonData.map((platform) => (
+                  <div key={platform.platform} className="text-center">
+                    <img
+                      src={platform.icon}
+                      alt={platform.name}
+                      className="w-8 h-8 mx-auto mb-2"
+                    />
+                    <h5 className="font-semibold text-sm mb-2">
+                      {platform.name}
+                    </h5>
+                    <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">ROI:</span>
-                        <span className={`font-medium ${platform?.roi > 0 ? 'text-success' : 'text-error'}`}>
-                          {formatValue(platform?.roi, 'percentage')}
+                        <span className="text-gray-500">Spend:</span>
+                        <span className="font-medium">
+                          ${(platform.spend / 1000).toFixed(1)}k
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Score:</span>
-                        <span className="font-medium text-foreground">{platform?.score?.toFixed(0)}/100</span>
+                        <span className="text-gray-500">Revenue:</span>
+                        <span className="font-medium">
+                          ${(platform.revenue / 1000).toFixed(1)}k
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">ROI:</span>
+                        <span
+                          className={`font-medium ${
+                            platform.roi > 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {platform.roi.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Conv:</span>
+                        <span className="font-medium">
+                          {platform.conversions}
+                        </span>
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        {viewMode === 'detailed' && (
-          <div className="space-y-6">
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={getRadarData()}>
-                  <PolarGrid stroke="hsl(var(--border))" />
-                  <PolarAngleAxis dataKey="platform" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                  <PolarRadiusAxis 
-                    angle={90} 
-                    domain={[0, 100]} 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+            {/* Multi-Metric Comparison */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-800 mb-3">
+                All Metrics Comparison
+              </h4>
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={comparisonData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stackId="1"
+                    stroke="#10b981"
+                    fill="#10b981"
+                    fillOpacity={0.6}
                   />
-                  {comparisonData?.map((platform, index) => (
-                    <Radar
-                      key={platform?.platform}
-                      name={platform?.name}
-                      dataKey={platform?.name}
-                      stroke={`hsl(${index * 90}, 70%, 50%)`}
-                      fill={`hsl(${index * 90}, 70%, 50%)`}
-                      fillOpacity={0.1}
-                      strokeWidth={2}
-                    />
-                  ))}
-                </RadarChart>
+                  <Area
+                    type="monotone"
+                    dataKey="spend"
+                    stackId="2"
+                    stroke="#ef4444"
+                    fill="#ef4444"
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-muted/30 rounded-xl p-4">
-                <h4 className="font-semibold text-foreground mb-2">Efficiency Leaders</h4>
-                {comparisonData?.sort((a, b) => b?.costEfficiency - a?.costEfficiency)?.slice(0, 3)?.map((platform, index) => (
-                  <div key={platform?.platform} className="flex items-center justify-between py-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground">#{index + 1}</span>
-                      <span className="text-sm text-foreground">{platform?.name}</span>
-                    </div>
-                    <span className="text-sm font-medium text-success">
-                      {platform?.costEfficiency?.toFixed(2)}x
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-muted/30 rounded-xl p-4">
-                <h4 className="font-semibold text-foreground mb-2">Volume Leaders</h4>
-                {comparisonData?.sort((a, b) => b?.conversions - a?.conversions)?.slice(0, 3)?.map((platform, index) => (
-                  <div key={platform?.platform} className="flex items-center justify-between py-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground">#{index + 1}</span>
-                      <span className="text-sm text-foreground">{platform?.name}</span>
-                    </div>
-                    <span className="text-sm font-medium text-foreground">
-                      {platform?.conversions?.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-muted/30 rounded-xl p-4">
-                <h4 className="font-semibold text-foreground mb-2">ROI Leaders</h4>
-                {comparisonData?.sort((a, b) => b?.roi - a?.roi)?.slice(0, 3)?.map((platform, index) => (
-                  <div key={platform?.platform} className="flex items-center justify-between py-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground">#{index + 1}</span>
-                      <span className="text-sm text-foreground">{platform?.name}</span>
-                    </div>
-                    <span className="text-sm font-medium text-success">
-                      {platform?.roi?.toFixed(1)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
-
-      
       </div>
     </div>
   );
