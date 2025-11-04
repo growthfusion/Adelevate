@@ -208,8 +208,8 @@ const MediaBuyerDashboard = () => {
 
   return (
     <div className="p-4 md:p-6 w-full">
-      <div className="mb-6 flex flex-col md:flex-row justify-between gap-4 sticky top-0 z-10 bg-white pb-3 border-b">
-        <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
+      <div className="mb-6 flex flex-col md:flex-row justify-between gap-4  ">
+        <div className="flex items-center ">
           {platformOptions.map((platform) => (
             <button
               key={platform.id}
@@ -240,7 +240,7 @@ const MediaBuyerDashboard = () => {
           />
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
             disabled={isLoading}
           >
             {isLoading ? (
