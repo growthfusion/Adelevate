@@ -1,43 +1,33 @@
-"use client";
-
 import { useState } from "react";
 import CampaignsToolbar from "./components/campaigns-toolbar";
-import CampaignsTable from "./components/campaigns-table.jsx";
-
-export default function Campaigns() {
-  const [filters, setFilters] = useState({
-    platforms: [],
-    title: "",
-    tags: "",
-    dateRange: {
-      startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      endDate: new Date(),
-      key: "last3days",
-    },
-  });
+import CampaignsTable from "./components/campaigns-table";
+import Page from "@/components/search-bar"
+function CampaignsPage() {
+  const [filters, setFilters] = useState({});
+  const [activeGroups, setActiveGroups] = useState([]);
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
   };
 
-  return (
-    <main className="min-h-dvh w-full bg-gray-50">
-      <div className="mx-auto max-w-[2000px] px-4 py-6">
-        <h1 className="mb-6 text-3xl font-semibold tracking-tight text-pretty">
-          Campaigns
-        </h1>
+  const handleApplyGrouping = (groups) => {
+    setActiveGroups(groups);
+  };
 
-        {/* Toolbar with all filters */}
+  return (
+    <>
+      <Page />
+      <div className="space-y-4 p-4">
         <CampaignsToolbar
           onApplyFilters={handleApplyFilters}
+          onApplyGrouping={handleApplyGrouping}
           initialFilters={filters}
+          initialGroups={activeGroups}
         />
-
-        {/* Table with applied filters */}
-        <div className="mt-4 rounded-md border bg-card">
-          <CampaignsTable filters={filters} />
-        </div>
+        <CampaignsTable filters={filters} activeGroups={activeGroups} />
       </div>
-    </main>
+    </>
   );
 }
+
+export default CampaignsPage;

@@ -228,7 +228,7 @@ const AnalyticsChart = ({ data, className = "" }) => {
           <ResponsiveContainer width="100%" height="100%">
             <ChartComponent
               data={data}
-              margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+              margin={{ top: 50, right: 10, left: -20, bottom: 5 }}
             >
               {/* Gradients */}
               {renderMetrics().map((metric) => (

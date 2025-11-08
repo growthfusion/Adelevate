@@ -253,7 +253,6 @@ const CampaignPerformanceHub = () => {
 
   return (
     <>
-      <Search />
       <div className="min-h-screen">
         {/* Enhanced Platform Filter Header */}
         <PlatformFilter
