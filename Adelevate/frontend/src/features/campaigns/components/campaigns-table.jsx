@@ -21,7 +21,77 @@ function PlatformIcon({ platform }) {
     return <span className="w-4 h-4 xs:w-5 xs:h-5 inline-block">?</span>;
   }
 
-  return <img src={iconSrc} alt={`${platform} icon`} className="w-4 h-4 xs:w-5 xs:h-5" />;
+  return (
+    <img
+      src={iconSrc}
+      alt={`${platform} icon`}
+      className="w-4 h-4 xs:w-5 xs:h-5"
+    />
+  );
+}
+
+// Status Badge Component - Only Active and Paused
+function StatusBadge({ status }) {
+  const statusConfig = {
+    active: {
+      label: "Active",
+      bgColor: "bg-emerald-100",
+      textColor: "text-emerald-800",
+      dotColor: "bg-emerald-500",
+      icon: (
+        <svg
+          className="w-3 h-3 xs:w-3.5 xs:h-3.5"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fillRule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+    paused: {
+      label: "Paused",
+      bgColor: "bg-amber-100",
+      textColor: "text-amber-800",
+      dotColor: "bg-amber-500",
+      icon: (
+        <svg
+          className="w-3 h-3 xs:w-3.5 xs:h-3.5"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fillRule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ),
+    },
+  };
+
+  const config = statusConfig[status] || statusConfig.paused;
+
+  return (
+    <div className="inline-flex items-center justify-center xs:justify-start w-full">
+      <span
+        className={`
+          inline-flex items-center gap-1 xs:gap-1.5 
+          px-1.5 py-0.5 xs:px-2.5 xs:py-1 
+          rounded-full text-[10px] xs:text-xs font-medium
+          ${config.bgColor} ${config.textColor}
+          transition-all duration-200 hover:shadow-sm
+        `}
+      >
+        <span className="flex-shrink-0">{config.icon}</span>
+        <span className="hidden ss:inline truncate">{config.label}</span>
+        <span className="inline ss:hidden">{config.label.charAt(0)}</span>
+      </span>
+    </div>
+  );
 }
 
 // Skeleton loader component for table rows
@@ -31,13 +101,17 @@ function TableSkeleton({ columnCount, rowCount }) {
       {Array.from({ length: rowCount }).map((_, rowIndex) => (
         <tr key={`skeleton-row-${rowIndex}`} className="animate-pulse">
           {Array.from({ length: columnCount }).map((_, colIndex) => (
-            <td 
-              key={`skeleton-cell-${rowIndex}-${colIndex}`} 
+            <td
+              key={`skeleton-cell-${rowIndex}-${colIndex}`}
               className="px-2 py-2 xs:px-4 xs:py-3 border-r border-gray-300"
             >
-              <div 
+              <div
                 className={`h-4 xs:h-5 bg-gray-200 rounded ${
-                  colIndex === 0 ? "w-8 xs:w-12" : colIndex === 1 ? "w-full" : "w-12 xs:w-16 ml-auto"
+                  colIndex === 0
+                    ? "w-8 xs:w-12"
+                    : colIndex === 1
+                    ? "w-full"
+                    : "w-12 xs:w-16 ml-auto"
                 }`}
               ></div>
             </td>
@@ -62,56 +136,7 @@ function CampaignsTable({ filters = {} }) {
     ];
 
     const platforms = ["google", "facebook", "tiktok", "snap", "newsbreak"];
-    const dates = [
-      "2025-10-29",
-      "2025-10-30",
-      "2025-10-31",
-      "2025-11-01",
-      "2025-11-02",
-      "2025-11-03",
-      "2025-11-04",
-    ];
-
-    const hours = [
-      "00:00",
-      "01:00",
-      "02:00",
-      "03:00",
-      "04:00",
-      "05:00",
-      "06:00",
-      "07:00",
-      "08:00",
-      "09:00",
-      "10:00",
-      "11:00",
-      "12:00",
-      "13:00",
-      "14:00",
-      "15:00",
-      "16:00",
-      "17:00",
-      "18:00",
-      "19:00",
-      "20:00",
-      "21:00",
-      "22:00",
-      "23:00",
-    ];
-
-    const offers = [
-      "AutoQuoteZone | CPL $15 | Monthly",
-      "Auto | 7828 | Rev Share | mid",
-      "HomeService | Quote | 30USD",
-      "Finance | Loans | CPS $75",
-    ];
-
-    const landings = [
-      "Auto | Newsbreak | Autoinsurancesaver | 29AUG | ccggv12",
-      "Auto | Newsbreak | Autoinsurancesaver | 1SEP | drivesecurepro",
-      "Home | Snapchat | HomeRepairPro | 15OCT | quotev8",
-      "Loans | Meta | FastCashNow | 20OCT | apply-online",
-    ];
+    const statuses = ["active", "paused"]; // Only two statuses
 
     const rows = [];
     for (let i = 0; i < count; i++) {
@@ -130,6 +155,7 @@ function CampaignsTable({ filters = {} }) {
         id: baseId - i,
         title: titles[i % titles.length],
         platform: platforms[i % platforms.length],
+        status: statuses[i % statuses.length],
         tag: [
           "Mythili",
           "Naga",
@@ -158,11 +184,6 @@ function CampaignsTable({ filters = {} }) {
         clicks,
         lpViews,
         lpClicks,
-        // Add grouping fields
-        date: dates[i % dates.length],
-        hourOfDay: hours[i % hours.length],
-        offer: offers[i % offers.length],
-        landing: landings[i % landings.length],
       });
     }
     return rows;
@@ -171,34 +192,7 @@ function CampaignsTable({ filters = {} }) {
   const columns = [
     { id: "id", label: "#", numeric: true },
     { id: "title", label: "Campaign Title", numeric: false },
-    {
-      id:"status", label: "status"
-      
-    },
-    {
-      id: "cost",
-      label: "Date",
-      numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
-    },
-    {
-      id: "cost",
-      label: "Hour",
-      numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
-    },
-    {
-      id: "cost",
-      label: "Offers",
-      numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
-    },
-    {
-      id: "cost",
-      label: "Landing",
-      numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
-    },
+    { id: "status", label: "Status", numeric: false },
     {
       id: "cost",
       label: "Cost",
@@ -275,18 +269,20 @@ function CampaignsTable({ filters = {} }) {
   const [columnSelectionOrder, setColumnSelectionOrder] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Hierarchical drill-down state management
+  // Hierarchical drill-down state: Campaign -> Date -> Hour -> Offer -> Landing
   const [drillDownState, setDrillDownState] = useState({
-    expandedCampaigns: new Set(),
-    expandedHours: new Map(), // Maps campaignId-hourId to true
-    expandedOffers: new Map(), // Maps campaignId-hourId-offerId to true
+    expandedCampaigns: new Set(), // campaignId
+    expandedDates: new Map(), // campaignId-dateId -> true
+    expandedHours: new Map(), // campaignId-dateId-hourId -> true
+    expandedOffers: new Map(), // campaignId-dateId-hourId-offerId -> true
   });
 
-  // Drill-down data cache to avoid recalculations
+  // Drill-down data cache
   const [drillDownCache, setDrillDownCache] = useState({
-    hourly: new Map(), // Maps campaignId to array of hourly data
-    offers: new Map(), // Maps campaignId-hourId to array of offer data
-    landings: new Map(), // Maps campaignId-hourId-offerId to array of landing data
+    dates: new Map(), // campaignId -> array of date data
+    hours: new Map(), // campaignId-dateId -> array of hour data
+    offers: new Map(), // campaignId-dateId-hourId -> array of offer data
+    landings: new Map(), // campaignId-dateId-hourId-offerId -> array of landing data
   });
 
   // Column order and width management
@@ -298,6 +294,7 @@ function CampaignsTable({ filters = {} }) {
     columns.forEach((col, i) => {
       if (i === 0) widths[col.id] = 60; // ID column
       else if (i === 1) widths[col.id] = 300; // Title column
+      else if (i === 2) widths[col.id] = 130; // Status column
       else widths[col.id] = 120; // Other columns
     });
     return widths;
@@ -308,66 +305,71 @@ function CampaignsTable({ filters = {} }) {
   const [draggedColumn, setDraggedColumn] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
-  // Enhanced row background coloring based on profit value - with warmer gradient levels
-  const getRowBackgroundColor = (profit) => {
-    // Warm green shades for positive profit (5 levels)
-    if (profit > 40) return "bg-emerald-200 hover:bg-yellow-100"; // High profit
-    if (profit > 30) return "bg-emerald-100 hover:bg-yellow-100";
-    if (profit > 20) return "bg-green-100 hover:bg-yellow-100";
-    if (profit > 10) return "bg-lime-50 hover:bg-yellow-100";
-    if (profit > 0) return "bg-lime-50 hover:bg-yellow-100"; // Low positive profit
+  // Enhanced row background coloring based on profit value
+  const getRowBackgroundColor = (profit, level) => {
+    // Different opacity for different levels
+    const opacity =
+      level === 0
+        ? ""
+        : level === 1
+        ? "bg-opacity-80"
+        : level === 2
+        ? "bg-opacity-60"
+        : level === 3
+        ? "bg-opacity-40"
+        : "bg-opacity-20";
 
-    // Warm red shades for negative profit (5 levels)
-    if (profit < -40) return "bg-orange-200 hover:bg-yellow-100"; // High loss
-    if (profit < -30) return "bg-orange-100 hover:bg-yellow-100";
-    if (profit < -20) return "bg-red-100 hover:bg-yellow-100";
-    if (profit < -10) return "bg-red-50 hover:bg-yellow-100";
-    if (profit < 0) return "bg-rose-50 hover:bg-yellow-100"; // Low negative profit
+    if (profit > 40) return `bg-emerald-200 ${opacity} hover:bg-yellow-100`;
+    if (profit > 30) return `bg-emerald-100 ${opacity} hover:bg-yellow-100`;
+    if (profit > 20) return `bg-green-100 ${opacity} hover:bg-yellow-100`;
+    if (profit > 10) return `bg-lime-50 ${opacity} hover:bg-yellow-100`;
+    if (profit > 0) return `bg-lime-50 ${opacity} hover:bg-yellow-100`;
 
-    // Neutral
-    return "bg-white hover:bg-gray-50"; // Zero/neutral profit
+    if (profit < -40) return `bg-orange-200 ${opacity} hover:bg-yellow-100`;
+    if (profit < -30) return `bg-orange-100 ${opacity} hover:bg-yellow-100`;
+    if (profit < -20) return `bg-red-100 ${opacity} hover:bg-yellow-100`;
+    if (profit < -10) return `bg-red-50 ${opacity} hover:bg-yellow-100`;
+    if (profit < 0) return `bg-rose-50 ${opacity} hover:bg-yellow-100`;
+
+    return "bg-white hover:bg-gray-50";
   };
 
-  // Refresh data function - simulates fetching new data
+  // Refresh data function
   const refreshData = () => {
     setIsLoading(true);
 
-    // Clear all drill-down caches
     setDrillDownCache({
-      hourly: new Map(),
+      dates: new Map(),
+      hours: new Map(),
       offers: new Map(),
       landings: new Map(),
     });
 
-    // Reset drill-down state
     setDrillDownState({
       expandedCampaigns: new Set(),
+      expandedDates: new Map(),
       expandedHours: new Map(),
       expandedOffers: new Map(),
     });
 
-    // Simulate API delay
     setTimeout(() => {
-      setRawData(makeRows(100)); // Generate fresh data
+      setRawData(makeRows(100));
       setIsLoading(false);
-    }, 1500); // 1.5 second delay to show loading state
+    }, 1500);
   };
 
   // Sort columns based on selection order
   const sortedColumnOrder = useMemo(() => {
     if (columnSelectionOrder.length === 0) return columnOrder;
 
-    // First, add all columns that are in the selection order
     const result = [];
 
-    // Add selected columns in their selection order
     for (const colId of columnSelectionOrder) {
       if (!hiddenCols.has(colId) && columnOrder.includes(colId)) {
         result.push(colId);
       }
     }
 
-    // Then add remaining visible columns in their original order
     for (const colId of columnOrder) {
       if (!hiddenCols.has(colId) && !columnSelectionOrder.includes(colId)) {
         result.push(colId);
@@ -377,7 +379,7 @@ function CampaignsTable({ filters = {} }) {
     return result;
   }, [columnOrder, columnSelectionOrder, hiddenCols]);
 
-  // Handle column resize with mouse movements
+  // Handle column resize
   useEffect(() => {
     if (resizing === null) return;
 
@@ -405,7 +407,7 @@ function CampaignsTable({ filters = {} }) {
     };
   }, [resizing]);
 
-  // Load saved column configuration from localStorage
+  // Load saved column configuration
   useEffect(() => {
     try {
       const savedConfig = localStorage.getItem("campaignTableConfig");
@@ -420,17 +422,7 @@ function CampaignsTable({ filters = {} }) {
     }
   }, []);
 
-  // Save column configuration to localStorage
-  const saveColumnConfiguration = () => {
-    const config = {
-      order: columnOrder,
-      widths: columnWidths,
-      hidden: Array.from(hiddenCols),
-    };
-    localStorage.setItem("campaignTableConfig", JSON.stringify(config));
-  };
-
-  // Updated cell padding with "very comfortable" option and responsive sizing
+  // Updated cell padding
   const cellPadding = {
     compact: "px-1 py-1 xs:px-2 xs:py-1",
     standard: "px-2 py-1.5 xs:px-3 xs:py-2",
@@ -444,19 +436,15 @@ function CampaignsTable({ filters = {} }) {
     clickedColumn: null,
   });
 
-  // Enhanced toggle column function with selection tracking
+  // Toggle column function
   const toggleColumn = (idx) => {
     setHiddenCols((prev) => {
       const next = new Set(prev);
       if (next.has(idx)) {
-        // Column is being shown again
         next.delete(idx);
-        // Add to selection order
         setColumnSelectionOrder((prevOrder) => [...prevOrder, idx]);
       } else {
-        // Column is being hidden
         next.add(idx);
-        // Remove from selection order
         setColumnSelectionOrder((prevOrder) =>
           prevOrder.filter((i) => i !== idx)
         );
@@ -467,19 +455,26 @@ function CampaignsTable({ filters = {} }) {
 
   const isHidden = (i) => hiddenCols.has(i);
 
-  // Improved toggle campaign expansion with hierarchical drill-down
+  // Toggle campaign expansion (shows dates)
   const toggleCampaignExpansion = (campaignId) => {
     setDrillDownState((prev) => {
       const newState = { ...prev };
       const newExpandedCampaigns = new Set(prev.expandedCampaigns);
 
       if (newExpandedCampaigns.has(campaignId)) {
-        // Collapse campaign
+        // Collapse campaign and all children
         newExpandedCampaigns.delete(campaignId);
 
-        // Clear child expansions
+        const newExpandedDates = new Map(prev.expandedDates);
         const newExpandedHours = new Map(prev.expandedHours);
         const newExpandedOffers = new Map(prev.expandedOffers);
+
+        // Remove all dates related to this campaign
+        for (const key of Array.from(newExpandedDates.keys())) {
+          if (key.startsWith(`${campaignId}-`)) {
+            newExpandedDates.delete(key);
+          }
+        }
 
         // Remove all hours related to this campaign
         for (const key of Array.from(newExpandedHours.keys())) {
@@ -495,17 +490,18 @@ function CampaignsTable({ filters = {} }) {
           }
         }
 
+        newState.expandedDates = newExpandedDates;
         newState.expandedHours = newExpandedHours;
         newState.expandedOffers = newExpandedOffers;
       } else {
-        // Expand campaign and generate hourly data if not cached
+        // Expand campaign and generate date data if not cached
         newExpandedCampaigns.add(campaignId);
 
-        if (!drillDownCache.hourly.has(campaignId)) {
-          const hourlyData = getHourlyBreakdown(campaignId);
+        if (!drillDownCache.dates.has(campaignId)) {
+          const dateData = getDateBreakdown(campaignId);
           setDrillDownCache((prev) => {
             const newCache = { ...prev };
-            newCache.hourly.set(campaignId, hourlyData);
+            newCache.dates.set(campaignId, dateData);
             return newCache;
           });
         }
@@ -516,19 +512,68 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Toggle hour expansion
-  const toggleHourExpansion = (campaignId, hourId) => {
-    const mapKey = `${campaignId}-${hourId}`;
+  // Toggle date expansion (shows hours)
+  const toggleDateExpansion = (campaignId, dateId) => {
+    const mapKey = `${campaignId}-${dateId}`;
+
+    setDrillDownState((prev) => {
+      const newExpandedDates = new Map(prev.expandedDates);
+      const newExpandedHours = new Map(prev.expandedHours);
+      const newExpandedOffers = new Map(prev.expandedOffers);
+
+      if (newExpandedDates.has(mapKey)) {
+        // Collapse date and all children
+        newExpandedDates.delete(mapKey);
+
+        // Remove all hours related to this date
+        for (const key of Array.from(newExpandedHours.keys())) {
+          if (key.startsWith(`${mapKey}-`)) {
+            newExpandedHours.delete(key);
+          }
+        }
+
+        // Remove all offers related to this date
+        for (const key of Array.from(newExpandedOffers.keys())) {
+          if (key.startsWith(`${mapKey}-`)) {
+            newExpandedOffers.delete(key);
+          }
+        }
+      } else {
+        // Expand date and generate hour data if not cached
+        newExpandedDates.set(mapKey, true);
+
+        if (!drillDownCache.hours.has(mapKey)) {
+          const hourData = getHourBreakdown(campaignId, dateId);
+          setDrillDownCache((prev) => {
+            const newCache = { ...prev };
+            newCache.hours.set(mapKey, hourData);
+            return newCache;
+          });
+        }
+      }
+
+      return {
+        ...prev,
+        expandedDates: newExpandedDates,
+        expandedHours: newExpandedHours,
+        expandedOffers: newExpandedOffers,
+      };
+    });
+  };
+
+  // Toggle hour expansion (shows offers)
+  const toggleHourExpansion = (campaignId, dateId, hourId) => {
+    const mapKey = `${campaignId}-${dateId}-${hourId}`;
 
     setDrillDownState((prev) => {
       const newExpandedHours = new Map(prev.expandedHours);
       const newExpandedOffers = new Map(prev.expandedOffers);
 
       if (newExpandedHours.has(mapKey)) {
-        // Collapse hour
+        // Collapse hour and all children
         newExpandedHours.delete(mapKey);
 
-        // Clear child offer expansions
+        // Remove all offers related to this hour
         for (const key of Array.from(newExpandedOffers.keys())) {
           if (key.startsWith(`${mapKey}-`)) {
             newExpandedOffers.delete(key);
@@ -539,7 +584,7 @@ function CampaignsTable({ filters = {} }) {
         newExpandedHours.set(mapKey, true);
 
         if (!drillDownCache.offers.has(mapKey)) {
-          const offerData = getOfferBreakdown(campaignId, hourId);
+          const offerData = getOfferBreakdown(campaignId, dateId, hourId);
           setDrillDownCache((prev) => {
             const newCache = { ...prev };
             newCache.offers.set(mapKey, offerData);
@@ -556,9 +601,9 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Toggle offer expansion
-  const toggleOfferExpansion = (campaignId, hourId, offerId) => {
-    const mapKey = `${campaignId}-${hourId}-${offerId}`;
+  // Toggle offer expansion (shows landings)
+  const toggleOfferExpansion = (campaignId, dateId, hourId, offerId) => {
+    const mapKey = `${campaignId}-${dateId}-${hourId}-${offerId}`;
 
     setDrillDownState((prev) => {
       const newExpandedOffers = new Map(prev.expandedOffers);
@@ -571,7 +616,12 @@ function CampaignsTable({ filters = {} }) {
         newExpandedOffers.set(mapKey, true);
 
         if (!drillDownCache.landings.has(mapKey)) {
-          const landingData = getLandingBreakdown(campaignId, hourId, offerId);
+          const landingData = getLandingBreakdown(
+            campaignId,
+            dateId,
+            hourId,
+            offerId
+          );
           setDrillDownCache((prev) => {
             const newCache = { ...prev };
             newCache.landings.set(mapKey, landingData);
@@ -590,12 +640,10 @@ function CampaignsTable({ filters = {} }) {
   const filteredData = useMemo(() => {
     let result = [...rawData];
 
-    // Filter by platforms
     if (filters.platforms && filters.platforms.length > 0) {
       result = result.filter((row) => filters.platforms.includes(row.platform));
     }
 
-    // Filter by title (case-insensitive search)
     if (filters.title && filters.title.trim()) {
       const searchTerm = filters.title.toLowerCase();
       result = result.filter((row) =>
@@ -608,6 +656,10 @@ function CampaignsTable({ filters = {} }) {
       result = result.filter((row) =>
         row.tag.toLowerCase().includes(searchTerm)
       );
+    }
+
+    if (filters.status && filters.status.length > 0) {
+      result = result.filter((row) => filters.status.includes(row.status));
     }
 
     return result;
@@ -632,7 +684,7 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Apply sorting to filtered data
+  // Apply sorting
   const sortedData = useMemo(() => {
     const dataToSort = [...filteredData];
 
@@ -651,7 +703,7 @@ function CampaignsTable({ filters = {} }) {
     });
   }, [filteredData, sortConfig]);
 
-  // Calculate totals from filtered data
+  // Calculate totals
   const totals = useMemo(() => {
     return sortedData.reduce(
       (acc, row) => {
@@ -676,18 +728,27 @@ function CampaignsTable({ filters = {} }) {
     );
   }, [sortedData]);
 
-  const getHourlyBreakdown = (campaignId) => {
-    // Find the campaign data
+  // Get Date Breakdown (7 days)
+  const getDateBreakdown = (campaignId) => {
     const campaign = sortedData.find((row) => row.id === campaignId);
     if (!campaign) return [];
 
-    // Create 24 hours of data with variations from the campaign
-    return Array.from({ length: 24 }, (_, i) => {
-      const hour = i.toString().padStart(2, "0") + ":00";
-      const variation = 0.5 + Math.random() * 1.5; // Random multiplier between 0.5 and 2
-      const divider = 24; // 24 hours in a day
+    const dates = [
+      "2025-01-20",
+      "2025-01-21",
+      "2025-01-22",
+      "2025-01-23",
+      "2025-01-24",
+      "2025-01-25",
+      "2025-01-26",
+    ];
 
-      // Calculate metrics with variation
+    const statuses = ["active", "paused"];
+    const divider = dates.length;
+
+    return dates.map((date, i) => {
+      const variation = 0.5 + Math.random() * 1.5;
+
       const clicks = Math.floor((campaign.clicks / divider) * variation);
       const lpViews = Math.floor((campaign.lpViews / divider) * variation);
       const lpClicks = Math.floor((campaign.lpClicks / divider) * variation);
@@ -699,13 +760,13 @@ function CampaignsTable({ filters = {} }) {
       const revenue = (campaign.revenue / divider) * variation;
       const profit = revenue - cost;
 
-      // Recalculate all derived metrics
       return {
-        id: `hour-${i}`,
+        id: `date-${i}`,
         campaignId,
-        title: hour,
-        type: "hour",
+        title: date,
+        type: "date",
         level: 1,
+        status: statuses[i % statuses.length],
         cost,
         revenue,
         profit,
@@ -713,7 +774,6 @@ function CampaignsTable({ filters = {} }) {
         purchases,
         lpViews,
         lpClicks,
-        // Derived metrics
         lpCtr: lpViews > 0 ? (lpClicks / lpViews) * 100 : 0,
         roi: cost > 0 ? (profit / cost) * 100 : 0,
         cpa: purchases > 0 ? cost / purchases : 0,
@@ -721,21 +781,74 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        // Preserve platform for reference
         platform: campaign.platform,
       };
     });
   };
 
-  const getOfferBreakdown = (campaignId, hourId) => {
-    // Get the hourly data to base our offers on
-    const hourlyData = drillDownCache.hourly.get(campaignId);
-    if (!hourlyData) return [];
+  // Get Hour Breakdown (24 hours)
+  const getHourBreakdown = (campaignId, dateId) => {
+    const dateKey = `${campaignId}-${dateId}`;
+    const dateData = drillDownCache.dates.get(campaignId);
+    if (!dateData) return [];
 
-    const hourData = hourlyData.find((h) => h.id === hourId);
+    const date = dateData.find((d) => d.id === dateId);
+    if (!date) return [];
+
+    const statuses = ["active", "paused"];
+    const divider = 24;
+
+    return Array.from({ length: 24 }, (_, i) => {
+      const hour = i.toString().padStart(2, "0") + ":00";
+      const variation = 0.5 + Math.random() * 1.5;
+
+      const clicks = Math.floor((date.clicks / divider) * variation);
+      const lpViews = Math.floor((date.lpViews / divider) * variation);
+      const lpClicks = Math.floor((date.lpClicks / divider) * variation);
+      const purchases = Math.max(
+        0,
+        Math.floor((date.purchases / divider) * variation)
+      );
+      const cost = (date.cost / divider) * variation;
+      const revenue = (date.revenue / divider) * variation;
+      const profit = revenue - cost;
+
+      return {
+        id: `hour-${i}`,
+        campaignId,
+        dateId,
+        title: hour,
+        type: "hour",
+        level: 2,
+        status: statuses[i % statuses.length],
+        cost,
+        revenue,
+        profit,
+        clicks,
+        purchases,
+        lpViews,
+        lpClicks,
+        lpCtr: lpViews > 0 ? (lpClicks / lpViews) * 100 : 0,
+        roi: cost > 0 ? (profit / cost) * 100 : 0,
+        cpa: purchases > 0 ? cost / purchases : 0,
+        aov: purchases > 0 ? revenue / purchases : 0,
+        cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
+        lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
+        lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
+        platform: date.platform,
+      };
+    });
+  };
+
+  // Get Offer Breakdown
+  const getOfferBreakdown = (campaignId, dateId, hourId) => {
+    const hourKey = `${campaignId}-${dateId}-${hourId}`;
+    const hourData = drillDownCache.hours.get(`${campaignId}-${dateId}`);
     if (!hourData) return [];
 
-    // For this example, generate 3-4 random offers
+    const hour = hourData.find((h) => h.id === hourId);
+    if (!hour) return [];
+
     const offers = [
       "AutoQuoteZone | CPL $15 | Monthly",
       "Auto | 7828 | Rev Share | mid",
@@ -743,31 +856,33 @@ function CampaignsTable({ filters = {} }) {
       "Finance | Loans | CPS $75",
     ];
 
-    const offerCount = 3 + Math.floor(Math.random() * 2); // 3-4 offers
+    const statuses = ["active", "paused"];
+    const offerCount = 3 + Math.floor(Math.random() * 2);
     const divider = offerCount;
 
     return offers.slice(0, offerCount).map((offerName, i) => {
       const variation = 0.5 + Math.random() * 1.5;
 
-      // Calculate metrics with variation
-      const clicks = Math.floor((hourData.clicks / divider) * variation);
-      const lpViews = Math.floor((hourData.lpViews / divider) * variation);
-      const lpClicks = Math.floor((hourData.lpClicks / divider) * variation);
+      const clicks = Math.floor((hour.clicks / divider) * variation);
+      const lpViews = Math.floor((hour.lpViews / divider) * variation);
+      const lpClicks = Math.floor((hour.lpClicks / divider) * variation);
       const purchases = Math.max(
         0,
-        Math.floor((hourData.purchases / divider) * variation)
+        Math.floor((hour.purchases / divider) * variation)
       );
-      const cost = (hourData.cost / divider) * variation;
-      const revenue = (hourData.revenue / divider) * variation;
+      const cost = (hour.cost / divider) * variation;
+      const revenue = (hour.revenue / divider) * variation;
       const profit = revenue - cost;
 
       return {
         id: `offer-${i}`,
         campaignId,
+        dateId,
         hourId,
         title: offerName,
         type: "offer",
-        level: 2,
+        level: 3,
+        status: statuses[i % statuses.length],
         cost,
         revenue,
         profit,
@@ -775,7 +890,6 @@ function CampaignsTable({ filters = {} }) {
         purchases,
         lpViews,
         lpClicks,
-        // Derived metrics
         lpCtr: lpViews > 0 ? (lpClicks / lpViews) * 100 : 0,
         roi: cost > 0 ? (profit / cost) * 100 : 0,
         cpa: purchases > 0 ? cost / purchases : 0,
@@ -783,22 +897,20 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        // Preserve platform for reference
-        platform: hourData.platform,
+        platform: hour.platform,
       };
     });
   };
 
-  const getLandingBreakdown = (campaignId, hourId, offerId) => {
-    // Get the offer data to base our landing pages on
-    const hourKey = `${campaignId}-${hourId}`;
-    const offerData = drillDownCache.offers.get(hourKey);
+  // Get Landing Breakdown
+  const getLandingBreakdown = (campaignId, dateId, hourId, offerId) => {
+    const offerKey = `${campaignId}-${dateId}-${hourId}`;
+    const offerData = drillDownCache.offers.get(offerKey);
     if (!offerData) return [];
 
     const offer = offerData.find((o) => o.id === offerId);
     if (!offer) return [];
 
-    // For this example, generate 2-4 random landing pages
     const landings = [
       "Auto | Newsbreak | Autoinsurancesaver | 29AUG | ccggv12",
       "Auto | Newsbreak | Autoinsurancesaver | 1SEP | drivesecurepro",
@@ -806,13 +918,13 @@ function CampaignsTable({ filters = {} }) {
       "Loans | Meta | FastCashNow | 20OCT | apply-online",
     ];
 
-    const landingCount = 2 + Math.floor(Math.random() * 3); // 2-4 landing pages
+    const statuses = ["active", "paused"];
+    const landingCount = 2 + Math.floor(Math.random() * 3);
     const divider = landingCount;
 
     return landings.slice(0, landingCount).map((landingName, i) => {
       const variation = 0.5 + Math.random() * 1.5;
 
-      // Calculate metrics with variation
       const clicks = Math.floor((offer.clicks / divider) * variation);
       const lpViews = Math.floor((offer.lpViews / divider) * variation);
       const lpClicks = Math.floor((offer.lpClicks / divider) * variation);
@@ -827,11 +939,13 @@ function CampaignsTable({ filters = {} }) {
       return {
         id: `landing-${i}`,
         campaignId,
+        dateId,
         hourId,
         offerId,
         title: landingName,
         type: "landing",
-        level: 3,
+        level: 4,
+        status: statuses[i % statuses.length],
         cost,
         revenue,
         profit,
@@ -839,7 +953,6 @@ function CampaignsTable({ filters = {} }) {
         purchases,
         lpViews,
         lpClicks,
-        // Derived metrics
         lpCtr: lpViews > 0 ? (lpClicks / lpViews) * 100 : 0,
         roi: cost > 0 ? (profit / cost) * 100 : 0,
         cpa: purchases > 0 ? cost / purchases : 0,
@@ -847,86 +960,93 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        // Preserve platform for reference
         platform: offer.platform,
       };
     });
   };
 
-  // Build rows with hierarchical drill-down
+  // Build rows with hierarchical drill-down: Campaign -> Date -> Hour -> Offer -> Landing
   const pageRows = useMemo(() => {
-    // Start with base rows
     const baseRows = sortedData.slice(
       (page - 1) * rowsPerPage,
       page * rowsPerPage
     );
 
-    // Add drill-down rows for expanded campaigns
     const result = [];
 
     baseRows.forEach((campaign) => {
-      // Add the campaign row
+      // Add campaign row
       result.push(campaign);
 
-      // If campaign is expanded, add hour data
+      // If campaign is expanded, show dates
       if (drillDownState.expandedCampaigns.has(campaign.id)) {
-        // Get hourly data from cache or generate it
-        let hourlyData = drillDownCache.hourly.get(campaign.id);
-        if (!hourlyData) {
-          hourlyData = getHourlyBreakdown(campaign.id);
-          // Update cache
+        let dateData = drillDownCache.dates.get(campaign.id);
+        if (!dateData) {
+          dateData = getDateBreakdown(campaign.id);
           setDrillDownCache((prev) => {
             const newCache = { ...prev };
-            newCache.hourly.set(campaign.id, hourlyData);
+            newCache.dates.set(campaign.id, dateData);
             return newCache;
           });
         }
 
-        // Add hourly rows
-        hourlyData.forEach((hour) => {
-          result.push(hour);
+        dateData.forEach((date) => {
+          result.push(date);
 
-          // If hour is expanded, add offer data
-          const hourMapKey = `${campaign.id}-${hour.id}`;
-          if (drillDownState.expandedHours.has(hourMapKey)) {
-            // Get offer data from cache or generate it
-            let offerData = drillDownCache.offers.get(hourMapKey);
-            if (!offerData) {
-              offerData = getOfferBreakdown(campaign.id, hour.id);
-              // Update cache
+          // If date is expanded, show hours
+          const dateMapKey = `${campaign.id}-${date.id}`;
+          if (drillDownState.expandedDates.has(dateMapKey)) {
+            let hourData = drillDownCache.hours.get(dateMapKey);
+            if (!hourData) {
+              hourData = getHourBreakdown(campaign.id, date.id);
               setDrillDownCache((prev) => {
                 const newCache = { ...prev };
-                newCache.offers.set(hourMapKey, offerData);
+                newCache.hours.set(dateMapKey, hourData);
                 return newCache;
               });
             }
 
-            // Add offer rows
-            offerData.forEach((offer) => {
-              result.push(offer);
+            hourData.forEach((hour) => {
+              result.push(hour);
 
-              // If offer is expanded, add landing page data
-              const offerMapKey = `${campaign.id}-${hour.id}-${offer.id}`;
-              if (drillDownState.expandedOffers.has(offerMapKey)) {
-                // Get landing data from cache or generate it
-                let landingData = drillDownCache.landings.get(offerMapKey);
-                if (!landingData) {
-                  landingData = getLandingBreakdown(
-                    campaign.id,
-                    hour.id,
-                    offer.id
-                  );
-                  // Update cache
+              // If hour is expanded, show offers
+              const hourMapKey = `${campaign.id}-${date.id}-${hour.id}`;
+              if (drillDownState.expandedHours.has(hourMapKey)) {
+                let offerData = drillDownCache.offers.get(hourMapKey);
+                if (!offerData) {
+                  offerData = getOfferBreakdown(campaign.id, date.id, hour.id);
                   setDrillDownCache((prev) => {
                     const newCache = { ...prev };
-                    newCache.landings.set(offerMapKey, landingData);
+                    newCache.offers.set(hourMapKey, offerData);
                     return newCache;
                   });
                 }
 
-                // Add landing page rows
-                landingData.forEach((landing) => {
-                  result.push(landing);
+                offerData.forEach((offer) => {
+                  result.push(offer);
+
+                  // If offer is expanded, show landings
+                  const offerMapKey = `${campaign.id}-${date.id}-${hour.id}-${offer.id}`;
+                  if (drillDownState.expandedOffers.has(offerMapKey)) {
+                    let landingData = drillDownCache.landings.get(offerMapKey);
+                    if (!landingData) {
+                      landingData = getLandingBreakdown(
+                        campaign.id,
+                        date.id,
+                        hour.id,
+                        offer.id
+                      );
+                      setDrillDownCache((prev) => {
+                        const newCache = { ...prev };
+                        newCache.landings.set(offerMapKey, landingData);
+                        return newCache;
+                      });
+                    }
+
+                    landingData.forEach((landing) => {
+                      result.push(landing);
+                    });
+                  }
                 });
               }
             });
@@ -960,7 +1080,7 @@ function CampaignsTable({ filters = {} }) {
   const hideAllColumns = () =>
     setHiddenCols(new Set(Array.from({ length: columns.length }, (_, i) => i)));
 
-  // Enhanced reset function
+  // Reset function
   const resetTable = () => {
     setHiddenCols(new Set());
     setDensity("comfortable");
@@ -970,27 +1090,27 @@ function CampaignsTable({ filters = {} }) {
     setSortConfig({ key: null, direction: null, clickedColumn: null });
     setColumnSelectionOrder([]);
 
-    // Reset drill-down state
     setDrillDownState({
       expandedCampaigns: new Set(),
+      expandedDates: new Map(),
       expandedHours: new Map(),
       expandedOffers: new Map(),
     });
 
-    // Reset drill-down cache
     setDrillDownCache({
-      hourly: new Map(),
+      dates: new Map(),
+      hours: new Map(),
       offers: new Map(),
       landings: new Map(),
     });
 
-    // Reset column order and widths
     setColumnOrder(columns.map((_, i) => i));
     const defaultWidths = {};
     columns.forEach((col, i) => {
-      if (i === 0) defaultWidths[col.id] = 60; // ID column
-      else if (i === 1) defaultWidths[col.id] = 300; // Title column
-      else defaultWidths[col.id] = 120; // Other columns
+      if (i === 0) defaultWidths[col.id] = 60;
+      else if (i === 1) defaultWidths[col.id] = 300;
+      else if (i === 2) defaultWidths[col.id] = 130;
+      else defaultWidths[col.id] = 120;
     });
     setColumnWidths(defaultWidths);
   };
@@ -1007,13 +1127,11 @@ function CampaignsTable({ filters = {} }) {
     };
   };
 
-  // Enhanced profit formatting with warmer color gradient
-  // Enhanced profit formatting with warmer color gradient
+  // Profit formatting
   const formatProfitValue = (value) => {
     const isPositive = value >= 0;
     let colorClass;
 
-    // Warmer color classes for profit values
     if (isPositive) {
       if (value > 40) colorClass = "text-emerald-700";
       else if (value > 30) colorClass = "text-emerald-600";
@@ -1035,12 +1153,11 @@ function CampaignsTable({ filters = {} }) {
     );
   };
 
-  // Enhanced ROI formatting with warmer color gradient
+  // ROI formatting
   const formatROIValue = (value) => {
     const isPositive = value >= 0;
     let colorClass;
 
-    // Warmer color classes for ROI values
     if (isPositive) {
       if (value > 150) colorClass = "text-emerald-700";
       else if (value > 100) colorClass = "text-emerald-600";
@@ -1060,14 +1177,16 @@ function CampaignsTable({ filters = {} }) {
     );
   };
 
-  // Get cell value from a row based on column ID
+  // Get cell value
   const getCellValue = (row, columnId) => {
     const value = row[columnId];
     if (value === undefined || value === null) return "";
 
     const column = columns.find((col) => col.id === columnId);
 
-    if (columnId === "profit") {
+    if (columnId === "status") {
+      return <StatusBadge status={value} />;
+    } else if (columnId === "profit") {
       return formatProfitValue(value);
     } else if (columnId === "roi") {
       return formatROIValue(value);
@@ -1078,9 +1197,74 @@ function CampaignsTable({ filters = {} }) {
     return value;
   };
 
+  // Get level icon based on row type
+  const getLevelIcon = (type) => {
+    switch (type) {
+      case "date":
+        return (
+          <svg
+            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+              clipRule="evenodd"
+            />
+          </svg>
+        );
+      case "hour":
+        return (
+          <svg
+            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-purple-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+              clipRule="evenodd"
+            />
+          </svg>
+        );
+      case "offer":
+        return (
+          <svg
+            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-orange-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+              clipRule="evenodd"
+            />
+          </svg>
+        );
+      case "landing":
+        return (
+          <svg
+            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-teal-600"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+              clipRule="evenodd"
+            />
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header - Responsive */}
+      {/* Header */}
       <div className="px-3 py-3 xs:px-6 xs:py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
           <div>
@@ -1088,25 +1272,27 @@ function CampaignsTable({ filters = {} }) {
               Campaign Analytics
             </h2>
 
-            {/* Filter status - condensed for mobile */}
             {(filters.platforms?.length > 0 ||
               filters.title ||
-              filters.tags) && (
+              filters.tags ||
+              filters.status?.length > 0) && (
               <div className="mt-1 text-xs xs:text-sm text-gray-500 truncate max-w-[250px] ss:max-w-full">
                 {filters.platforms?.length > 0 &&
                   `Platforms: ${filters.platforms.join(", ")} • `}
+                {filters.status?.length > 0 &&
+                  `Status: ${filters.status.join(", ")} • `}
                 {filters.title && `Title: "${filters.title}" • `}
                 {filters.tags && `Tags: "${filters.tags}"`}
               </div>
             )}
           </div>
 
-          {/* Controls - Responsive layout */}
+          {/* Controls */}
           <div className="flex flex-wrap items-center gap-2 ss:gap-3">
             {/* Refresh Button */}
             <button
               type="button"
-              className={`inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none ${
+              className={`inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
                 isLoading ? "opacity-75 cursor-not-allowed" : ""
               }`}
               onClick={refreshData}
@@ -1127,23 +1313,19 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {isLoading ? (
-                "Refreshing..."
-              ) : (
-                <span className="hidden xs:inline">Refresh Data</span>
-              )}
-              {isLoading ? (
-                "Refreshing..."
-              ) : (
-                <span className="inline xs:hidden">Refresh</span>
-              )}
+              <span className="hidden xs:inline">
+                {isLoading ? "Refreshing..." : "Refresh Data"}
+              </span>
+              <span className="inline xs:hidden">
+                {isLoading ? "..." : "Refresh"}
+              </span>
             </button>
 
             {/* Columns Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "columns" ? null : "columns"))
                 }
@@ -1158,7 +1340,7 @@ function CampaignsTable({ filters = {} }) {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"
+                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
                   />
                 </svg>
                 Columns
@@ -1169,14 +1351,14 @@ function CampaignsTable({ filters = {} }) {
                     <div className="flex justify-between gap-2">
                       <button
                         type="button"
-                        className="px-2 py-1 xs:px-3 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded"
+                        className="px-2 py-1 xs:px-3 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         onClick={showAllColumns}
                       >
                         Show All
                       </button>
                       <button
                         type="button"
-                        className="px-2 py-1 xs:px-3 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded"
+                        className="px-2 py-1 xs:px-3 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded transition-colors"
                         onClick={hideAllColumns}
                       >
                         Hide All
@@ -1187,7 +1369,7 @@ function CampaignsTable({ filters = {} }) {
                     {columns.map((column, idx) => (
                       <label
                         key={column.id}
-                        className="flex items-center gap-2 xs:gap-3 px-2 py-1.5 xs:py-2 hover:bg-gray-50 rounded cursor-pointer"
+                        className="flex items-center gap-2 xs:gap-3 px-2 py-1.5 xs:py-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
@@ -1209,7 +1391,7 @@ function CampaignsTable({ filters = {} }) {
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "density" ? null : "density"))
                 }
@@ -1239,7 +1421,7 @@ function CampaignsTable({ filters = {} }) {
                   ].map((opt) => (
                     <label
                       key={opt}
-                      className="flex items-center gap-2 xs:gap-3 px-3 py-1.5 xs:px-4 xs:py-2 hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center gap-2 xs:gap-3 px-3 py-1.5 xs:px-4 xs:py-2 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <input
                         type="radio"
@@ -1259,10 +1441,10 @@ function CampaignsTable({ filters = {} }) {
               )}
             </div>
 
-            {/* Reset Button - Hidden on smallest screens */}
+            {/* Reset Button */}
             <button
               type="button"
-              className="hidden ss:inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+              className="hidden ss:inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
               onClick={resetTable}
             >
               <svg
@@ -1284,12 +1466,26 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* Mobile Table Notice - Only visible on very small screens */}
+      {/* Mobile Table Notice */}
       <div className="block ss:hidden px-3 py-2 bg-blue-50 text-blue-700 text-xs border-b border-blue-200">
-        <p>Scroll horizontally to view all data columns</p>
+        <p className="flex items-center gap-2">
+          <svg
+            className="w-4 h-4 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Click campaign rows to drill down: Campaign → Date → Hour → Offer →
+          Landing
+        </p>
       </div>
 
-      {/* Table Container - Improved for mobile */}
+      {/* Table Container */}
       <div
         ref={scrollRef}
         className="overflow-auto max-h-[60vh] xs:max-h-[70vh]"
@@ -1339,16 +1535,16 @@ function CampaignsTable({ filters = {} }) {
                             ? "40px"
                             : colIdx === 1
                             ? "150px"
+                            : colIdx === 2
+                            ? "100px"
                             : "80px",
                       }}
                       onClick={(e) => {
-                        // Only sort when not resizing
                         if (!resizing) handleSort(column.id, colIdx);
                       }}
                       draggable="true"
                       onDragStart={(e) => {
                         setDraggedColumn(colIdx);
-                        // Set data for drag operation
                         e.dataTransfer.setData("text/plain", column.id);
                         e.dataTransfer.effectAllowed = "move";
                       }}
@@ -1368,7 +1564,6 @@ function CampaignsTable({ filters = {} }) {
                           draggedColumn !== null &&
                           draggedColumn !== colIdx
                         ) {
-                          // Reorder columns
                           setColumnOrder((prev) => {
                             const newOrder = [...prev];
                             const draggedIdx = newOrder.indexOf(draggedColumn);
@@ -1415,7 +1610,7 @@ function CampaignsTable({ filters = {} }) {
                           setResizing({ id: column.id, startX, startWidth });
                         }}
                       >
-                        <div className="absolute right-0 w-1 h-full opacity-0 group-hover:opacity-100 bg-blue-400"></div>
+                        <div className="absolute right-0 w-1 h-full opacity-0 group-hover:opacity-100 bg-blue-400 transition-opacity"></div>
                       </div>
                     </th>
                   );
@@ -1424,21 +1619,24 @@ function CampaignsTable({ filters = {} }) {
             </thead>
             <tbody className="bg-white">
               {/* Totals Row */}
-              <tr className="bg-gray-100 border-b-2 border-gray-300 font-medium">
+              <tr className="bg-gray-100 border-b-2 border-gray-300 font-medium sticky top-[40px] z-[9]">
                 {sortedColumnOrder.map((colIdx) => {
                   if (isHidden(colIdx)) return null;
                   const column = columns[colIdx];
 
-                  // Render the appropriate total content for each column
                   let content;
                   if (column.id === "id") {
-                    content = ""; // Empty for ID column
+                    content = "";
                   } else if (column.id === "title") {
                     content = (
                       <div className="flex items-center gap-1 xs:gap-2">
-                        <span className="text-xs xs:text-sm">Total:</span>
+                        <span className="text-xs xs:text-sm font-bold">
+                          Total:
+                        </span>
                       </div>
                     );
+                  } else if (column.id === "status") {
+                    content = "";
                   } else if (column.id === "cost") {
                     content = `$${totals.cost.toFixed(2)}`;
                   } else if (column.id === "revenue") {
@@ -1526,7 +1724,7 @@ function CampaignsTable({ filters = {} }) {
                 })}
               </tr>
 
-              {/* Loading skeleton or Data Rows */}
+              {/* Data Rows */}
               {isLoading ? (
                 <TableSkeleton
                   columnCount={
@@ -1536,39 +1734,44 @@ function CampaignsTable({ filters = {} }) {
                 />
               ) : pageRows.length > 0 ? (
                 pageRows.map((row) => {
-                  // Calculate the appropriate indentation based on row level
-                  const indentation = row.level ? row.level * 8 : 0;
-
-                  // Determine if this row can expand
+                  const indentation = row.level ? row.level * 12 : 0;
                   const canExpand =
-                    !row.type || row.type === "hour" || row.type === "offer";
+                    !row.type ||
+                    row.type === "date" ||
+                    row.type === "hour" ||
+                    row.type === "offer";
 
-                  // Determine if this row is currently expanded
                   let isExpanded = false;
                   if (!row.type) {
                     isExpanded = drillDownState.expandedCampaigns.has(row.id);
+                  } else if (row.type === "date") {
+                    isExpanded = drillDownState.expandedDates.has(
+                      `${row.campaignId}-${row.id}`
+                    );
                   } else if (row.type === "hour") {
                     isExpanded = drillDownState.expandedHours.has(
-                      `${row.campaignId}-${row.id}`
+                      `${row.campaignId}-${row.dateId}-${row.id}`
                     );
                   } else if (row.type === "offer") {
                     isExpanded = drillDownState.expandedOffers.has(
-                      `${row.campaignId}-${row.hourId}-${row.id}`
+                      `${row.campaignId}-${row.dateId}-${row.hourId}-${row.id}`
                     );
                   }
 
-                  // Determine row background color
-                  const rowBackground = !row.type
-                    ? getRowBackgroundColor(row.profit)
-                    : "hover:bg-gray-50";
+                  const rowBackground = getRowBackgroundColor(
+                    row.profit,
+                    row.level || 0
+                  );
 
                   return (
-                    <tr key={row.id} className={`${rowBackground}`}>
+                    <tr
+                      key={`${row.type || "campaign"}-${row.id}`}
+                      className={`${rowBackground} transition-colors border-b border-gray-100`}
+                    >
                       {sortedColumnOrder.map((colIdx) => {
                         if (isHidden(colIdx)) return null;
                         const column = columns[colIdx];
 
-                        // Special handling for title column with expand/collapse button
                         if (column.id === "title") {
                           return (
                             <td
@@ -1576,7 +1779,7 @@ function CampaignsTable({ filters = {} }) {
                               className={`${cellPadding[density]} text-xs xs:text-sm text-gray-900 border-r border-gray-300`}
                             >
                               <div
-                                className="flex items-center"
+                                className="flex items-center gap-1 xs:gap-2"
                                 style={{ paddingLeft: `${indentation}px` }}
                               >
                                 {canExpand && (
@@ -1584,20 +1787,27 @@ function CampaignsTable({ filters = {} }) {
                                     onClick={() => {
                                       if (!row.type) {
                                         toggleCampaignExpansion(row.id);
+                                      } else if (row.type === "date") {
+                                        toggleDateExpansion(
+                                          row.campaignId,
+                                          row.id
+                                        );
                                       } else if (row.type === "hour") {
                                         toggleHourExpansion(
                                           row.campaignId,
+                                          row.dateId,
                                           row.id
                                         );
                                       } else if (row.type === "offer") {
                                         toggleOfferExpansion(
                                           row.campaignId,
+                                          row.dateId,
                                           row.hourId,
                                           row.id
                                         );
                                       }
                                     }}
-                                    className="text-gray-500 hover:text-gray-800 focus:outline-none mr-1 xs:mr-2"
+                                    className="text-gray-500 hover:text-gray-800 focus:outline-none flex-shrink-0 transition-colors"
                                   >
                                     {isExpanded ? (
                                       <svg
@@ -1631,9 +1841,18 @@ function CampaignsTable({ filters = {} }) {
                                   </button>
                                 )}
 
-                                {/* Platform icon only for top-level campaign rows */}
+                                {!canExpand && row.type === "landing" && (
+                                  <span className="w-4 h-4 xs:w-5 xs:h-5 flex-shrink-0"></span>
+                                )}
+
+                                {row.type && (
+                                  <span className="flex-shrink-0">
+                                    {getLevelIcon(row.type)}
+                                  </span>
+                                )}
+
                                 {!row.type && (
-                                  <div className="text-gray-600 flex-shrink-0 mr-1 xs:mr-2">
+                                  <div className="text-gray-600 flex-shrink-0">
                                     <PlatformIcon platform={row.platform} />
                                   </div>
                                 )}
@@ -1641,8 +1860,10 @@ function CampaignsTable({ filters = {} }) {
                                 <span
                                   className={`truncate ${
                                     row.type === "landing"
-                                      ? "text-gray-600"
-                                      : "font-medium"
+                                      ? "text-gray-600 text-xs"
+                                      : row.type
+                                      ? "font-medium text-gray-800"
+                                      : "font-semibold"
                                   }`}
                                   title={row.title}
                                 >
@@ -1675,7 +1896,22 @@ function CampaignsTable({ filters = {} }) {
                     }
                     className="px-3 py-6 xs:px-6 xs:py-10 text-center text-xs xs:text-sm text-gray-500 border-r border-gray-300"
                   >
-                    No campaigns found matching your criteria
+                    <div className="flex flex-col items-center gap-2">
+                      <svg
+                        className="w-12 h-12 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      <p>No campaigns found matching your criteria</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -1684,7 +1920,7 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* Pagination Footer - Mobile Responsive */}
+      {/* Pagination Footer */}
       <div className="px-3 py-3 xs:px-6 xs:py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
         <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
           <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4">
@@ -1693,7 +1929,7 @@ function CampaignsTable({ filters = {} }) {
                 Rows per page:
               </label>
               <select
-                className="border border-gray-300 rounded-md px-2 py-1 text-xs xs:text-sm bg-white focus:outline-none"
+                className="border border-gray-300 rounded-md px-2 py-1 text-xs xs:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
@@ -1714,7 +1950,8 @@ function CampaignsTable({ filters = {} }) {
               {sortedData.length} campaigns
               {(filters.platforms?.length > 0 ||
                 filters.title ||
-                filters.tags) &&
+                filters.tags ||
+                filters.status?.length > 0) &&
                 ` (filtered from ${rawData.length})`}
             </div>
           </div>
@@ -1724,7 +1961,7 @@ function CampaignsTable({ filters = {} }) {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || isLoading}
-              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <svg
                 className="w-3.5 h-3.5 xs:w-4 xs:h-4 mr-0.5 xs:mr-1"
@@ -1757,7 +1994,7 @@ function CampaignsTable({ filters = {} }) {
                     setPage(Math.min(totalPages, Math.max(1, v)));
                 }}
                 disabled={isLoading}
-                className="w-12 xs:w-16 px-1.5 py-1 xs:px-2 text-xs xs:text-sm text-center border border-gray-300 rounded-md focus:outline-none disabled:opacity-50 disabled:bg-gray-100"
+                className="w-12 xs:w-16 px-1.5 py-1 xs:px-2 text-xs xs:text-sm text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
               />
               <span className="text-xs xs:text-sm text-gray-700">
                 <span className="hidden xs:inline">of</span>
@@ -1769,7 +2006,7 @@ function CampaignsTable({ filters = {} }) {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || isLoading}
-              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <span className="hidden xs:inline">Next</span>
               <svg
@@ -1789,11 +2026,11 @@ function CampaignsTable({ filters = {} }) {
           </div>
         </div>
 
-        {/* Reset button - Only visible on smallest screens */}
+        {/* Reset button for mobile */}
         <div className="block ss:hidden mt-3">
           <button
             type="button"
-            className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+            className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             onClick={resetTable}
           >
             <svg
