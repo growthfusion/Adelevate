@@ -1,7 +1,7 @@
 import { useState } from "react";
 import CampaignsToolbar from "./components/campaigns-toolbar";
 import CampaignsTable from "./components/campaigns-table";
-import Page from "@/components/search-bar"
+
 function CampaignsPage() {
   const [filters, setFilters] = useState({});
   const [activeGroups, setActiveGroups] = useState([]);
@@ -16,7 +16,7 @@ function CampaignsPage() {
 
   return (
     <>
-      <Page />
+ 
       <div className="space-y-4 p-4">
         <CampaignsToolbar
           onApplyFilters={handleApplyFilters}

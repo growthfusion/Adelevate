@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, Search as SearchIcon, ChevronDown } from "lucide-react";
-import Search from "@/components/search-bar";
 
 // Icons
 import metaIcon from "@/assets/images/automation_img/Facebook.svg";
@@ -826,7 +825,6 @@ export default function EditRuleFormActivate() {
 
     return (
         <>
-            <Search />
             <div className="bg-gray-50">
                 <div className="max-w-6xl xl:mx-auto 2xl:mx-auto p-[20px] pt-[60px] bg-gray-50">
                     {/* Header */}
@@ -1096,7 +1094,7 @@ export default function EditRuleFormActivate() {
                                         </div>
                                     </div>
                                 ))}
-                                <div className=" relative flex gap-4">
+                                <div className="flex flex-col md:flex-row md:items-center gap-4">
                                     <Button variant="outline" size="sm" className="text-blue-600 bg-transparent border-gray-300 w-full sm:w-auto" onClick={addCondition}>
                                         <Plus className="w-4 h-4 mr-2" />
                                         Add

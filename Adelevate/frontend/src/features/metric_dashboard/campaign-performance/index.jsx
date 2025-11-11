@@ -6,7 +6,7 @@ import AnalyticsChart from './components/AnalyticsChart';
 import AIInsightsPanel from './components/AIInsightsPanel';
 import PlatformDistribution from './components/PlatformDistribution';
 import PlatformComparison from './components/PlatformComparison';
-import Search from "@/components/search-bar";
+
 
 const CampaignPerformanceHub = () => {
   const [selectedPlatforms, setSelectedPlatforms] = useState('all');

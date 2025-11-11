@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, Search as SearchIcon, ChevronDown } from "lucide-react";
-import Search from "@/components/search-bar";
+
 
 // Icons
 import metaIcon from "@/assets/images/automation_img/Facebook.svg";
@@ -587,7 +587,7 @@ export default function EditRuleFormExclusion() {
 
     return (
         <>
-            <Search />
+          
             <div className="bg-gray-50">
                 <div className="max-w-6xl xl:mx-auto 2xl:mx-auto p-[20px] pt-[60px] bg-gray-50">
                     {/* Header */}

@@ -30,7 +30,7 @@ const PREDEFINED_TAGS = [
   "Gokulraj",
 ];
 
-// Available grouping options
+// Available grouping options (Note: This is defined but not used in the provided JSX for the toolbar, but keeping for context)
 const GROUPING_OPTIONS = [
   { id: "date", name: "Date" },
   { id: "hourOfDay", name: "Hour Of Day" },
@@ -66,7 +66,6 @@ export function CampaignsToolbar({
     }
   );
 
-
   const [timeZone, setTimeZone] = useState("America/Los_Angeles");
   const [showTimeZoneMenu, setShowTimeZoneMenu] = useState(false);
 
@@ -87,7 +86,8 @@ export function CampaignsToolbar({
       newPlatforms = [...selectedPlatforms, platformId];
     }
     setSelectedPlatforms(newPlatforms);
-    setShowPlatformMenu(false);
+    // Note: Kept setShowPlatformMenu(false) so checkbox clicks don't close the menu,
+    // allowing for multiple selections. The menu will close on outside click.
   };
 
   const selectTag = (tag) => {
@@ -95,7 +95,6 @@ export function CampaignsToolbar({
     setShowTagsMenu(false);
   };
 
-  
   const applyFilters = () => {
     if (onApplyFilters) {
       onApplyFilters({
@@ -108,7 +107,6 @@ export function CampaignsToolbar({
     }
   };
 
-  
   const selectTimeZone = (zone) => {
     setTimeZone(zone);
     setShowTimeZoneMenu(false);
@@ -118,7 +116,6 @@ export function CampaignsToolbar({
     setSelectedPlatforms([]);
     setTitle("");
     setTags("");
-  
     setDateRange({
       startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       endDate: new Date(),
@@ -148,11 +145,11 @@ export function CampaignsToolbar({
   return (
     <section
       aria-label="Filters"
-      className="flex flex-col gap-2 rounded-md border bg-white p-3 shadow-sm"
+      className="rounded-md border bg-white p-4 shadow-sm xs:mt-[20%] ss:mt-[20%] sm:mt-0"
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-2">
         {/* Date Picker */}
-        <div>
+        <div className="w-full md:w-auto">
           <DatePickerToggle
             initialSelection={dateRange}
             onChange={(newRange) => setDateRange(newRange)}
@@ -160,14 +157,14 @@ export function CampaignsToolbar({
         </div>
 
         {/* Time Zone Selector */}
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <button
             type="button"
             onClick={() => setShowTimeZoneMenu(!showTimeZoneMenu)}
-            className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100"
+            className="flex w-full items-center justify-between gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 md:justify-start"
           >
             <span className="text-gray-600">Time zone</span>
-            <span className="text-xs font-medium text-blue-600">
+            <span className="truncate text-xs font-medium text-blue-600">
               {timeZone}
             </span>
             <svg
@@ -201,7 +198,7 @@ export function CampaignsToolbar({
                       key={zone.id}
                       type="button"
                       onClick={() => selectTimeZone(zone.id)}
-                      className={`w-full text-left rounded px-3 py-2 text-sm hover:bg-gray-100 ${
+                      className={`w-full truncate text-left rounded px-3 py-2 text-sm hover:bg-gray-100 ${
                         timeZone === zone.id
                           ? "bg-blue-50 text-blue-600 font-medium"
                           : "text-gray-700"
@@ -216,15 +213,12 @@ export function CampaignsToolbar({
           )}
         </div>
 
- 
-
-   
         {/* Platform selector */}
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <button
             type="button"
             onClick={() => setShowPlatformMenu(!showPlatformMenu)}
-            className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100"
+            className="flex w-full items-center justify-between gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 md:justify-start"
           >
             <span className="text-gray-600">Platforms</span>
             {selectedPlatforms.length > 0 ? (
@@ -287,37 +281,39 @@ export function CampaignsToolbar({
           )}
         </div>
 
-        {/* Title */}
-        <label className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm">
-          <span className="text-gray-600">Title</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="bg-transparent outline-none placeholder:text-gray-400"
-            onKeyDown={(e) => { 
-              if(e.key === "Enter") applyFilters();
-            }}
-            aria-label="Title filter"
-            placeholder="Search..."
-          />
-          {title && (
-            <button
-              className="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-200"
-              onClick={() => setTitle("")}
-              title="Clear title"
-              type="button"
-            >
-              ×
-            </button>
-          )}
-        </label>
+        {/* Title input - flex-1 allows it to grow and fill space on larger screens */}
+        <div className="w-full md:w-auto md:flex-1">
+          <label className="flex w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm">
+            <span className="text-gray-600">Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full bg-transparent outline-none placeholder:text-gray-400"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applyFilters();
+              }}
+              aria-label="Title filter"
+              placeholder="Search..."
+            />
+            {title && (
+              <button
+                className="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-200"
+                onClick={() => setTitle("")}
+                title="Clear title"
+                type="button"
+              >
+                ×
+              </button>
+            )}
+          </label>
+        </div>
 
         {/* Tags Dropdown */}
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <button
             type="button"
             onClick={() => setShowTagsMenu(!showTagsMenu)}
-            className="flex items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100"
+            className="flex w-full items-center justify-between gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 md:justify-start"
           >
             <span className="text-gray-600">Tags</span>
             {tags ? (
@@ -380,25 +376,26 @@ export function CampaignsToolbar({
           )}
         </div>
 
-        {/* Apply Button */}
-        <button
-          type="button"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none"
-          onClick={applyFilters}
-        >
-          Apply
-        </button>
+        {/* Action Buttons - Grouped for responsive positioning */}
+        {/* On mobile: full width, separated by a top border */}
+        {/* On desktop: aligned to the right */}
+        <div className="flex w-full flex-col gap-2 border-t border-gray-200 pt-3 mt-1 md:w-auto md:flex-row md:border-t-0 md:pt-0 md:mt-0 md:ml-auto">
+          <button
+            type="button"
+            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none md:w-auto"
+            onClick={applyFilters}
+          >
+            Apply
+          </button>
 
-        {/* Reset Button */}
-        <button
-          type="button"
-          onClick={resetForm}
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
-        >
-          Reset
-        </button>
-
-      
+          <button
+            type="button"
+            onClick={resetForm}
+            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none md:w-auto"
+          >
+            Reset
+          </button>
+        </div>
       </div>
     </section>
   );

@@ -18,10 +18,10 @@ function PlatformIcon({ platform }) {
   const iconSrc = platformIconsMap[platform];
 
   if (!iconSrc) {
-    return <span className="w-5 h-5 inline-block">?</span>;
+    return <span className="w-4 h-4 xs:w-5 xs:h-5 inline-block">?</span>;
   }
 
-  return <img src={iconSrc} alt={`${platform} icon`} className="w-5 h-5" />;
+  return <img src={iconSrc} alt={`${platform} icon`} className="w-4 h-4 xs:w-5 xs:h-5" />;
 }
 
 // Skeleton loader component for table rows
@@ -33,11 +33,11 @@ function TableSkeleton({ columnCount, rowCount }) {
           {Array.from({ length: columnCount }).map((_, colIndex) => (
             <td 
               key={`skeleton-cell-${rowIndex}-${colIndex}`} 
-              className="px-4 py-3 border-r border-gray-300"
+              className="px-2 py-2 xs:px-4 xs:py-3 border-r border-gray-300"
             >
               <div 
-                className={`h-5 bg-gray-200 rounded ${
-                  colIndex === 0 ? "w-12" : colIndex === 1 ? "w-full" : "w-16 ml-auto"
+                className={`h-4 xs:h-5 bg-gray-200 rounded ${
+                  colIndex === 0 ? "w-8 xs:w-12" : colIndex === 1 ? "w-full" : "w-12 xs:w-16 ml-auto"
                 }`}
               ></div>
             </td>
@@ -168,9 +168,13 @@ function CampaignsTable({ filters = {} }) {
     return rows;
   }
 
- const columns = [
+  const columns = [
     { id: "id", label: "#", numeric: true },
     { id: "title", label: "Campaign Title", numeric: false },
+    {
+      id:"status", label: "status"
+      
+    },
     {
       id: "cost",
       label: "Date",
@@ -304,21 +308,21 @@ function CampaignsTable({ filters = {} }) {
   const [draggedColumn, setDraggedColumn] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
-  // Enhanced row background coloring based on profit value - with more gradient levels
+  // Enhanced row background coloring based on profit value - with warmer gradient levels
   const getRowBackgroundColor = (profit) => {
-    // Green shades for positive profit (5 levels)
-    if (profit > 40) return "bg-green-400 hover:bg-yellow-100"; // Extremely high profit
-    if (profit > 30) return "bg-green-300 hover:bg-yellow-100"; // Very high profit
-    if (profit > 20) return "bg-green-200 hover:bg-yellow-100"; // High profit
-    if (profit > 10) return "bg-green-100 hover:bg-yellow-100"; // Medium profit
-    if (profit > 0) return "bg-green-50 hover:bg-yellow-100"; // Low positive profit
+    // Warm green shades for positive profit (5 levels)
+    if (profit > 40) return "bg-emerald-200 hover:bg-yellow-100"; // High profit
+    if (profit > 30) return "bg-emerald-100 hover:bg-yellow-100";
+    if (profit > 20) return "bg-green-100 hover:bg-yellow-100";
+    if (profit > 10) return "bg-lime-50 hover:bg-yellow-100";
+    if (profit > 0) return "bg-lime-50 hover:bg-yellow-100"; // Low positive profit
 
-    // Red shades for negative profit (5 levels)
-    if (profit < -40) return "bg-red-300 hover:bg-yellow-100"; // Extremely high loss
-    if (profit < -30) return "bg-red-300 hover:bg-yellow-100"; // Very high loss
-    if (profit < -20) return "bg-red-200 hover:bg-yellow-100"; // High loss
-    if (profit < -10) return "bg-red-100 hover:bg-yellow-100"; // Medium loss
-    if (profit < 0) return "bg-red-50 hover:bg-yellow-100"; // Low negative profit
+    // Warm red shades for negative profit (5 levels)
+    if (profit < -40) return "bg-orange-200 hover:bg-yellow-100"; // High loss
+    if (profit < -30) return "bg-orange-100 hover:bg-yellow-100";
+    if (profit < -20) return "bg-red-100 hover:bg-yellow-100";
+    if (profit < -10) return "bg-red-50 hover:bg-yellow-100";
+    if (profit < 0) return "bg-rose-50 hover:bg-yellow-100"; // Low negative profit
 
     // Neutral
     return "bg-white hover:bg-gray-50"; // Zero/neutral profit
@@ -426,12 +430,12 @@ function CampaignsTable({ filters = {} }) {
     localStorage.setItem("campaignTableConfig", JSON.stringify(config));
   };
 
-  // Updated cell padding with "very comfortable" option
+  // Updated cell padding with "very comfortable" option and responsive sizing
   const cellPadding = {
-    compact: "px-2 py-1",
-    standard: "px-3 py-2",
-    comfortable: "px-4 py-3",
-    veryComfortable: "px-6 py-4",
+    compact: "px-1 py-1 xs:px-2 xs:py-1",
+    standard: "px-2 py-1.5 xs:px-3 xs:py-2",
+    comfortable: "px-2 py-2 xs:px-4 xs:py-3",
+    veryComfortable: "px-3 py-2.5 xs:px-6 xs:py-4",
   };
 
   const [sortConfig, setSortConfig] = useState({
@@ -1003,22 +1007,23 @@ function CampaignsTable({ filters = {} }) {
     };
   };
 
-  // Enhanced profit formatting with better color gradient
+  // Enhanced profit formatting with warmer color gradient
+  // Enhanced profit formatting with warmer color gradient
   const formatProfitValue = (value) => {
     const isPositive = value >= 0;
     let colorClass;
 
-    // More granular color classes for profit values
+    // Warmer color classes for profit values
     if (isPositive) {
-      if (value > 40) colorClass = "text-green-800";
-      else if (value > 30) colorClass = "text-green-700";
-      else if (value > 20) colorClass = "text-green-700";
+      if (value > 40) colorClass = "text-emerald-700";
+      else if (value > 30) colorClass = "text-emerald-600";
+      else if (value > 20) colorClass = "text-green-600";
       else if (value > 10) colorClass = "text-green-600";
       else colorClass = "text-green-500";
     } else {
-      if (value < -40) colorClass = "text-red-800";
-      else if (value < -30) colorClass = "text-red-700";
-      else if (value < -20) colorClass = "text-red-700";
+      if (value < -40) colorClass = "text-orange-700";
+      else if (value < -30) colorClass = "text-orange-600";
+      else if (value < -20) colorClass = "text-red-600";
       else if (value < -10) colorClass = "text-red-600";
       else colorClass = "text-red-500";
     }
@@ -1030,21 +1035,21 @@ function CampaignsTable({ filters = {} }) {
     );
   };
 
-  // Enhanced ROI formatting with better color gradient
+  // Enhanced ROI formatting with warmer color gradient
   const formatROIValue = (value) => {
     const isPositive = value >= 0;
     let colorClass;
 
-    // More granular color classes for ROI values
+    // Warmer color classes for ROI values
     if (isPositive) {
-      if (value > 150) colorClass = "text-green-800";
-      else if (value > 100) colorClass = "text-green-700";
+      if (value > 150) colorClass = "text-emerald-700";
+      else if (value > 100) colorClass = "text-emerald-600";
       else if (value > 50) colorClass = "text-green-600";
       else if (value > 25) colorClass = "text-green-500";
       else colorClass = "text-green-500";
     } else {
-      if (value < -100) colorClass = "text-red-800";
-      else if (value < -75) colorClass = "text-red-700";
+      if (value < -100) colorClass = "text-orange-700";
+      else if (value < -75) colorClass = "text-orange-600";
       else if (value < -50) colorClass = "text-red-600";
       else if (value < -25) colorClass = "text-red-500";
       else colorClass = "text-red-500";
@@ -1075,19 +1080,19 @@ function CampaignsTable({ filters = {} }) {
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <div className="flex items-center justify-between">
+      {/* Header - Responsive */}
+      <div className="px-3 py-3 xs:px-6 xs:py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+        <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-lg xs:text-xl font-semibold text-gray-900">
               Campaign Analytics
             </h2>
 
-            {/* Filter status */}
+            {/* Filter status - condensed for mobile */}
             {(filters.platforms?.length > 0 ||
               filters.title ||
               filters.tags) && (
-              <div className="mt-2 text-sm text-gray-500">
+              <div className="mt-1 text-xs xs:text-sm text-gray-500 truncate max-w-[250px] ss:max-w-full">
                 {filters.platforms?.length > 0 &&
                   `Platforms: ${filters.platforms.join(", ")} • `}
                 {filters.title && `Title: "${filters.title}" • `}
@@ -1096,19 +1101,21 @@ function CampaignsTable({ filters = {} }) {
             )}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
+          {/* Controls - Responsive layout */}
+          <div className="flex flex-wrap items-center gap-2 ss:gap-3">
             {/* Refresh Button */}
             <button
               type="button"
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none ${
+              className={`inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none ${
                 isLoading ? "opacity-75 cursor-not-allowed" : ""
               }`}
               onClick={refreshData}
               disabled={isLoading}
             >
               <svg
-                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`w-3.5 h-3.5 xs:w-4 xs:h-4 ${
+                  isLoading ? "animate-spin" : ""
+                }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1120,20 +1127,29 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {isLoading ? "Refreshing..." : "Refresh Data"}
+              {isLoading ? (
+                "Refreshing..."
+              ) : (
+                <span className="hidden xs:inline">Refresh Data</span>
+              )}
+              {isLoading ? (
+                "Refreshing..."
+              ) : (
+                <span className="inline xs:hidden">Refresh</span>
+              )}
             </button>
 
             {/* Columns Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
                 onClick={() =>
                   setOpenMenu((m) => (m === "columns" ? null : "columns"))
                 }
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 xs:w-4 xs:h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1148,19 +1164,19 @@ function CampaignsTable({ filters = {} }) {
                 Columns
               </button>
               {openMenu === "columns" && (
-                <div className="absolute right-0 z-30 mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 py-2">
-                  <div className="px-4 py-2 border-b border-gray-100">
+                <div className="absolute right-0 z-30 mt-2 w-64 xs:w-72 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                  <div className="px-3 py-1.5 xs:px-4 xs:py-2 border-b border-gray-100">
                     <div className="flex justify-between gap-2">
                       <button
                         type="button"
-                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded"
+                        className="px-2 py-1 xs:px-3 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded"
                         onClick={showAllColumns}
                       >
                         Show All
                       </button>
                       <button
                         type="button"
-                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded"
+                        className="px-2 py-1 xs:px-3 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded"
                         onClick={hideAllColumns}
                       >
                         Hide All
@@ -1171,15 +1187,15 @@ function CampaignsTable({ filters = {} }) {
                     {columns.map((column, idx) => (
                       <label
                         key={column.id}
-                        className="flex items-center gap-3 px-2 py-2 hover:bg-gray-50 rounded cursor-pointer"
+                        className="flex items-center gap-2 xs:gap-3 px-2 py-1.5 xs:py-2 hover:bg-gray-50 rounded cursor-pointer"
                       >
                         <input
                           type="checkbox"
                           checked={!hiddenCols.has(idx)}
                           onChange={() => toggleColumn(idx)}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700 flex-1">
+                        <span className="text-xs xs:text-sm text-gray-700 flex-1">
                           {column.label}
                         </span>
                       </label>
@@ -1193,13 +1209,13 @@ function CampaignsTable({ filters = {} }) {
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
                 onClick={() =>
                   setOpenMenu((m) => (m === "density" ? null : "density"))
                 }
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 xs:w-4 xs:h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1214,7 +1230,7 @@ function CampaignsTable({ filters = {} }) {
                 Density
               </button>
               {openMenu === "density" && (
-                <div className="absolute right-0 z-30 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                <div className="absolute right-0 z-30 mt-2 w-40 xs:w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2">
                   {[
                     "compact",
                     "standard",
@@ -1223,16 +1239,16 @@ function CampaignsTable({ filters = {} }) {
                   ].map((opt) => (
                     <label
                       key={opt}
-                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center gap-2 xs:gap-3 px-3 py-1.5 xs:px-4 xs:py-2 hover:bg-gray-50 cursor-pointer"
                     >
                       <input
                         type="radio"
                         name="density"
                         checked={density === opt}
                         onChange={() => setDensity(opt)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-xs xs:text-sm text-gray-700">
                         {opt === "veryComfortable"
                           ? "Very Comfortable"
                           : opt.charAt(0).toUpperCase() + opt.slice(1)}
@@ -1243,14 +1259,14 @@ function CampaignsTable({ filters = {} }) {
               )}
             </div>
 
-            {/* Reset Button */}
+            {/* Reset Button - Hidden on smallest screens */}
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+              className="hidden ss:inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
               onClick={resetTable}
             >
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5 xs:w-4 xs:h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1262,15 +1278,23 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              Reset Table
+              Reset
             </button>
           </div>
         </div>
       </div>
 
-      {/* Table Container */}
-      <div ref={scrollRef} className="overflow-auto max-h-[70vh]">
-        <div className="min-w-[1200px] lg:w-full">
+      {/* Mobile Table Notice - Only visible on very small screens */}
+      <div className="block ss:hidden px-3 py-2 bg-blue-50 text-blue-700 text-xs border-b border-blue-200">
+        <p>Scroll horizontally to view all data columns</p>
+      </div>
+
+      {/* Table Container - Improved for mobile */}
+      <div
+        ref={scrollRef}
+        className="overflow-auto max-h-[60vh] xs:max-h-[70vh]"
+      >
+        <div className="min-w-[600px] xs:min-w-[800px] ss:min-w-[1200px] lg:w-full">
           <table className="w-full table-fixed border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-100">
               <tr className="border-t border-gray-200">
@@ -1284,7 +1308,7 @@ function CampaignsTable({ filters = {} }) {
                       key={column.id}
                       className={`
                         ${cellPadding[density]} 
-                        text-sm font-semibold text-gray-900 
+                        text-xs xs:text-sm font-semibold text-gray-900 
                         select-none 
                         hover:bg-gray-200 
                         transition-colors duration-150
@@ -1310,6 +1334,12 @@ function CampaignsTable({ filters = {} }) {
                       style={{
                         width: `${columnWidths[column.id]}px`,
                         cursor: resizing ? "col-resize" : "grab",
+                        minWidth:
+                          colIdx === 0
+                            ? "40px"
+                            : colIdx === 1
+                            ? "150px"
+                            : "80px",
                       }}
                       onClick={(e) => {
                         // Only sort when not resizing
@@ -1360,7 +1390,7 @@ function CampaignsTable({ filters = {} }) {
                         <span className="truncate">{column.label}</span>
                         <span
                           className={`
-                          ml-2 text-xs transition-colors
+                          ml-1 xs:ml-2 text-xs transition-colors
                           ${
                             sortIndicator.active
                               ? sortIndicator.ascending
@@ -1376,7 +1406,7 @@ function CampaignsTable({ filters = {} }) {
 
                       {/* Resizing handle */}
                       <div
-                        className="absolute top-0 right-0 w-4 h-full cursor-col-resize group"
+                        className="absolute top-0 right-0 w-3 xs:w-4 h-full cursor-col-resize group"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1405,20 +1435,24 @@ function CampaignsTable({ filters = {} }) {
                     content = ""; // Empty for ID column
                   } else if (column.id === "title") {
                     content = (
-                      <div className="flex items-center gap-2">
-                        <span>Total:</span>
+                      <div className="flex items-center gap-1 xs:gap-2">
+                        <span className="text-xs xs:text-sm">Total:</span>
                       </div>
                     );
                   } else if (column.id === "cost") {
-                    content = `$ ${totals.cost.toFixed(2)}`;
+                    content = `$${totals.cost.toFixed(2)}`;
                   } else if (column.id === "revenue") {
-                    content = `$ ${totals.revenue.toFixed(2)}`;
+                    content = `$${totals.revenue.toFixed(2)}`;
                   } else if (column.id === "profit") {
                     const profitClass =
-                      totals.profit > 0 ? "text-green-700" : "text-red-700";
+                      totals.profit > 0
+                        ? "text-emerald-700"
+                        : "text-orange-700";
                     content = (
-                      <span className={`${profitClass} font-bold`}>
-                        $ {Math.abs(totals.profit).toFixed(2)}
+                      <span
+                        className={`${profitClass} font-bold text-xs xs:text-sm`}
+                      >
+                        ${Math.abs(totals.profit).toFixed(2)}
                       </span>
                     );
                   } else if (column.id === "lpCtr") {
@@ -1432,9 +1466,11 @@ function CampaignsTable({ filters = {} }) {
                       ? (totals.profit / totals.cost) * 100
                       : 0;
                     const roiClass =
-                      roiValue > 0 ? "text-green-700" : "text-red-700";
+                      roiValue > 0 ? "text-emerald-700" : "text-orange-700";
                     content = (
-                      <span className={`${roiClass} font-bold`}>
+                      <span
+                        className={`${roiClass} font-bold text-xs xs:text-sm`}
+                      >
                         {roiValue.toFixed(1)}%
                       </span>
                     );
@@ -1481,7 +1517,7 @@ function CampaignsTable({ filters = {} }) {
                       key={column.id}
                       className={`${cellPadding[density]} ${
                         column.numeric ? "text-right" : ""
-                      } text-sm font-semibold text-gray-900 border-r border-gray-300`}
+                      } text-xs xs:text-sm font-semibold text-gray-900 border-r border-gray-300`}
                       style={{ width: `${columnWidths[column.id]}px` }}
                     >
                       {content}
@@ -1501,7 +1537,7 @@ function CampaignsTable({ filters = {} }) {
               ) : pageRows.length > 0 ? (
                 pageRows.map((row) => {
                   // Calculate the appropriate indentation based on row level
-                  const indentation = row.level ? row.level * 12 : 0;
+                  const indentation = row.level ? row.level * 8 : 0;
 
                   // Determine if this row can expand
                   const canExpand =
@@ -1537,7 +1573,7 @@ function CampaignsTable({ filters = {} }) {
                           return (
                             <td
                               key={`${row.id}-${column.id}`}
-                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-300`}
+                              className={`${cellPadding[density]} text-xs xs:text-sm text-gray-900 border-r border-gray-300`}
                             >
                               <div
                                 className="flex items-center"
@@ -1561,11 +1597,11 @@ function CampaignsTable({ filters = {} }) {
                                         );
                                       }
                                     }}
-                                    className="text-gray-500 hover:text-gray-800 focus:outline-none mr-2"
+                                    className="text-gray-500 hover:text-gray-800 focus:outline-none mr-1 xs:mr-2"
                                   >
                                     {isExpanded ? (
                                       <svg
-                                        className="w-5 h-5"
+                                        className="w-4 h-4 xs:w-5 xs:h-5"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -1579,7 +1615,7 @@ function CampaignsTable({ filters = {} }) {
                                       </svg>
                                     ) : (
                                       <svg
-                                        className="w-5 h-5"
+                                        className="w-4 h-4 xs:w-5 xs:h-5"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -1597,7 +1633,7 @@ function CampaignsTable({ filters = {} }) {
 
                                 {/* Platform icon only for top-level campaign rows */}
                                 {!row.type && (
-                                  <div className="text-gray-600 flex-shrink-0 mr-2">
+                                  <div className="text-gray-600 flex-shrink-0 mr-1 xs:mr-2">
                                     <PlatformIcon platform={row.platform} />
                                   </div>
                                 )}
@@ -1622,7 +1658,7 @@ function CampaignsTable({ filters = {} }) {
                             key={`${row.id}-${column.id}`}
                             className={`${cellPadding[density]} ${
                               column.numeric ? "text-right" : ""
-                            } text-sm text-gray-900 border-r border-gray-300`}
+                            } text-xs xs:text-sm text-gray-900 border-r border-gray-300`}
                           >
                             {getCellValue(row, column.id)}
                           </td>
@@ -1637,7 +1673,7 @@ function CampaignsTable({ filters = {} }) {
                     colSpan={
                       sortedColumnOrder.filter((idx) => !isHidden(idx)).length
                     }
-                    className="px-6 py-10 text-center text-gray-500 border-r border-gray-300"
+                    className="px-3 py-6 xs:px-6 xs:py-10 text-center text-xs xs:text-sm text-gray-500 border-r border-gray-300"
                   >
                     No campaigns found matching your criteria
                   </td>
@@ -1648,16 +1684,16 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      {/* Pagination Footer - Mobile Responsive */}
+      <div className="px-3 py-3 xs:px-6 xs:py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+        <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
+          <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-xs xs:text-sm font-medium text-gray-700">
                 Rows per page:
               </label>
               <select
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm bg-white focus:outline-none"
+                className="border border-gray-300 rounded-md px-2 py-1 text-xs xs:text-sm bg-white focus:outline-none"
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
@@ -1672,7 +1708,7 @@ function CampaignsTable({ filters = {} }) {
               </select>
             </div>
 
-            <div className="text-sm text-gray-700">
+            <div className="text-xs xs:text-sm text-gray-700 mt-2 xs:mt-0">
               Showing {sortedData.length > 0 ? (page - 1) * rowsPerPage + 1 : 0}{" "}
               to {Math.min(page * rowsPerPage, sortedData.length)} of{" "}
               {sortedData.length} campaigns
@@ -1688,10 +1724,10 @@ function CampaignsTable({ filters = {} }) {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || isLoading}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
             >
               <svg
-                className="w-4 h-4 mr-1"
+                className="w-3.5 h-3.5 xs:w-4 xs:h-4 mr-0.5 xs:mr-1"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1703,11 +1739,13 @@ function CampaignsTable({ filters = {} }) {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Previous
+              <span className="hidden xs:inline">Previous</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Page</span>
+            <div className="flex items-center gap-1 xs:gap-2">
+              <span className="text-xs xs:text-sm text-gray-700 hidden xs:inline">
+                Page
+              </span>
               <input
                 type="number"
                 min={1}
@@ -1719,20 +1757,23 @@ function CampaignsTable({ filters = {} }) {
                     setPage(Math.min(totalPages, Math.max(1, v)));
                 }}
                 disabled={isLoading}
-                className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-md focus:outline-none disabled:opacity-50 disabled:bg-gray-100"
+                className="w-12 xs:w-16 px-1.5 py-1 xs:px-2 text-xs xs:text-sm text-center border border-gray-300 rounded-md focus:outline-none disabled:opacity-50 disabled:bg-gray-100"
               />
-              <span className="text-sm text-gray-700">of {totalPages}</span>
+              <span className="text-xs xs:text-sm text-gray-700">
+                <span className="hidden xs:inline">of</span>
+                <span className="inline xs:hidden">/</span> {totalPages}
+              </span>
             </div>
 
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || isLoading}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
             >
-              Next
+              <span className="hidden xs:inline">Next</span>
               <svg
-                className="w-4 h-4 ml-1"
+                className="w-3.5 h-3.5 xs:w-4 xs:h-4 ml-0.5 xs:ml-1"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1746,6 +1787,30 @@ function CampaignsTable({ filters = {} }) {
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* Reset button - Only visible on smallest screens */}
+        <div className="block ss:hidden mt-3">
+          <button
+            type="button"
+            className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+            onClick={resetTable}
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            Reset Table
+          </button>
         </div>
       </div>
     </div>

@@ -3,17 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { ChevronDown, Plus, Copy, Trash2, Search as SearchIcon } from "lucide-react";
 import { SquarePen } from 'lucide-react';
 
-
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-import Search from "@/components/search-bar";
 import { logAction } from "@/utils/actionLog";
 import { supabase } from "@/supabaseClient";
-
 
 // Firestore
 import { db } from "@/firebase";
@@ -22,21 +19,21 @@ import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/fire
 const comparisonSymbol = { gte: "≥", lte: "≤", eq: "=" };
 
 const normalizeStatus = (s) => {
-    const v = typeof s === "string" ? s.trim().toLowerCase() : s;
-    if (v === true || v === "running" || v === "active") return "Running";
-    if (v === false || v === "paused") return "Paused";
-    return "Running"; // default
+  const v = typeof s === "string" ? s.trim().toLowerCase() : s;
+  if (v === true || v === "running" || v === "active") return "Running";
+  if (v === false || v === "paused") return "Paused";
+  return "Running"; // default
 };
 
 // type → route
 function routeForType(t = "") {
-    const s = String(t).toLowerCase().trim();
-    if (s.includes("pause")) return "/editPause";
-    if (s.includes("activate") || s.includes("active")) return "/editActivate";
-    if (s.includes("budget")) return "/editBudget";
-    if (s.includes("change_budget")) return "/editBudget";
-    if (s.includes("exclusion")) return "/editExclusion";
-    return "/editActivate";
+  const s = String(t).toLowerCase().trim();
+  if (s.includes("pause")) return "/editPause";
+  if (s.includes("activate") || s.includes("active")) return "/editActivate";
+  if (s.includes("budget")) return "/editBudget";
+  if (s.includes("change_budget")) return "/editBudget";
+  if (s.includes("exclusion")) return "/editExclusion";
+  return "/editActivate";
 }
 
 const getComparisonSymbol = (operator) => {
@@ -79,30 +76,30 @@ const getComparisonSymbol = (operator) => {
 
 // platform icons
 const PLATFORM_ICONS = {
-    meta: fb,
-    snap: snapchatIcon,
-    tiktok: tiktokIcon,
-    google: googleIcon,
-    newsbreak: nb,
+  meta: fb,
+  snap: snapchatIcon,
+  tiktok: tiktokIcon,
+  google: googleIcon,
+  newsbreak: nb,
 };
 
 function normalizePlatformKey(p) {
-    const raw = Array.isArray(p) ? p[0] : p;
-    if (!raw) return "";
-    const s = String(raw).toLowerCase().trim();
-    if (["meta", "facebook", "fb"].includes(s)) return "meta";
-    if (["snap", "snapchat"].includes(s)) return "snap";
-    if (["tiktok", "tt"].includes(s)) return "tiktok";
-    if (["google", "ggl", "adwords", "ads"].includes(s)) return "google";
-    if (["newsbreak", "nb"].includes(s)) return "newsbreak";
-    return s;
+  const raw = Array.isArray(p) ? p[0] : p;
+  if (!raw) return "";
+  const s = String(raw).toLowerCase().trim();
+  if (["meta", "facebook", "fb"].includes(s)) return "meta";
+  if (["snap", "snapchat"].includes(s)) return "snap";
+  if (["tiktok", "tt"].includes(s)) return "tiktok";
+  if (["google", "ggl", "adwords", "ads"].includes(s)) return "google";
+  if (["newsbreak", "nb"].includes(s)) return "newsbreak";
+  return s;
 }
 
 const PlatformIcon = ({ platform }) => {
-    const key = normalizePlatformKey(platform);
-    const src = PLATFORM_ICONS[key];
-    if (!src) return null;
-    return <img src={src} alt={key} title={key} className="w-5 h-5" />;
+  const key = normalizePlatformKey(platform);
+  const src = PLATFORM_ICONS[key];
+  if (!src) return null;
+  return <img src={src} alt={key} title={key} className="w-5 h-5" />;
 };
 
 // helper: unique key for a rule across collections
@@ -110,43 +107,41 @@ const ruleKey = (r) => `${r.__colName}::${r.id}`;
 
 // fixed order for collections
 const COLLECTION_ORDER = [
-    "meta_pause_campaign",
-    "meta_active_campaign",
-    "meta_change_budget_campaign",
-    "meta_exclusion_campaign",
-    "snap_pause_campaign",
-    "snap_active_campaign",
-    "snap_change_budget_campaign",
-    "snap_exclusion_campaign",
-    "tiktok_pause_campaign",
-    "tiktok_active_campaign",
-    "tiktok_change_budget_campaign",
-    "tiktok_exclusion_campaign",
-    "google_pause_campaign",
-    "google_active_campaign",
-    "google_change_budget_campaign",
-    "google_exclusion_campaign",
-    "newsbreak_pause_campaign",
-    "newsbreak_active_campaign",
-    "newsbreak_change_budget_campaign",
-    "newsbreak_exclusion_campaign",
+  "meta_pause_campaign",
+  "meta_active_campaign",
+  "meta_change_budget_campaign",
+  "meta_exclusion_campaign",
+  "snap_pause_campaign",
+  "snap_active_campaign",
+  "snap_change_budget_campaign",
+  "snap_exclusion_campaign",
+  "tiktok_pause_campaign",
+  "tiktok_active_campaign",
+  "tiktok_change_budget_campaign",
+  "tiktok_exclusion_campaign",
+  "google_pause_campaign",
+  "google_active_campaign",
+  "google_change_budget_campaign",
+  "google_exclusion_campaign",
+  "newsbreak_pause_campaign",
+  "newsbreak_active_campaign",
+  "newsbreak_change_budget_campaign",
+  "newsbreak_exclusion_campaign",
 ];
 
 const sortRulesStable = (a, b) => {
-    const ai = COLLECTION_ORDER.indexOf(a.__colName);
-    const bi = COLLECTION_ORDER.indexOf(b.__colName);
-    if (ai !== bi) return ai - bi;
+  const ai = COLLECTION_ORDER.indexOf(a.__colName);
+  const bi = COLLECTION_ORDER.indexOf(b.__colName);
+  if (ai !== bi) return ai - bi;
 
-    const at = String(a.type || "").toLowerCase();
-    const bt = String(b.type || "").toLowerCase();
-    if (at !== bt) return at.localeCompare(bt);
+  const at = String(a.type || "").toLowerCase();
+  const bt = String(b.type || "").toLowerCase();
+  if (at !== bt) return at.localeCompare(bt);
 
-    const an = String(a.name || a.id || "");
-    const bn = String(b.name || b.id || "");
-    return an.localeCompare(bn);
+  const an = String(a.name || a.id || "");
+  const bn = String(b.name || b.id || "");
+  return an.localeCompare(bn);
 };
-
-
 
 const RulesDashboard = () => {
   const navigate = useNavigate();
@@ -191,7 +186,7 @@ const RulesDashboard = () => {
     return () => unsubs.forEach((unsub) => unsub());
   }, []);
 
-  // scroll trackeMeta
+  // scroll tracker
   useEffect(() => {
     const handleScroll = () => {
       if (headerRef.current) {
@@ -222,7 +217,7 @@ const RulesDashboard = () => {
     },
   ];
 
-  // close dropdown on outside
+  // close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -251,6 +246,7 @@ const RulesDashboard = () => {
   const filteredRuleTypes = ruleTypes.filter((type) =>
     type.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
   // Helper function to format conditions for log
   const formatConditionsForLog = (rule) => {
     const conds = rule.condition || rule.conditions || [];
@@ -329,6 +325,10 @@ const RulesDashboard = () => {
     const key = ruleKey(rule);
     const ruleName = getRuleName(rule);
 
+    if (!window.confirm(`Are you sure you want to delete "${ruleName}"?`)) {
+      return;
+    }
+
     setRules((prev) => prev.filter((r) => ruleKey(r) !== key));
     setSelectedRules((prev) => prev.filter((k) => k !== key));
 
@@ -382,7 +382,7 @@ const RulesDashboard = () => {
           ruleName: ruleName,
           ruleConditions: formatConditionsForLog(rule),
           platformIcon: getPlatformIconUrl(rule.platform),
-          status: "runnig",
+          status: "running",
         });
       }
     } catch (e) {
@@ -427,28 +427,17 @@ const RulesDashboard = () => {
     }
   };
 
-  // const renderConditions = (rule) => {
-  //     const conds = rule.condition || rule.conditions || [];
-  //     return conds.map((c) => {
-  //         if (typeof c === "string") return c;
-  //         const m = (c.metric || "").toString().toUpperCase();
-  //         const sym = comparisonSymbol[c.comparison] || "=";
-  //         const thr = c.threshold ?? c.value ?? "";
-  //         return `${m} ${sym} ${thr}`;
-  //     });
-  // };
-
   const renderConditions = (rule) => {
     const conds = rule.condition || rule.conditions || [];
-    return conds.map((c) => {
-      if (typeof c === "string") return c;
+    return conds.map((c, idx) => {
+      if (typeof c === "string") return <span key={idx}>{c}</span>;
 
       const m = (c.metric || "").toString().toUpperCase();
       const operator = c.comparison || c.operator || "eq";
       const thr = c.threshold ?? c.value ?? "";
 
       return (
-        <div className="inline-flex items-center gap-1">
+        <div key={idx} className="inline-flex items-center gap-1">
           <span>{m}</span>
           <span className="mx-1">{getComparisonSymbol(operator)}</span>
           <span>{thr}</span>
@@ -456,8 +445,8 @@ const RulesDashboard = () => {
       );
     });
   };
-  //footer
 
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [rowsDropdownOpen, setRowsDropdownOpen] = useState(false);
@@ -494,23 +483,28 @@ const RulesDashboard = () => {
     }
   };
 
+  // For duplicating a rule
+  const duplicateRule = (rule) => {
+    // Implementation would go here
+    // For now just showing a message
+    alert(`Duplicate feature for "${getRuleName(rule)}" coming soon!`);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div ref={headerRef}>
-        <Search />
-      </div>
+    <div className="min-h-screen bg-gray-50 pb-10">
+      <div ref={headerRef}></div>
 
       {/* Fixed action bar when scrolled */}
       {isScrolled && (
         <div className="fixed top-0 left-0 right-0 z-40 bg-white shadow-md border-b border-gray-200">
-          <div className="max-w-7xl mx-auto flex items-center gap-3 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-3 px-4 xs:px-6 py-3">
             <div className="relative" ref={dropdownRef}>
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md"
+                className="flex items-center gap-2 px-3 xs:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <Plus className="w-4 h-4" />
-                New Rule
+                <span className="hidden ss:inline">New Rule</span>
                 <ChevronDown className="w-4 h-4" />
               </button>
               {dropdownOpen && (
@@ -545,25 +539,25 @@ const RulesDashboard = () => {
       )}
 
       {/* Main content */}
-      <div className={`p-6 ${isScrolled ? "pt-16" : ""}`}>
+      <div className={`p-3 xs:p-4 sm:p-6 ${isScrolled ? "pt-16" : ""}`}>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-semibold text-cyan-600 pr-3">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-cyan-600 pr-3">
                 Rules
               </h1>
             </div>
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
             <div className="relative" ref={dropdownRef}>
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md"
+                className="flex items-center gap-2 px-3 xs:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm hover:bg-gray-50"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <Plus className="w-4 h-4" />
-                New Rule
+                <span className="hidden ss:inline">New Rule</span>
                 <ChevronDown className="w-4 h-4" />
               </button>
               {dropdownOpen && (
@@ -596,252 +590,373 @@ const RulesDashboard = () => {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b">
-                  <th className="w-32 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Actions
-                  </th>
-                  <th className="w-64 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Name
-                  </th>
-                  <th className="w-24 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Status
-                  </th>
-                  <th className="w-40 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Type
-                  </th>
-                  <th className="w-80 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Conditions
-                  </th>
-                  <th className="w-32 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Frequency
-                  </th>
-                  <th className="w-32 font-medium text-gray-700 border-r border-gray-200 p-3 text-left">
-                    Platform
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {paginatedRules.length > 0 ? (
-                  paginatedRules.map((rule, index) => {
-                    const displayStatus = normalizeStatus(rule.status);
-                    const k = ruleKey(rule);
-                    return (
-                      <tr
-                        key={k}
-                        className={`hover:bg-gray-100 border-b ${
-                          index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                        }`}
-                      >
-                        <td className="py-3 px-3 border-r border-gray-200">
-                          <div className="flex items-center gap-2">
-                            {/* Toggle */}
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  normalizeStatus(rule.status) === "Running"
-                                }
-                                onChange={() => toggleStatus(rule)}
-                                disabled={isPending(k)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500" />
-                            </label>
-
-                            {/* quick actions */}
-                            {/* <div className="flex items-center gap-1 ml-2">
-                                                      <button className="p-1 hover:bg-gray-100 rounded" onClick={() => ruleEdit(rule)}>
-                                                           <SquarePen  className="w-4 h-4 text-gray-600" />
-                                                        </button>
-                                                        <button className="p-1 hover:bg-gray-100 rounded">
-                                                            <Copy className="w-4 h-4 text-blue-500" />
-                                                        </button>
-                                                        <button className="p-1 hover:bg-gray-100 rounded" onClick={() => deleteRule(rule)}>
-                                                            <Trash2 className="w-4 h-4 text-red-500" />
-                                                        </button>
-                                                    </div> */}
-
-                            <div className="flex items-center gap-1 ml-2">
-                              <div className="relative group">
-                                <button
-                                  className="p-1 hover:bg-gray-100 rounded"
-                                  onClick={() => ruleEdit(rule)}
-                                >
-                                  <SquarePen className="w-4 h-4 text-gray-600" />
-                                </button>
-                                <span
-                                  className="absolute -top-8 left-1/2 -translate-x-1/2 
-                     bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded 
-                     shadow opacity-0 group-hover:opacity-100 
-                     pointer-events-none transition-all duration-150 
-                     scale-95 group-hover:scale-100"
-                                >
-                                  Edit
-                                </span>
-                              </div>
-
-                              <div className="relative group">
-                                <button className="p-1 hover:bg-gray-100 rounded">
-                                  <Copy className="w-4 h-4 text-blue-500" />
-                                </button>
-                                <span
-                                  className="absolute -top-8 left-1/2 -translate-x-1/2 
-                     bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded 
-                     shadow opacity-0 group-hover:opacity-100 
-                     pointer-events-none transition-all duration-150 
-                     scale-95 group-hover:scale-100"
-                                >
-                                  Clone
-                                </span>
-                              </div>
-
-                              <div className="relative group">
-                                <button
-                                  className="p-1 hover:bg-gray-100 rounded"
-                                  onClick={() => deleteRule(rule)}
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </button>
-                                <span
-                                  className="absolute -top-8 left-1/2 -translate-x-1/2 
-                     bg-red-100 text-red-800 text-xs px-2 py-1 rounded 
-                     shadow opacity-0 group-hover:opacity-100 
-                     pointer-events-none transition-all duration-150 
-                     scale-95 group-hover:scale-100"
-                                >
-                                  Delete
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-3 border-r border-gray-200">
-                          <button
-                            // onClick={() => openRuleForEdit(rule)}
-                            className="text-left hover:text-blue-600 transition-colors font-medium text-sm text-gray-900"
-                          >
-                            {rule.name || `Unnamed ${rule.type}`}
-                          </button>
-                        </td>
-
-                        <td className="py-3 px-3 border-r border-gray-200">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              displayStatus
-                            )}`}
-                          >
-                            {displayStatus}
-                          </span>
-                        </td>
-
-                        <td className="text-sm text-gray-600 py-3 px-3 border-r border-gray-200">
-                          {rule.type}
-                        </td>
-
-                        <td className="py-3 px-3 border-r border-gray-200">
-                          <div className="flex flex-wrap gap-1">
-                            {renderConditions(rule).map((txt, i) => (
-                              <span
-                                key={`${k}-c${i}`}
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
-                                  txt,
-                                  i
-                                )}`}
-                              >
-                                {txt}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="text-sm text-gray-600 border-r border-gray-200 py-3 px-3">
-                          {rule.frequency}
-                        </td>
-
-                        <td className="py-3 px-3 border-r border-gray-200">
-                          <div className="flex items-center justify-center">
-                            <PlatformIcon platform={rule.platform} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="9" className="py-6 text-center text-gray-500">
-                      No rules found. Create a new rule to get started.
-                    </td>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-32">
+                      Actions
+                    </th>
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-64">
+                      Name
+                    </th>
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-24">
+                      Status
+                    </th>
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-40">
+                      Type
+                    </th>
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-80">
+                      Conditions
+                    </th>
+                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-32">
+                      Frequency
+                    </th>
+                    <th className="font-medium text-gray-700 p-3 text-center w-32">
+                      Platform
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
 
-            {/* Footer */}
-            {/* <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-                            <div className="text-sm text-gray-600">Total: {rules.length}</div>
-                            <div className="flex items-center gap-2">
-                                <div></div>
-                                <span className="text-sm text-gray-600">0 Rows</span>
-                                <div className="relative group">
-                                    <button className="flex items-center gap-1 px-12 py-1 bg-white border border-gray-300 rounded-md text-sm">
-                                        0 <ChevronDown className="w-3 h-3" />
-                                    </button>
-                                    <div className="absolute right-0 top-full mt-1 bg-white border shadow-lg rounded-md hidden group-hover:block z-10 p-2">
-                                        <button className="block w-full text-left px-3 py-1 hover:bg-gray-50">10</button>
-                                        <button className="block w-full text-left px-3 py-1 hover:bg-gray-50">25</button>
-                                        <button className="block w-full text-left px-3 py-1 hover:bg-gray-50">50</button>
-                                        <button className="block w-full text-left px-3 py-1 hover:bg-gray-50">100</button>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 ml-4">
-                                    <button className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm" disabled>
-                                        ‹
-                                    </button>
-                                    <button className="px-2 py-1 bg-blue-600 text-white border border-blue-600 rounded-full text-sm">1</button>
-                                    <button className="px-2 py-1 bg-white border border-gray-300 rounded-md text-sm">›</button>
-                                </div>
-                            </div>
-                        </div> */}
-            {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
-              <div className="text-sm text-gray-600">Total: {rules.length}</div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Rows per page:</span>
-                <div className="relative" ref={rowsDropdownRef}>
-                  <button
-                    className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded-md text-sm"
-                    onClick={() => setRowsDropdownOpen(!rowsDropdownOpen)}
-                  >
-                    {rowsPerPage} <ChevronDown className="w-3 h-3" />
-                  </button>
-                  {rowsDropdownOpen && (
-                    <div className="absolute right-0 top-full mt-1 bg-white border shadow-lg rounded-md z-10 p-2">
-                      {[5, 10, 25, 50, 100].map((num) => (
-                        <button
-                          key={num}
-                          className={`block w-full text-left px-3 py-1 hover:bg-gray-50 ${
-                            rowsPerPage === num
-                              ? "bg-blue-50 text-blue-600"
-                              : ""
+                <tbody className="bg-white">
+                  {paginatedRules.length > 0 ? (
+                    paginatedRules.map((rule, index) => {
+                      const displayStatus = normalizeStatus(rule.status);
+                      const k = ruleKey(rule);
+                      return (
+                        <tr
+                          key={k}
+                          className={`hover:bg-gray-50 border-b border-gray-200 ${
+                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
                           }`}
-                          onClick={() => {
-                            setRowsPerPage(num);
-                            setCurrentPage(1);
-                            setRowsDropdownOpen(false);
-                          }}
                         >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
+                          <td className="py-3 px-3 border-r border-gray-200">
+                            <div className="flex items-center gap-2">
+                              {/* Toggle */}
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    normalizeStatus(rule.status) === "Running"
+                                  }
+                                  onChange={() => toggleStatus(rule)}
+                                  disabled={isPending(k)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500" />
+                              </label>
+
+                              <div className="flex items-center gap-1">
+                                <div className="relative group">
+                                  <button
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                    onClick={() => ruleEdit(rule)}
+                                  >
+                                    <SquarePen className="w-4 h-4 text-gray-600" />
+                                  </button>
+                                  <span
+                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
+                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
+                                    shadow opacity-0 group-hover:opacity-100 
+                                    pointer-events-none transition-all duration-150 
+                                    scale-95 group-hover:scale-100 whitespace-nowrap"
+                                  >
+                                    Edit
+                                  </span>
+                                </div>
+
+                                <div className="relative group">
+                                  <button
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                    onClick={() => duplicateRule(rule)}
+                                  >
+                                    <Copy className="w-4 h-4 text-blue-500" />
+                                  </button>
+                                  <span
+                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
+                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
+                                    shadow opacity-0 group-hover:opacity-100 
+                                    pointer-events-none transition-all duration-150 
+                                    scale-95 group-hover:scale-100 whitespace-nowrap"
+                                  >
+                                    Duplicate
+                                  </span>
+                                </div>
+
+                                <div className="relative group">
+                                  <button
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                    onClick={() => deleteRule(rule)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                  </button>
+                                  <span
+                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
+                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
+                                    shadow opacity-0 group-hover:opacity-100 
+                                    pointer-events-none transition-all duration-150 
+                                    scale-95 group-hover:scale-100 whitespace-nowrap"
+                                  >
+                                    Delete
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3 border-r border-gray-200">
+                            <button
+                              onClick={() => ruleEdit(rule)}
+                              className="text-left hover:text-blue-600 transition-colors font-medium text-sm text-gray-900"
+                            >
+                              {rule.name || `Unnamed ${rule.type}`}
+                            </button>
+                          </td>
+
+                          <td className="py-3 px-3 border-r border-gray-200">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                displayStatus
+                              )}`}
+                            >
+                              {displayStatus}
+                            </span>
+                          </td>
+
+                          <td className="text-sm text-gray-600 py-3 px-3 border-r border-gray-200">
+                            {rule.type}
+                          </td>
+
+                          <td className="py-3 px-3 border-r border-gray-200">
+                            <div className="flex flex-wrap gap-1">
+                              {renderConditions(rule).map((txt, i) => (
+                                <span
+                                  key={`${k}-c${i}`}
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
+                                    txt,
+                                    i
+                                  )}`}
+                                >
+                                  {txt}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+
+                          <td className="text-sm text-gray-600 border-r border-gray-200 py-3 px-3">
+                            {rule.frequency}
+                          </td>
+
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex justify-center">
+                              <PlatformIcon platform={rule.platform} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="7"
+                        className="py-12 text-center text-gray-500 bg-white"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-3">
+                          <div className="text-gray-400 border border-gray-200 rounded-full p-3">
+                            <Plus className="w-8 h-8" />
+                          </div>
+                          <p className="text-lg font-medium text-gray-600">
+                            No rules found
+                          </p>
+                          <p className="text-gray-500 max-w-sm text-center">
+                            Create your first rule by clicking the "New Rule"
+                            button
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
                   )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile/Tablet View - Improved for better readability */}
+            <div className="md:hidden bg-white">
+              {paginatedRules.length > 0 ? (
+                paginatedRules.map((rule, index) => {
+                  const displayStatus = normalizeStatus(rule.status);
+                  const k = ruleKey(rule);
+                  return (
+                    <div key={k} className={`p-4 border-b border-gray-200`}>
+                      <div className="flex flex-wrap items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <PlatformIcon platform={rule.platform} />
+                          <h3 className="font-medium text-gray-900">
+                            {rule.name || `Unnamed ${rule.type}`}
+                          </h3>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            displayStatus
+                          )}`}
+                        >
+                          {displayStatus}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <div className="bg-gray-50 p-2 rounded-md">
+                          <p className="text-xs text-gray-500 mb-1 font-medium">
+                            Type
+                          </p>
+                          <p className="text-sm text-gray-800">{rule.type}</p>
+                        </div>
+
+                        <div className="bg-gray-50 p-2 rounded-md">
+                          <p className="text-xs text-gray-500 mb-1 font-medium">
+                            Frequency
+                          </p>
+                          <p className="text-sm text-gray-800">
+                            {rule.frequency}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-500 mb-2 font-medium">
+                          Conditions
+                        </p>
+                        <div className="flex flex-wrap gap-1 bg-gray-50 p-2 rounded-md">
+                          {renderConditions(rule).map((txt, i) => (
+                            <span
+                              key={`${k}-c${i}`}
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
+                                txt,
+                                i
+                              )}`}
+                            >
+                              {txt}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={normalizeStatus(rule.status) === "Running"}
+                            onChange={() => toggleStatus(rule)}
+                            disabled={isPending(k)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500" />
+                          <span className="ml-2 text-sm text-gray-700">
+                            {normalizeStatus(rule.status) === "Running"
+                              ? "Active"
+                              : "Paused"}
+                          </span>
+                        </label>
+
+                        <div className="flex items-center gap-4">
+                          <button
+                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            onClick={() => ruleEdit(rule)}
+                            aria-label="Edit rule"
+                          >
+                            <SquarePen className="w-4 h-4 text-gray-600" />
+                          </button>
+
+                          <button
+                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            onClick={() => duplicateRule(rule)}
+                            aria-label="Duplicate rule"
+                          >
+                            <Copy className="w-4 h-4 text-blue-500" />
+                          </button>
+
+                          <button
+                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            onClick={() => deleteRule(rule)}
+                            aria-label="Delete rule"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <div className="text-gray-400 border border-gray-200 rounded-full p-3">
+                      <Plus className="w-8 h-8" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-600">
+                      No rules found
+                    </p>
+                    <p className="text-gray-500 max-w-sm mx-auto">
+                      Create your first rule by clicking the "New Rule" button
+                    </p>
+                    <button
+                      className="mt-3 px-4 py-2 bg-cyan-600 text-white rounded-md shadow-sm hover:bg-cyan-700"
+                      onClick={() => setDropdownOpen(true)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        New Rule
+                      </span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 ml-4">
+              )}
+            </div>
+
+            {/* Pagination footer */}
+            <div className="flex flex-col ss:flex-row ss:items-center justify-between px-4 py-4 border-t bg-gray-50">
+              <div className="text-sm text-gray-600 mb-3 ss:mb-0">
+                Total: {rules.length} rules
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    Rows per page:
+                  </span>
+                  <div className="relative" ref={rowsDropdownRef}>
+                    <button
+                      className="flex items-center gap-1 px-2 ss:px-3 py-1 bg-white border border-gray-300 rounded-md text-sm"
+                      onClick={() => setRowsDropdownOpen(!rowsDropdownOpen)}
+                    >
+                      {rowsPerPage} <ChevronDown className="w-3 h-3" />
+                    </button>
+                    {rowsDropdownOpen && (
+                      <div className="absolute right-0 top-full mt-1 bg-white border shadow-lg rounded-md z-10 p-2">
+                        {[5, 10, 25, 50, 100].map((num) => (
+                          <button
+                            key={num}
+                            className={`block w-full text-left px-3 py-1 hover:bg-gray-50 ${
+                              rowsPerPage === num
+                                ? "bg-blue-50 text-blue-600"
+                                : ""
+                            }`}
+                            onClick={() => {
+                              setRowsPerPage(num);
+                              setCurrentPage(1);
+                              setRowsDropdownOpen(false);
+                            }}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-1">
                   <button
                     className={`px-3 py-1 border rounded-md text-sm flex items-center justify-center ${
                       currentPage === 1
@@ -850,23 +965,24 @@ const RulesDashboard = () => {
                     }`}
                     onClick={goToPrevPage}
                     disabled={currentPage === 1}
+                    aria-label="Previous page"
                   >
                     &#8249;
                   </button>
 
                   {/* Page numbers */}
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => {
                       // Show pages around current page
                       let pageNum = currentPage;
-                      if (totalPages <= 5) {
+                      if (totalPages <= 3) {
                         pageNum = i + 1;
-                      } else if (currentPage <= 3) {
+                      } else if (currentPage <= 2) {
                         pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
+                      } else if (currentPage >= totalPages - 1) {
+                        pageNum = totalPages - 2 + i;
                       } else {
-                        pageNum = currentPage - 2 + i;
+                        pageNum = currentPage - 1 + i;
                       }
 
                       return (
@@ -874,7 +990,7 @@ const RulesDashboard = () => {
                           key={pageNum}
                           className={`px-3 py-1 border ${
                             currentPage === pageNum
-                              ? "bg-blue-600 text-white border-blue-600 rounded-full"
+                              ? "bg-cyan-600 text-white border-cyan-600 rounded-full"
                               : "bg-white text-gray-700 border-gray-300 rounded-md hover:bg-gray-50"
                           }`}
                           onClick={() => setCurrentPage(pageNum)}
@@ -893,6 +1009,7 @@ const RulesDashboard = () => {
                     }`}
                     onClick={goToNextPage}
                     disabled={currentPage === totalPages || totalPages === 0}
+                    aria-label="Next page"
                   >
                     &#8250;
                   </button>

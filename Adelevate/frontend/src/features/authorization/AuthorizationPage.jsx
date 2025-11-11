@@ -87,9 +87,9 @@ function RoleBadge({ role }) {
     }[role] || 'bg-slate-100 text-slate-700 border-slate-200';
     
     return (
-        <span className={`px-3 py-1.5 rounded-full text-sm font-medium flex items-center border ${cls}`}>
-            <span className="mr-1.5"><RoleIcon role={role} /></span>
-            {role}
+        <span className={`px-2 xs:px-3 py-1 xs:py-1.5 rounded-full text-xs xs:text-sm font-medium flex items-center border ${cls}`}>
+            <span className="mr-1 xs:mr-1.5"><RoleIcon role={role} /></span>
+            <span className="truncate">{role}</span>
         </span>
     );
 }
@@ -97,14 +97,14 @@ function RoleBadge({ role }) {
 function Pill({ platform }) {
     const colorCls = PLATFORM_COLOR[platform] || 'bg-slate-100 text-slate-700 border-slate-200';
     return (
-        <span className={`inline-flex items-center text-xs px-2.5 py-1.5 rounded-full border ${colorCls}`}>
-            <img src={PLATFORM_ICON[platform]} alt="" className="w-4 h-4 mr-1.5" />
-            {PLATFORM_LABEL[platform] || platform}
+        <span className={`inline-flex items-center text-xs px-2 py-1 xs:px-2.5 xs:py-1.5 rounded-full border ${colorCls}`}>
+            <img src={PLATFORM_ICON[platform]} alt="" className="w-3 h-3 xs:w-4 xs:h-4 mr-1 xs:mr-1.5" />
+            <span className="truncate max-w-[80px] ss:max-w-none">{PLATFORM_LABEL[platform] || platform}</span>
         </span>
     );
 }
 
-// Simplified dropdown that works in any position
+// Fixed SimpleDropdown component for mobile
 function SimpleDropdown({ isOpen, onClose, trigger, content }) {
     const rootRef = useRef(null);
     const menuRef = useRef(null);
@@ -119,11 +119,19 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
         
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
-            // Position menu above if needed
-            positionMenu();
+            // Position menu on next tick after rendering
+            setTimeout(positionMenu, 0);
+            
+            // Reposition on scroll or resize
+            window.addEventListener('scroll', positionMenu, true);
+            window.addEventListener('resize', positionMenu);
         }
         
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', positionMenu, true);
+            window.removeEventListener('resize', positionMenu);
+        };
     }, [isOpen, onClose]);
     
     // Position dropdown based on viewport
@@ -133,16 +141,39 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
         const menuRect = menuRef.current.getBoundingClientRect();
         const triggerRect = rootRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
         
         // Reset styles first
         menuRef.current.style.top = 'calc(100% + 5px)';
         menuRef.current.style.bottom = 'auto';
+        menuRef.current.style.left = '0';
+        menuRef.current.style.right = 'auto';
+        menuRef.current.style.maxHeight = '300px';
         
-        // Check if dropdown would go out of viewport
+        // Check if dropdown would go out of viewport bottom
         if (triggerRect.bottom + menuRect.height + 10 > viewportHeight) {
             // Position above trigger
             menuRef.current.style.top = 'auto';
             menuRef.current.style.bottom = 'calc(100% + 5px)';
+        }
+        
+        // For mobile: if dropdown is wider than viewport or would overflow right edge
+        if (menuRect.width > viewportWidth || triggerRect.left + menuRect.width > viewportWidth) {
+            // Make it full width on very small screens
+            if (viewportWidth < 380) {
+                menuRef.current.style.left = '0';
+                menuRef.current.style.right = '0';
+                menuRef.current.style.width = '100vw';
+                
+                // Adjust position to account for any parent padding
+                const parentOffset = rootRef.current.getBoundingClientRect().left;
+                menuRef.current.style.left = `-${parentOffset}px`;
+                menuRef.current.style.maxHeight = `${Math.min(300, viewportHeight * 0.6)}px`;
+            } else {
+                // Align to right side on other cases
+                menuRef.current.style.left = 'auto';
+                menuRef.current.style.right = '0';
+            }
         }
     };
     
@@ -154,7 +185,7 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
                 <div 
                     ref={menuRef}
                     className="absolute left-0 w-full origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50"
-                    style={{maxHeight: '300px', overflowY: 'auto'}}
+                    style={{overflowY: 'auto'}}
                 >
                     {content}
                 </div>
@@ -174,15 +205,15 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
             type="button"
             disabled={disabled}
             onClick={() => setOpen(!open)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 bg-white text-left disabled:opacity-50 flex items-center justify-between hover:bg-slate-50 transition-colors shadow-sm"
+            className="w-full rounded-lg border border-slate-300 px-2 xs:px-3 py-2 xs:py-2.5 bg-white text-left disabled:opacity-50 flex items-center justify-between hover:bg-slate-50 transition-colors shadow-sm"
         >
-            <span className="truncate text-sm font-medium">
+            <span className="truncate text-xs xs:text-sm font-medium">
                 {selected.length
                     ? selected.map(k => PLATFORM_LABEL[k] || k).join(', ')
                     : 'Select platforms'}
             </span>
             <svg
-                className={`ml-2 h-5 w-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''} text-slate-500`}
+                className={`ml-1 xs:ml-2 h-4 w-4 xs:h-5 xs:w-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''} text-slate-500`}
                 viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
             >
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
@@ -200,20 +231,24 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
                     return (
                         <label
                             key={key}
-                            className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer text-sm font-medium ${checked ? colorCls : 'hover:bg-slate-50'}`}
+                            className={`flex items-center gap-2 xs:gap-3 px-2 xs:px-3 py-2 xs:py-2.5 cursor-pointer text-xs xs:text-sm font-medium ${checked ? colorCls : 'hover:bg-slate-50'}`}
                             onMouseDown={e => e.preventDefault()} // keep focus in dropdown
+                            onClick={(e) => {
+                                e.preventDefault();
+                                onToggle(key);
+                            }}
                         >
-                            <div className="flex items-center justify-center w-5 h-5">
+                            <div className="flex items-center justify-center w-4 xs:w-5 h-4 xs:h-5">
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded border-slate-300"
+                                    className="w-3 h-3 xs:w-4 xs:h-4 rounded border-slate-300"
                                     checked={checked}
-                                    onChange={() => onToggle(key)}
+                                    onChange={() => {}} // controlled component
                                     disabled={disabled}
                                 />
                             </div>
-                            <div className="flex items-center gap-2 flex-1">
-                                <img src={PLATFORM_ICON[key]} alt="" className="w-5 h-5" />
+                            <div className="flex items-center gap-1 xs:gap-2 flex-1">
+                                <img src={PLATFORM_ICON[key]} alt="" className="w-4 h-4 xs:w-5 xs:h-5" />
                                 {PLATFORM_LABEL[key]}
                             </div>
                         </label>
@@ -224,7 +259,7 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
             <div className="flex justify-end border-t border-slate-100 p-2 mt-1">
                 <button
                     type="button"
-                    className="text-sm rounded-lg border border-slate-200 bg-white px-4 py-2 hover:bg-slate-50 font-medium"
+                    className="text-xs xs:text-sm rounded-lg border border-slate-200 bg-white px-3 xs:px-4 py-1.5 xs:py-2 hover:bg-slate-50 font-medium"
                     onMouseDown={e => e.preventDefault()}
                     onClick={() => setOpen(false)}
                 >
@@ -277,14 +312,14 @@ function RoleSelector({ value, onChange, disabled }) {
             type="button"
             disabled={disabled}
             onClick={() => setOpen(!open)}
-            className={`w-full rounded-lg border px-3 py-2.5 text-left disabled:opacity-50 flex items-center justify-between shadow-sm ${color}`}
+            className={`w-full rounded-lg border px-2 xs:px-3 py-1.5 xs:py-2.5 text-left disabled:opacity-50 flex items-center justify-between shadow-sm ${color}`}
         >
             <div className="flex items-center">
-                <span className="mr-2">{icon}</span>
-                <span className="text-sm font-medium">{currentRole}</span>
+                <span className="mr-1.5 xs:mr-2">{icon}</span>
+                <span className="text-xs xs:text-sm font-medium truncate">{currentRole}</span>
             </div>
             <svg
-                className={`ml-2 h-5 w-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+                className={`ml-1 xs:ml-2 h-4 w-4 xs:h-5 xs:w-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
                 viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
             >
                 <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.25 8.29a.75.75 0 01-.02-1.08z" clipRule="evenodd" />
@@ -305,10 +340,10 @@ function RoleSelector({ value, onChange, disabled }) {
                             onChange(role);
                             setOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-2.5 flex items-center ${role === currentRole ? color : 'hover:bg-slate-50'}`}
+                        className={`w-full text-left px-2 xs:px-3 py-2 xs:py-2.5 flex items-center ${role === currentRole ? color : 'hover:bg-slate-50'}`}
                     >
-                        <span className="mr-2">{icon}</span>
-                        <span className="text-sm font-medium">{role}</span>
+                        <span className="mr-1.5 xs:mr-2">{icon}</span>
+                        <span className="text-xs xs:text-sm font-medium">{role}</span>
                     </button>
                 );
             })}
@@ -322,6 +357,126 @@ function RoleSelector({ value, onChange, disabled }) {
             trigger={trigger}
             content={content}
         />
+    );
+}
+
+// Mobile user card component for small screen displays
+function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole }) {
+    const { id, email, role, platforms = [] } = user;
+    const selectedPlatforms = platforms.map(v => String(v).toLowerCase());
+    const rowDisabled = updatingId === id;
+    
+    return (
+        <div className="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden mb-3">
+            {/* Card header - user info */}
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center">
+                    <div className="h-9 w-9 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center mr-3">
+                        <RoleIcon role={role} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-800 truncate">
+                            {email?.split("@")[0] || "—"}
+                        </div>
+                        <div className="flex items-center text-xs text-slate-500">
+                            <EmailIcon />
+                            <span className="ml-1 truncate">{email || "—"}</span>
+                        </div>
+                    </div>
+                    <RoleBadge role={role} />
+                </div>
+            </div>
+            
+            {/* Card body */}
+            <div className="p-4">
+                {/* Platform section */}
+                <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">Platforms</h4>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                        {selectedPlatforms.length ? (
+                            selectedPlatforms.map((p) => (
+                                <Pill key={p} platform={p} />
+                            ))
+                        ) : (
+                            <span className="text-xs text-slate-400">None</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-full relative">
+                            <PlatformDropdown
+                                value={platforms}
+                                disabled={rowDisabled}
+                                onToggle={(key) => handleTogglePlatform(id, key)}
+                            />
+                        </div>
+                        {rowDisabled && (
+                            <div className="text-xs text-slate-500 flex items-center whitespace-nowrap">
+                                <svg
+                                    className="animate-spin h-3 w-3 mr-1 text-indigo-500"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                Saving
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
+                {/* Role section */}
+                <div>
+                    <h4 className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">Role</h4>
+                    <div className="flex items-center gap-2">
+                        <div className="w-full relative">
+                            <RoleSelector
+                                value={role}
+                                onChange={(newRole) => handleChangeRole(id, newRole)}
+                                disabled={rowDisabled}
+                            />
+                        </div>
+                        {rowDisabled && (
+                            <span className="text-xs text-slate-500 flex items-center whitespace-nowrap">
+                                <svg
+                                    className="animate-spin h-3 w-3 mr-1 text-indigo-500"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                Saving
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -563,9 +718,9 @@ export default function AuthorizationPage() {
   if (!session?.user) {
     return (
       <div className="min-h-screen grid place-items-center bg-slate-100">
-        <div className="p-8 rounded-2xl border border-slate-200 shadow-lg bg-white max-w-md">
+        <div className="p-4 xs:p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-lg bg-white max-w-xs xs:max-w-sm sm:max-w-md mx-4">
           <svg
-            className="w-12 h-12 text-indigo-500 mx-auto mb-4"
+            className="w-10 h-10 sm:w-12 sm:h-12 text-indigo-500 mx-auto mb-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -578,16 +733,16 @@ export default function AuthorizationPage() {
               d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
             />
           </svg>
-          <h1 className="text-2xl font-bold mb-3 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 text-center">
             Sign in required
           </h1>
-          <p className="text-slate-600 text-center mb-4">
+          <p className="text-slate-600 text-center text-sm sm:text-base mb-4">
             Please sign in to manage user roles and platform access.
           </p>
           <div className="flex justify-center">
             <button
               onClick={() => (window.location.href = "/login")}
-              className="rounded-xl px-5 py-2.5 bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm transition-colors"
+              className="rounded-xl px-4 sm:px-5 py-2 sm:py-2.5 bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm transition-colors"
             >
               Go to Login
             </button>
@@ -601,9 +756,9 @@ export default function AuthorizationPage() {
   if (myRole !== "SuperAdmin") {
     return (
       <div className="min-h-screen grid place-items-center bg-slate-100">
-        <div className="p-8 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 max-w-md shadow-lg">
+        <div className="p-4 xs:p-6 sm:p-8 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 max-w-xs xs:max-w-sm sm:max-w-md mx-4 shadow-lg">
           <svg
-            className="w-12 h-12 mx-auto mb-4"
+            className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -616,10 +771,10 @@ export default function AuthorizationPage() {
               d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
             />
           </svg>
-          <h1 className="text-2xl font-bold mb-3 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 text-center">
             Not authorized
           </h1>
-          <p className="text-center mb-2">
+          <p className="text-center text-sm sm:text-base mb-2">
             Only a <strong>SuperAdmin</strong> can view and change user roles.
           </p>
           <p className="text-center text-sm">
@@ -633,31 +788,30 @@ export default function AuthorizationPage() {
   // --- Main UI ---
   return (
     <div className="bg-slate-100 min-h-screen">
-      <div className="max-w-auto mx-auto py-6">
-        <header className="mb-5 px-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="max-w-auto mx-auto py-4 xs:py-6">
+        <header className="mb-3 xs:mb-5 px-3 xs:px-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+            <h1 className="text-2xl xs:text-3xl font-bold tracking-tight text-slate-800">
               Authorization
             </h1>
-           
           </div>
-          <div className="flex gap-2 items-center p-3 px-4 bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="flex gap-2 items-center p-2 xs:p-3 sm:px-4 bg-white rounded-xl shadow-sm border border-slate-200">
             <RoleBadge role={myRole || "user"} />
-            <span className="text-sm font-medium text-slate-600">
+            <span className="text-xs xs:text-sm font-medium text-slate-600 truncate max-w-[150px] sm:max-w-none">
               {session.user.email}
             </span>
           </div>
         </header>
 
-        <div className="mb-4 px-4">
+        <div className="mb-3 xs:mb-4 px-3 xs:px-4">
           <form
             onSubmit={handleSearch}
-            className="flex flex-col sm:flex-row sm:items-center gap-2"
+            className="flex flex-col ss:flex-row ss:items-center gap-2"
           >
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <svg
-                  className="h-5 w-5 text-slate-400"
+                  className="h-4 w-4 xs:h-5 xs:w-5 text-slate-400"
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -673,19 +827,19 @@ export default function AuthorizationPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search users by email..."
-                className="w-full pl-10 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm text-sm"
+                className="w-full pl-9 xs:pl-10 rounded-xl border border-slate-300 px-3 xs:px-4 py-2 xs:py-3 outline-none focus:ring-2 focus:ring-indigo-300 shadow-sm text-xs xs:text-sm"
               />
             </div>
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={searchLoading}
-                className="rounded-xl px-5 py-3 bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-60 shadow-sm transition-colors flex items-center"
+                className="rounded-xl px-3 xs:px-5 py-2 xs:py-3 bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-60 shadow-sm transition-colors flex items-center text-xs xs:text-sm"
               >
                 {searchLoading ? (
                   <>
                     <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      className="animate-spin -ml-1 mr-2 h-3 w-3 xs:h-4 xs:w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -717,7 +871,7 @@ export default function AuthorizationPage() {
                     setSearch("");
                     fetchUsers({ page: 1, search: "" });
                   }}
-                  className="rounded-xl px-4 py-3 border border-slate-300 bg-white hover:bg-slate-50 shadow-sm transition-colors"
+                  className="rounded-xl px-3 xs:px-4 py-2 xs:py-3 border border-slate-300 bg-white hover:bg-slate-50 shadow-sm transition-colors text-xs xs:text-sm"
                 >
                   Clear
                 </button>
@@ -727,11 +881,11 @@ export default function AuthorizationPage() {
         </div>
 
         {error && (
-          <div className="mx-4 mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 shadow-sm">
+          <div className="mx-3 xs:mx-4 mb-3 xs:mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-3 xs:px-4 py-2 xs:py-3 shadow-sm">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg
-                  className="h-5 w-5 text-rose-400"
+                  className="h-4 w-4 xs:h-5 xs:w-5 text-rose-400"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -743,13 +897,56 @@ export default function AuthorizationPage() {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="font-medium">{error}</p>
+                <p className="font-medium text-xs xs:text-sm">{error}</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow mx-4">
+        {/* Mobile view - Card layout for small screens */}
+        <div className="md:hidden px-3 xs:px-4">
+          {rows.length > 0 ? (
+            rows.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                updatingId={updatingId}
+                handleTogglePlatform={handleTogglePlatform}
+                handleChangeRole={handleChangeRole}
+              />
+            ))
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-300 shadow-sm p-8 text-center">
+              <div className="flex flex-col items-center">
+                <svg
+                  className="w-10 h-10 xs:w-12 xs:h-12 text-slate-300 mb-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                  />
+                </svg>
+                <p className="font-medium mb-1 text-sm xs:text-base">
+                  No users found
+                </p>
+                <p className="text-xs xs:text-sm text-slate-500">
+                  {search
+                    ? "Try adjusting your search criteria"
+                    : "No user data available"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop view - Table layout */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-300 bg-white shadow mx-4">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-100">
@@ -944,12 +1141,14 @@ export default function AuthorizationPage() {
         </div>
 
         {/* Pagination */}
-        <div className="mt-5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="text-sm font-medium text-slate-700 flex items-center">
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg mr-2">
+        <div className="mt-3 xs:mt-5 px-3 xs:px-4 flex flex-col ss:flex-row ss:items-center justify-between gap-3">
+          <div className="text-xs xs:text-sm font-medium text-slate-700 flex items-center">
+            <span className="px-2 xs:px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg mr-2">
               {total}
             </span>
-            users found • Page {page} of {pageCount}
+            <span className="text-xs xs:text-sm">
+              users found • Page {page} of {pageCount}
+            </span>
           </div>
           <div className="flex gap-2">
             <button
@@ -957,10 +1156,10 @@ export default function AuthorizationPage() {
                 fetchUsers({ page: Math.max(1, page - 1), search })
               }
               disabled={page <= 1}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 disabled:opacity-50 hover:bg-slate-50 shadow-sm transition-colors font-medium flex items-center"
+              className="rounded-xl border border-slate-300 bg-white px-3 xs:px-4 py-2 xs:py-2.5 disabled:opacity-50 hover:bg-slate-50 shadow-sm transition-colors font-medium flex items-center text-xs xs:text-sm"
             >
               <svg
-                className="w-5 h-5 mr-1"
+                className="w-4 h-4 xs:w-5 xs:h-5 mr-1"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -980,11 +1179,11 @@ export default function AuthorizationPage() {
                 fetchUsers({ page: Math.min(pageCount, page + 1), search })
               }
               disabled={page >= pageCount}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 disabled:opacity-50 hover:bg-slate-50 shadow-sm transition-colors font-medium flex items-center"
+              className="rounded-xl border border-slate-300 bg-white px-3 xs:px-4 py-2 xs:py-2.5 disabled:opacity-50 hover:bg-slate-50 shadow-sm transition-colors font-medium flex items-center text-xs xs:text-sm"
             >
               Next
               <svg
-                className="w-5 h-5 ml-1"
+                className="w-4 h-4 xs:w-5 xs:h-5 ml-1"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"

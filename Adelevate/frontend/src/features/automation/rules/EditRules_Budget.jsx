@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, ChevronDown, Search as SearchIcon } from "lucide-react";
-import TopSearch from "@/components/search-bar";
 
 // Images
 import metaIcon from "@/assets/images/automation_img/Facebook.svg";
@@ -852,7 +851,7 @@ export default function EditRuleForm() {
 
   return (
       <>
-        <TopSearch/>
+
         <div className="bg-gray-50">
           <div className="max-w-6xl xl:mx-auto 2xl:mx-auto p-[20px] pt-[60px] bg-gray-50">
             {/* 1. Rule header */}
@@ -1122,7 +1121,7 @@ export default function EditRuleForm() {
                         </div>
                       </div>
                   ))}
-                  <div className=" relative flex gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <Button
                         variant="outline"
                         size="sm"

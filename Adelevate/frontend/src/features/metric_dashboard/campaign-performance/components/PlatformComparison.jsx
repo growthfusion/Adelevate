@@ -15,14 +15,12 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 
-// Import icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Platform configuration
 const PLATFORM_CONFIG = {
   "google-ads": {
     name: "Google Ads",
@@ -77,7 +75,6 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
     const processedData = platforms.map((platform) => {
       const config = PLATFORM_CONFIG[platform];
 
-      // Use real data if available, otherwise use sample data
       const spend =
         metricsData?.find((m) => m?.title === "Amount Spent")
           ?.platformBreakdown?.[platform] ||
@@ -176,7 +173,7 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
           </div>
 
           <div className="flex gap-2">
-            {["overview", "detailed", "compare"].map((mode) => (
+            {["overview", "detailed", ""].map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}

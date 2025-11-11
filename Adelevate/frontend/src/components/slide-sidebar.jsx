@@ -1,12 +1,20 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Home , Menu, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Home,
+  Menu,
+  X,
+  LogOut,
+  KeyRound,
+} from "lucide-react";
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
-import Search from "./search-bar";
 import { MdOutlineDataSaverOff } from "react-icons/md";
 import { MdDataSaverOn } from "react-icons/md";
-import  social from "@/assets/images/dashboard_img/social-media-marketing.png"
-import { KeyRound } from 'lucide-react';
+import social from "@/assets/images/dashboard_img/social-media-marketing.png";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/supabaseClient";
 
 const SlideSidebar = () => {
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
@@ -15,6 +23,31 @@ const SlideSidebar = () => {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 0
   );
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  // Get user profile data
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setUser(data.session.user);
+      }
+    });
+  }, []);
+
+  // Get display name and profile image
+  const displayName =
+    user?.user_metadata?.name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+  const profileImage =
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      displayName
+    )}&background=random`;
 
   const toggleAutomation = () => {
     setIsAutomationOpen(!isAutomationOpen);
@@ -26,6 +59,11 @@ const SlideSidebar = () => {
 
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
   };
 
   // Get device type based on screen width
@@ -42,7 +80,7 @@ const SlideSidebar = () => {
     const handleResize = () => {
       const width = window.innerWidth;
       setWindowWidth(width);
-      
+
       // Auto-close mobile sidebar on larger screens
       if (width >= 768) {
         setIsSidebarOpen(false);
@@ -109,7 +147,7 @@ const SlideSidebar = () => {
                 <ul className="mt-2 ml-8 space-y-1">
                   <li>
                     <a
-                      href="/edit"
+                      href="/rules"
                       className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
                     >
                       Rules
@@ -120,39 +158,70 @@ const SlideSidebar = () => {
             </div>
           </li>
           <li>
-            <a href="/log"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
-              <MdOutlineDataSaverOff className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Logs</span>}
+            <a
+              href="/log"
+              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <MdOutlineDataSaverOff className="w-5 h-5" />
+              <span>Logs</span>
             </a>
           </li>
 
           <li>
-            <a href="/actionLog"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
-              <MdDataSaverOn className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Action Logs</span>}
+            <a
+              href="/actionLog"
+              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <MdDataSaverOn className="w-5 h-5" />
+              <span>Action Logs</span>
             </a>
           </li>
-
 
           <li>
-            <a href="/campaigns"
-                className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                    isSidebarCollapsed ? "justify-center" : "space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Log" : ""}>
-              <img src={social} alt="" className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Campaigns</span>}
+            <a
+              href="/campaigns"
+              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <img src={social} alt="" className="w-5 h-5" />
+              <span>Campaigns</span>
             </a>
           </li>
 
+          <li>
+            <a
+              href="/authorization"
+              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <KeyRound className="w-5 h-5" />
+              <span>Authorization</span>
+            </a>
+          </li>
+
+          {/* User Profile and Logout section */}
+          <div className="mt-auto pt-6 border-t border-gray-200">
+            <div className="px-3 py-2 mb-2">
+              <div className="flex items-center space-x-3">
+                <img
+                  src={profileImage}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                />
+                <div className="truncate">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-3 w-full px-3 py-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>Logout</span>
+            </button>
+          </div>
         </ul>
       </nav>
     </>
@@ -257,7 +326,7 @@ const SlideSidebar = () => {
               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
                 isSidebarCollapsed ? "justify-center" : "space-x-3"
               }`}
-              title={isSidebarCollapsed ? "Log" : ""}
+              title={isSidebarCollapsed ? "Action Logs" : ""}
             >
               <MdDataSaverOn className="w-5 h-5 min-w-[20px]" />
               {!isSidebarCollapsed && <span>Action Logs</span>}
@@ -270,7 +339,7 @@ const SlideSidebar = () => {
               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
                 isSidebarCollapsed ? "justify-center" : "space-x-3"
               }`}
-              title={isSidebarCollapsed ? "Log" : ""}
+              title={isSidebarCollapsed ? "Campaigns" : ""}
             >
               <img src={social} alt="" className="w-6 h-6 min-w-[20px]" />
               {!isSidebarCollapsed && <span>Campaigns</span>}
@@ -283,7 +352,7 @@ const SlideSidebar = () => {
               className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
                 isSidebarCollapsed ? "justify-center" : "space-x-3"
               }`}
-              title={isSidebarCollapsed ? "Log" : ""}
+              title={isSidebarCollapsed ? "Authorization" : ""}
             >
               <KeyRound className="w-5 h-5  min-w-[20px]" />
               {!isSidebarCollapsed && <span>Authorization</span>}
@@ -291,6 +360,40 @@ const SlideSidebar = () => {
           </li>
         </ul>
       </nav>
+
+      {/* User Profile and Logout section */}
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        {!isSidebarCollapsed ? (
+          <>
+            <div className="flex items-center space-x-3 mb-3">
+              <img
+                src={profileImage}
+                alt="Profile"
+                className="w-8 h-8 rounded-full object-cover border border-gray-200"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{displayName}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 w-full px-3 py-2 text-red-500 hover:bg-red-50 rounded-md transition-colors text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleLogout}
+            className="flex justify-center w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        )}
+      </div>
     </>
   );
 
@@ -299,15 +402,13 @@ const SlideSidebar = () => {
       {/* Mobile Menu Toggle Button */}
       {isMobile && !isSidebarOpen && (
         <div className="fixed top-0 left-0 right-0 z-40 bg-white p-2 flex items-center shadow-sm">
-          <button 
+          <button
             onClick={toggleSidebar}
             className="p-2 mr-2 hover:bg-gray-100 rounded-md"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex-1">
-            <Search />
-          </div>
+         
         </div>
       )}
 
@@ -320,23 +421,28 @@ const SlideSidebar = () => {
         >
           <div className="relative h-full">
             {/* Backdrop */}
-            <div 
+            <div
               className="absolute inset-0 bg-black bg-opacity-50"
               onClick={toggleSidebar}
             ></div>
-            
+
             {/* Sidebar Content */}
-            <div className={`relative h-full bg-white shadow-xl ${
-              deviceType === "xs" ? "w-[260px]" : 
-              deviceType === "ss" ? "w-[300px]" : "w-[320px]"
-            }`}>
+            <div
+              className={`relative h-full bg-white shadow-xl flex flex-col ${
+                deviceType === "xs"
+                  ? "w-[260px]"
+                  : deviceType === "ss"
+                  ? "w-[300px]"
+                  : "w-[320px]"
+              }`}
+            >
               {mobileSidebarContent}
             </div>
           </div>
         </div>
       ) : (
         /* Desktop & Tablet Sidebar */
-        <aside 
+        <aside
           className={`h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out ${
             isSidebarCollapsed ? "w-16" : "w-64"
           }`}

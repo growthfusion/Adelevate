@@ -8,30 +8,25 @@ const ExecutiveKPICard = ({
   trend = [],
   className = ""
 }) => {
-  // Determine the color for the change indicator
   const changeColorClass = 
     changeType === "positive" ? "text-success" :
     changeType === "negative" ? "text-destructive" :
     "text-muted-foreground";
   
-  // Generate trend path if data is provided
   const renderTrendline = () => {
     if (!trend || trend.length === 0) return null;
     
-    // Normalize the trend data for display
     const min = Math.min(...trend);
     const max = Math.max(...trend);
     const range = max - min;
-    const height = 24; // height of our trend visualization
+    const height = 24; 
     
-    // Map the data points to path coordinates
     const points = trend.map((value, index) => {
       const x = (index / (trend.length - 1)) * 100;
       const y = height - ((value - min) / range) * height;
       return `${x},${y}`;
     }).join(' ');
     
-    // Determine color based on metric type
     const getColor = () => {
       switch (title.toLowerCase()) {
         case 'amount spent':

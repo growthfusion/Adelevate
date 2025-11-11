@@ -17,7 +17,6 @@ import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
 import { supabase } from "@/supabaseClient";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import AuthCallback from "@/pages/AuthCallback.jsx";
-
 import AnimatedLoginPage from "./components/login"
 
 function AuthEventLogger() {
@@ -34,12 +33,8 @@ function App() {
     return (
       <BrowserRouter>
         <AuthEventLogger />
-
         <Routes>
-          {/* <Route path="/ll" element={<LoginPage />} /> */}
-
           <Route path="/auth/callback" element={<AuthCallback />} />
-
           <Route
             path="/*"
             element={
