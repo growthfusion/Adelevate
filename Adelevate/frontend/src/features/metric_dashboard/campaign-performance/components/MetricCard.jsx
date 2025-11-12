@@ -199,7 +199,7 @@ const MediaBuyerDashboard = () => {
         },
       });
       setIsLoading(false);
-    }, 800);
+    }, 100);
   };
 
   // Handle date range change

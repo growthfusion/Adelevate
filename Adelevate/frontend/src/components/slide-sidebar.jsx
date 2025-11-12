@@ -1,20 +1,43 @@
 import { useState, useEffect } from "react";
 import {
   ChevronDown,
-  ChevronUp,
   Home,
   Menu,
   X,
   LogOut,
   KeyRound,
+  FileText,
+  Activity,
 } from "lucide-react";
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
-import { MdOutlineDataSaverOff } from "react-icons/md";
-import { MdDataSaverOn } from "react-icons/md";
-import social from "@/assets/images/dashboard_img/social-media-marketing.png";
-import { useNavigate } from "react-router-dom";
+import { MdOutlineDataSaverOff, MdDataSaverOn } from "react-icons/md";
+import { HiOutlineSpeakerphone } from "react-icons/hi";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
+
+// Tooltip Component
+const Tooltip = ({ children, text, show = false }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  if (!show) return children;
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 z-[100] px-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg whitespace-nowrap pointer-events-none shadow-xl animate-in fade-in duration-200">
+          {text}
+          <div className="absolute w-2 h-2 bg-gray-900 transform rotate-45 -left-1 top-1/2 -translate-y-1/2"></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SlideSidebar = () => {
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
@@ -25,6 +48,7 @@ const SlideSidebar = () => {
   );
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Get user profile data
   useEffect(() => {
@@ -47,7 +71,7 @@ const SlideSidebar = () => {
     user?.user_metadata?.picture ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
       displayName
-    )}&background=random`;
+    )}&background=0b57d0&color=fff`;
 
   const toggleAutomation = () => {
     setIsAutomationOpen(!isAutomationOpen);
@@ -66,6 +90,16 @@ const SlideSidebar = () => {
     navigate("/login");
   };
 
+  // Check if route is active
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
+
+  // Check if automation section has active route
+  const isAutomationActive = () => {
+    return location.pathname === "/rules";
+  };
+
   // Get device type based on screen width
   const getDeviceType = (width) => {
     if (width < 320) return "xs";
@@ -81,11 +115,15 @@ const SlideSidebar = () => {
       const width = window.innerWidth;
       setWindowWidth(width);
 
-      // Auto-close mobile sidebar on larger screens
       if (width >= 768) {
         setIsSidebarOpen(false);
       }
     };
+
+    // Auto-open automation if rules is active
+    if (isAutomationActive()) {
+      setIsAutomationOpen(true);
+    }
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -93,122 +131,382 @@ const SlideSidebar = () => {
 
   const deviceType = getDeviceType(windowWidth);
   const isMobile = ["xs", "ss", "mobile"].includes(deviceType);
-  const isTabletUp = ["tablet", "desktop", "2xl"].includes(deviceType);
 
-  // Mobile sidebar content - keeping original design
+  // Navigation items
+  const navItems = [
+    {
+      type: "single",
+      path: "/",
+      icon: Home,
+      label: "Dashboard",
+      badge: null,
+    },
+    {
+      type: "parent",
+      icon: TbAutomation,
+      label: "Automation",
+      isOpen: isAutomationOpen,
+      toggle: toggleAutomation,
+      children: [
+        {
+          path: "/rules",
+          label: "Rules",
+          badge: null,
+        },
+      ],
+    },
+    {
+      type: "single",
+      path: "/log",
+      icon: MdOutlineDataSaverOff,
+      label: "Logs",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/actionLog",
+      icon: MdDataSaverOn,
+      label: "Action Logs",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/campaigns",
+      icon: HiOutlineSpeakerphone,
+      label: "Campaigns",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/authorization",
+      icon: KeyRound,
+      label: "Authorization",
+      badge: null,
+    },
+  ];
+
+  // Render single navigation item
+  const renderNavItem = (item, collapsed = false) => {
+    const active = isActive(item.path);
+
+    return (
+      <li key={item.path}>
+        <Tooltip text={item.label} show={collapsed}>
+          <a
+            href={item.path}
+            className={`flex items-center ${
+              collapsed ? "justify-center" : "justify-between"
+            } px-3.5 py-3 rounded-xl transition-all duration-200 group ${
+              active
+                ? "bg-[#d3e3fd] shadow-sm"
+                : "hover:bg-gray-50 active:scale-[0.98]"
+            }`}
+          >
+            <div className={`flex items-center ${collapsed ? "" : "gap-3.5"}`}>
+              <item.icon
+                className={`w-5 h-5 transition-colors ${
+                  active
+                    ? "text-[#0b57d0]"
+                    : "text-gray-600 group-hover:text-[#0b57d0]"
+                }`}
+              />
+              {!collapsed && (
+                <span
+                  className={`font-semibold text-[15px] transition-colors ${
+                    active
+                      ? "text-[#0b57d0]"
+                      : "text-gray-700 group-hover:text-[#0b57d0]"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
+            </div>
+            {item.badge && !collapsed && (
+              <span
+                className={`px-2.5 py-1 text-xs font-bold rounded-full min-w-[24px] text-center ${
+                  active
+                    ? "bg-[#0b57d0] text-white"
+                    : "bg-[#d3e3fd] text-[#0b57d0]"
+                }`}
+              >
+                {item.badge}
+              </span>
+            )}
+            {item.badge && collapsed && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[#0b57d0] rounded-full border-2 border-white"></span>
+            )}
+          </a>
+        </Tooltip>
+      </li>
+    );
+  };
+
+  // Render parent navigation item with children
+  const renderParentItem = (item, collapsed = false) => {
+    const hasActiveChild = item.children?.some((child) => isActive(child.path));
+    const isOpen = item.isOpen;
+
+    return (
+      <li key={item.label}>
+        <Tooltip text={item.label} show={collapsed}>
+          <button
+            onClick={item.toggle}
+            className={`flex items-center ${
+              collapsed ? "justify-center" : "justify-between"
+            } w-full px-3.5 py-3 rounded-xl transition-all duration-200 group ${
+              isOpen || hasActiveChild
+                ? "bg-[#d3e3fd]"
+                : "hover:bg-gray-50 active:scale-[0.98]"
+            }`}
+          >
+            <div className={`flex items-center ${collapsed ? "" : "gap-3.5"}`}>
+              <item.icon
+                className={`w-5 h-5 transition-colors ${
+                  isOpen || hasActiveChild
+                    ? "text-[#0b57d0]"
+                    : "text-gray-600 group-hover:text-[#0b57d0]"
+                }`}
+              />
+              {!collapsed && (
+                <span
+                  className={`font-semibold text-[15px] transition-colors ${
+                    isOpen || hasActiveChild
+                      ? "text-[#0b57d0]"
+                      : "text-gray-700 group-hover:text-[#0b57d0]"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
+            </div>
+            {!collapsed && (
+              <ChevronDown
+                className={`w-4 h-4 transition-all duration-300 ${
+                  isOpen
+                    ? "rotate-180 text-[#0b57d0]"
+                    : "text-gray-600 group-hover:text-[#0b57d0]"
+                }`}
+              />
+            )}
+          </button>
+        </Tooltip>
+
+        {/* Submenu */}
+        {!collapsed && (
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isOpen ? "max-h-40 opacity-100 mt-1.5" : "max-h-0 opacity-0"
+            }`}
+          >
+            <ul className="ml-5 space-y-1 pl-4 border-l-2 border-[#d3e3fd]">
+              {item.children?.map((child) => {
+                const childActive = isActive(child.path);
+                return (
+                  <li key={child.path}>
+                    <a
+                      href={child.path}
+                      className={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-200 group ${
+                        childActive
+                          ? "bg-[#d3e3fd]"
+                          : "hover:bg-gray-50 active:scale-[0.98]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            childActive
+                              ? "bg-[#0b57d0]"
+                              : "bg-gray-400 group-hover:bg-[#0b57d0]"
+                          }`}
+                        ></div>
+                        <span
+                          className={`font-medium text-sm transition-colors ${
+                            childActive
+                              ? "text-[#0b57d0]"
+                              : "text-gray-700 group-hover:text-[#0b57d0]"
+                          }`}
+                        >
+                          {child.label}
+                        </span>
+                      </div>
+                      {child.badge && (
+                        <span
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full min-w-[20px] text-center ${
+                            childActive
+                              ? "bg-[#0b57d0] text-white"
+                              : "bg-[#d3e3fd] text-[#0b57d0]"
+                          }`}
+                        >
+                          {child.badge}
+                        </span>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </li>
+    );
+  };
+
+  // Mobile sidebar content
   const mobileSidebarContent = (
     <>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="px-6 py-5 bg-gradient-to-r from-[#0b57d0] to-[#0947b3]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-gray-800">Adelevate</span>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
+                <span className="text-[#0b57d0] font-bold text-xl">A</span>
+              </div>
+            </div>
+            <div>
+              <h1 className="font-bold text-white text-lg tracking-tight">
+                Adelevate
+              </h1>
+            </div>
           </div>
-          <button onClick={toggleSidebar} className="md:hidden">
-            <X className="w-6 h-6" />
+          <button
+            onClick={toggleSidebar}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors duration-200"
+          >
+            <X className="w-5 h-5 text-white" />
           </button>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
+      <nav className="flex-1 px-4 py-6 overflow-y-auto bg-white custom-scrollbar">
         <ul className="space-y-2">
-          {/* Dashboard */}
-          <li>
-            <a
-              href="/"
-              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <Home className="w-5 h-5" />
-              <span>Dashboard</span>
-            </a>
-          </li>
+          {navItems.map((item) => {
+            if (item.type === "single") {
+              return renderNavItem(item, false);
+            } else if (item.type === "parent") {
+              return renderParentItem(item, false);
+            }
+            return null;
+          })}
+        </ul>
+      </nav>
 
-          {/* Automation */}
-          <li>
-            <div>
-              <button
-                onClick={toggleAutomation}
-                className="flex items-center justify-between w-full px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <TbAutomation className="w-5 h-5" />
-                  <span>Automation</span>
-                </div>
-                {isAutomationOpen ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </button>
-
-              {/* Automation Submenu */}
-              {isAutomationOpen && (
-                <ul className="mt-2 ml-8 space-y-1">
-                  <li>
-                    <a
-                      href="/rules"
-                      className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      Rules
-                    </a>
-                  </li>
-                </ul>
-              )}
+      {/* User Profile section */}
+      <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+              <img
+                src={profileImage}
+                alt="Profile"
+                className="w-11 h-11 rounded-xl object-cover ring-2 ring-[#d3e3fd]"
+              />
             </div>
-          </li>
-          <li>
-            <a
-              href="/log"
-              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <MdOutlineDataSaverOff className="w-5 h-5" />
-              <span>Logs</span>
-            </a>
-          </li>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate mb-0.5">
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center justify-center gap-2.5 w-full px-4 py-3 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 active:scale-[0.98] font-semibold text-[15px]"
+        >
+          <LogOut className="w-4.5 h-4.5" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </>
+  );
 
-          <li>
-            <a
-              href="/actionLog"
-              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <MdDataSaverOn className="w-5 h-5" />
-              <span>Action Logs</span>
-            </a>
-          </li>
+  // Desktop sidebar content
+  const desktopSidebarContent = (
+    <>
+      {/* Header */}
+      <div className="px-4 py-5 bg-gradient-to-r from-[#0b57d0] to-[#0947b3]">
+        <div className="flex items-center justify-between">
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
+                  <span className="text-[#0b57d0] font-bold text-lg">A</span>
+                </div>
+              </div>
+              <div>
+                <h1 className="font-bold text-white text-base tracking-tight">
+                  Adelevate
+                </h1>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="flex items-center justify-center w-full">
+              <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
+                <span className="text-[#0b57d0] font-bold text-lg">A</span>
+              </div>
+            </div>
+          )}
+          {!isSidebarCollapsed && (
+            <Tooltip text="Collapse" show={false}>
+              <button
+                onClick={toggleSidebarCollapse}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200"
+              >
+                <BsLayoutSidebar className="w-4.5 h-4.5 text-white" />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+        {isSidebarCollapsed && (
+          <div className="mt-3 flex justify-center">
+            <Tooltip text="Expand" show={true}>
+              <button
+                onClick={toggleSidebarCollapse}
+                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200"
+              >
+                <BsLayoutSidebar className="w-4.5 h-4.5 text-white" />
+              </button>
+            </Tooltip>
+          </div>
+        )}
+      </div>
 
-          <li>
-            <a
-              href="/campaigns"
-              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <img src={social} alt="" className="w-5 h-5" />
-              <span>Campaigns</span>
-            </a>
-          </li>
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-5 overflow-y-auto bg-white custom-scrollbar">
+        <ul className="space-y-1.5">
+          {navItems.map((item) => {
+            if (item.type === "single") {
+              return renderNavItem(item, isSidebarCollapsed);
+            } else if (item.type === "parent") {
+              return renderParentItem(item, isSidebarCollapsed);
+            }
+            return null;
+          })}
+        </ul>
+      </nav>
 
-          <li>
-            <a
-              href="/authorization"
-              className="flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <KeyRound className="w-5 h-5" />
-              <span>Authorization</span>
-            </a>
-          </li>
-
-          {/* User Profile and Logout section */}
-          <div className="mt-auto pt-6 border-t border-gray-200">
-            <div className="px-3 py-2 mb-2">
-              <div className="flex items-center space-x-3">
-                <img
-                  src={profileImage}
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
-                />
-                <div className="truncate">
-                  <p className="text-sm font-medium">{displayName}</p>
-                  <p className="text-xs text-gray-500 truncate">
+      {/* User Profile section */}
+      <div className="p-3 bg-gray-50 border-t border-gray-200">
+        {!isSidebarCollapsed ? (
+          <>
+            <div className="bg-white rounded-2xl p-3 mb-2.5 shadow-sm border border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-[#d3e3fd]"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-gray-900 truncate mb-0.5">
+                    {displayName}
+                  </p>
+                  <p className="text-[10px] text-gray-500 truncate">
                     {user?.email}
                   </p>
                 </div>
@@ -216,182 +514,35 @@ const SlideSidebar = () => {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-3 w-full px-3 py-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </ul>
-      </nav>
-    </>
-  );
-
-  const desktopSidebarContent = (
-    <>
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        {!isSidebarCollapsed && (
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-gray-800">Adelevate</span>
-          </div>
-        )}
-        <button
-          onClick={toggleSidebarCollapse}
-          className={`p-1 rounded-md hover:bg-gray-100 transition-colors ${
-            isSidebarCollapsed ? "mx-auto" : ""
-          }`}
-          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <BsLayoutSidebar className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <ul className="space-y-2">
-          {/* Dashboard */}
-          <li>
-            <a
-              href="/dashboard"
-              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                isSidebarCollapsed ? "justify-center" : "space-x-3"
-              }`}
-              title={isSidebarCollapsed ? "Dashboard" : ""}
-            >
-              <Home className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Dashboard</span>}
-            </a>
-          </li>
-
-          {/* Automation */}
-          <li>
-            <div>
-              <button
-                onClick={toggleAutomation}
-                className={`flex items-center w-full px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                  isSidebarCollapsed
-                    ? "justify-center"
-                    : "justify-between space-x-3"
-                }`}
-                title={isSidebarCollapsed ? "Automation" : ""}
-              >
-                <div
-                  className={`flex items-center ${
-                    isSidebarCollapsed ? "" : "space-x-3"
-                  }`}
-                >
-                  <TbAutomation className="w-5 h-5 min-w-[20px]" />
-                  {!isSidebarCollapsed && <span>Automation</span>}
-                </div>
-                {!isSidebarCollapsed &&
-                  (isAutomationOpen ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  ))}
-              </button>
-
-              {/* Automation Submenu - only show when not collapsed */}
-              {isAutomationOpen && !isSidebarCollapsed && (
-                <ul className="mt-2 ml-8 space-y-1">
-                  <li>
-                    <a
-                      href="/rules"
-                      className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      Rules
-                    </a>
-                  </li>
-                </ul>
-              )}
-            </div>
-          </li>
-          <li>
-            <a
-              href="/log"
-              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                isSidebarCollapsed ? "justify-center" : "space-x-3"
-              }`}
-              title={isSidebarCollapsed ? "Log" : ""}
-            >
-              <MdOutlineDataSaverOff className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Logs</span>}
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/actionLog"
-              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                isSidebarCollapsed ? "justify-center" : "space-x-3"
-              }`}
-              title={isSidebarCollapsed ? "Action Logs" : ""}
-            >
-              <MdDataSaverOn className="w-5 h-5 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Action Logs</span>}
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/campaigns"
-              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                isSidebarCollapsed ? "justify-center" : "space-x-3"
-              }`}
-              title={isSidebarCollapsed ? "Campaigns" : ""}
-            >
-              <img src={social} alt="" className="w-6 h-6 min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Campaigns</span>}
-            </a>
-          </li>
-
-          <li>
-            <a
-              href="/authorization"
-              className={`flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors ${
-                isSidebarCollapsed ? "justify-center" : "space-x-3"
-              }`}
-              title={isSidebarCollapsed ? "Authorization" : ""}
-            >
-              <KeyRound className="w-5 h-5  min-w-[20px]" />
-              {!isSidebarCollapsed && <span>Authorization</span>}
-            </a>
-          </li>
-        </ul>
-      </nav>
-
-      {/* User Profile and Logout section */}
-      <div className="p-4 border-t border-gray-200 mt-auto">
-        {!isSidebarCollapsed ? (
-          <>
-            <div className="flex items-center space-x-3 mb-3">
-              <img
-                src={profileImage}
-                alt="Profile"
-                className="w-8 h-8 rounded-full object-cover border border-gray-200"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 w-full px-3 py-2 text-red-500 hover:bg-red-50 rounded-md transition-colors text-sm"
+              className="flex items-center justify-center gap-2 w-full px-3.5 py-2.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 active:scale-[0.98] font-semibold text-sm"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
             </button>
           </>
         ) : (
-          <button
-            onClick={handleLogout}
-            className="flex justify-center w-full p-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="space-y-2.5">
+            <Tooltip text={displayName} show={isSidebarCollapsed}>
+              <div className="flex justify-center">
+                <div className="relative">
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-[#d3e3fd]"
+                  />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
+                </div>
+              </div>
+            </Tooltip>
+            <Tooltip text="Logout" show={isSidebarCollapsed}>
+              <button
+                onClick={handleLogout}
+                className="flex justify-center items-center w-full p-2.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 active:scale-[0.98]"
+              >
+                <LogOut className="w-4.5 h-4.5" />
+              </button>
+            </Tooltip>
+          </div>
         )}
       </div>
     </>
@@ -401,50 +552,62 @@ const SlideSidebar = () => {
     <>
       {/* Mobile Menu Toggle Button */}
       {isMobile && !isSidebarOpen && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-white p-2 flex items-center shadow-sm">
-          <button
-            onClick={toggleSidebar}
-            className="p-2 mr-2 hover:bg-gray-100 rounded-md"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-         
+        <div className="fixed top-0 left-0 right-0 z-40 bg-white/98 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <button
+              onClick={toggleSidebar}
+              className="p-2 hover:bg-[#d3e3fd] rounded-xl transition-all duration-200 active:scale-95"
+            >
+              <Menu className="w-5.5 h-5.5 text-gray-700" />
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-gradient-to-br from-[#0b57d0] to-[#0947b3] rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
+                <span className="text-white font-bold text-base">A</span>
+              </div>
+              <div>
+                <h1 className="font-bold text-gray-900 text-base tracking-tight">
+                  Adelevate
+                </h1>
+              </div>
+            </div>
+            <div className="w-9"></div>
+          </div>
         </div>
       )}
 
-      {/* Mobile Sidebar (Slide-in overlay) */}
+      {/* Mobile Sidebar */}
       {isMobile ? (
-        <div
-          className={`fixed inset-0 z-50 transition-transform duration-300 ease-in-out transform ${
-            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="relative h-full">
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={toggleSidebar}
-            ></div>
+        <>
+          {/* Backdrop */}
+          <div
+            className={`fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-sm transition-opacity duration-300 ${
+              isSidebarOpen
+                ? "opacity-100 pointer-events-auto"
+                : "opacity-0 pointer-events-none"
+            }`}
+            onClick={toggleSidebar}
+          ></div>
 
-            {/* Sidebar Content */}
-            <div
-              className={`relative h-full bg-white shadow-xl flex flex-col ${
-                deviceType === "xs"
-                  ? "w-[260px]"
-                  : deviceType === "ss"
-                  ? "w-[300px]"
-                  : "w-[320px]"
-              }`}
-            >
-              {mobileSidebarContent}
-            </div>
+          {/* Sidebar Content */}
+          <div
+            className={`fixed top-0 left-0 bottom-0 z-50 bg-white shadow-2xl transition-transform duration-300 ease-out ${
+              isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } ${
+              deviceType === "xs"
+                ? "w-[300px]"
+                : deviceType === "ss"
+                ? "w-[320px]"
+                : "w-[340px]"
+            }`}
+          >
+            <div className="h-full flex flex-col">{mobileSidebarContent}</div>
           </div>
-        </div>
+        </>
       ) : (
         /* Desktop & Tablet Sidebar */
         <aside
           className={`h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out ${
-            isSidebarCollapsed ? "w-16" : "w-64"
+            isSidebarCollapsed ? "w-[75px]" : "w-[280px]"
           }`}
         >
           {desktopSidebarContent}
@@ -452,7 +615,24 @@ const SlideSidebar = () => {
       )}
 
       {/* Content padding for mobile view */}
-      {isMobile && <div className="h-14"></div>}
+      {isMobile && <div className="h-[61px]"></div>}
+
+      {/* Custom scrollbar styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e5e7eb;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #d1d5db;
+        }
+      `}</style>
     </>
   );
 };

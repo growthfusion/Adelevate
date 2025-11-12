@@ -18,16 +18,10 @@ function PlatformIcon({ platform }) {
   const iconSrc = platformIconsMap[platform];
 
   if (!iconSrc) {
-    return <span className="w-4 h-4 xs:w-5 xs:h-5 inline-block">?</span>;
+    return <span className="w-5 h-5 inline-block">?</span>;
   }
 
-  return (
-    <img
-      src={iconSrc}
-      alt={`${platform} icon`}
-      className="w-4 h-4 xs:w-5 xs:h-5"
-    />
-  );
+  return <img src={iconSrc} alt={`${platform} icon`} className="w-5 h-5" />;
 }
 
 // Status Badge Component - Only Active and Paused
@@ -39,11 +33,7 @@ function StatusBadge({ status }) {
       textColor: "text-emerald-800",
       dotColor: "bg-emerald-500",
       icon: (
-        <svg
-          className="w-3 h-3 xs:w-3.5 xs:h-3.5"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
@@ -58,11 +48,7 @@ function StatusBadge({ status }) {
       textColor: "text-amber-800",
       dotColor: "bg-amber-500",
       icon: (
-        <svg
-          className="w-3 h-3 xs:w-3.5 xs:h-3.5"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
@@ -76,19 +62,18 @@ function StatusBadge({ status }) {
   const config = statusConfig[status] || statusConfig.paused;
 
   return (
-    <div className="inline-flex items-center justify-center xs:justify-start w-full">
+    <div className="inline-flex items-center justify-center w-full">
       <span
         className={`
-          inline-flex items-center gap-1 xs:gap-1.5 
-          px-1.5 py-0.5 xs:px-2.5 xs:py-1 
-          rounded-full text-[10px] xs:text-xs font-medium
+          inline-flex items-center gap-1.5 
+          px-2.5 py-1 
+          rounded-full text-xs font-medium
           ${config.bgColor} ${config.textColor}
           transition-all duration-200 hover:shadow-sm
         `}
       >
         <span className="flex-shrink-0">{config.icon}</span>
-        <span className="hidden ss:inline truncate">{config.label}</span>
-        <span className="inline ss:hidden">{config.label.charAt(0)}</span>
+        <span className="truncate">{config.label}</span>
       </span>
     </div>
   );
@@ -103,15 +88,15 @@ function TableSkeleton({ columnCount, rowCount }) {
           {Array.from({ length: columnCount }).map((_, colIndex) => (
             <td
               key={`skeleton-cell-${rowIndex}-${colIndex}`}
-              className="px-2 py-2 xs:px-4 xs:py-3 border-r border-gray-300"
+              className="px-4 py-3 border-r border-gray-300"
             >
               <div
-                className={`h-4 xs:h-5 bg-gray-200 rounded ${
+                className={`h-5 bg-gray-200 rounded ${
                   colIndex === 0
-                    ? "w-8 xs:w-12"
+                    ? "w-12"
                     : colIndex === 1
                     ? "w-full"
-                    : "w-12 xs:w-16 ml-auto"
+                    : "w-16 ml-auto"
                 }`}
               ></div>
             </td>
@@ -136,7 +121,7 @@ function CampaignsTable({ filters = {} }) {
     ];
 
     const platforms = ["google", "facebook", "tiktok", "snap", "newsbreak"];
-    const statuses = ["active", "paused"]; // Only two statuses
+    const statuses = ["active", "paused"];
 
     const rows = [];
     for (let i = 0; i < count; i++) {
@@ -271,18 +256,18 @@ function CampaignsTable({ filters = {} }) {
 
   // Hierarchical drill-down state: Campaign -> Date -> Hour -> Offer -> Landing
   const [drillDownState, setDrillDownState] = useState({
-    expandedCampaigns: new Set(), // campaignId
-    expandedDates: new Map(), // campaignId-dateId -> true
-    expandedHours: new Map(), // campaignId-dateId-hourId -> true
-    expandedOffers: new Map(), // campaignId-dateId-hourId-offerId -> true
+    expandedCampaigns: new Set(),
+    expandedDates: new Map(),
+    expandedHours: new Map(),
+    expandedOffers: new Map(),
   });
 
   // Drill-down data cache
   const [drillDownCache, setDrillDownCache] = useState({
-    dates: new Map(), // campaignId -> array of date data
-    hours: new Map(), // campaignId-dateId -> array of hour data
-    offers: new Map(), // campaignId-dateId-hourId -> array of offer data
-    landings: new Map(), // campaignId-dateId-hourId-offerId -> array of landing data
+    dates: new Map(),
+    hours: new Map(),
+    offers: new Map(),
+    landings: new Map(),
   });
 
   // Column order and width management
@@ -292,10 +277,10 @@ function CampaignsTable({ filters = {} }) {
   const [columnWidths, setColumnWidths] = useState(() => {
     const widths = {};
     columns.forEach((col, i) => {
-      if (i === 0) widths[col.id] = 60; // ID column
-      else if (i === 1) widths[col.id] = 300; // Title column
-      else if (i === 2) widths[col.id] = 130; // Status column
-      else widths[col.id] = 120; // Other columns
+      if (i === 0) widths[col.id] = 60;
+      else if (i === 1) widths[col.id] = 300;
+      else if (i === 2) widths[col.id] = 130;
+      else widths[col.id] = 120;
     });
     return widths;
   });
@@ -305,33 +290,24 @@ function CampaignsTable({ filters = {} }) {
   const [draggedColumn, setDraggedColumn] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
-  // Enhanced row background coloring based on profit value
+  // SIMPLIFIED: Only 2 colors - Green for profit, Red for loss
   const getRowBackgroundColor = (profit, level) => {
-    // Different opacity for different levels
     const opacity =
       level === 0
         ? ""
         : level === 1
-        ? "bg-opacity-80"
+        ? "bg-opacity-70"
         : level === 2
-        ? "bg-opacity-60"
+        ? "bg-opacity-50"
         : level === 3
-        ? "bg-opacity-40"
+        ? "bg-opacity-30"
         : "bg-opacity-20";
 
-    if (profit > 40) return `bg-emerald-200 ${opacity} hover:bg-yellow-100`;
-    if (profit > 30) return `bg-emerald-100 ${opacity} hover:bg-yellow-100`;
-    if (profit > 20) return `bg-green-100 ${opacity} hover:bg-yellow-100`;
-    if (profit > 10) return `bg-lime-50 ${opacity} hover:bg-yellow-100`;
-    if (profit > 0) return `bg-lime-50 ${opacity} hover:bg-yellow-100`;
-
-    if (profit < -40) return `bg-orange-200 ${opacity} hover:bg-yellow-100`;
-    if (profit < -30) return `bg-orange-100 ${opacity} hover:bg-yellow-100`;
-    if (profit < -20) return `bg-red-100 ${opacity} hover:bg-yellow-100`;
-    if (profit < -10) return `bg-red-50 ${opacity} hover:bg-yellow-100`;
-    if (profit < 0) return `bg-rose-50 ${opacity} hover:bg-yellow-100`;
-
-    return "bg-white hover:bg-gray-50";
+    if (profit >= 0) {
+      return `bg-green-50 ${opacity} hover:bg-yellow-50`;
+    } else {
+      return `bg-red-50 ${opacity} hover:bg-yellow-50`;
+    }
   };
 
   // Refresh data function
@@ -422,12 +398,12 @@ function CampaignsTable({ filters = {} }) {
     }
   }, []);
 
-  // Updated cell padding
+  // COMPACT STANDARD CELL PADDING - No responsive variations
   const cellPadding = {
-    compact: "px-1 py-1 xs:px-2 xs:py-1",
-    standard: "px-2 py-1.5 xs:px-3 xs:py-2",
-    comfortable: "px-2 py-2 xs:px-4 xs:py-3",
-    veryComfortable: "px-3 py-2.5 xs:px-6 xs:py-4",
+    compact: "px-2 py-1",
+    standard: "px-3 py-2",
+    comfortable: "px-4 py-3",
+    veryComfortable: "px-6 py-4",
   };
 
   const [sortConfig, setSortConfig] = useState({
@@ -462,28 +438,24 @@ function CampaignsTable({ filters = {} }) {
       const newExpandedCampaigns = new Set(prev.expandedCampaigns);
 
       if (newExpandedCampaigns.has(campaignId)) {
-        // Collapse campaign and all children
         newExpandedCampaigns.delete(campaignId);
 
         const newExpandedDates = new Map(prev.expandedDates);
         const newExpandedHours = new Map(prev.expandedHours);
         const newExpandedOffers = new Map(prev.expandedOffers);
 
-        // Remove all dates related to this campaign
         for (const key of Array.from(newExpandedDates.keys())) {
           if (key.startsWith(`${campaignId}-`)) {
             newExpandedDates.delete(key);
           }
         }
 
-        // Remove all hours related to this campaign
         for (const key of Array.from(newExpandedHours.keys())) {
           if (key.startsWith(`${campaignId}-`)) {
             newExpandedHours.delete(key);
           }
         }
 
-        // Remove all offers related to this campaign
         for (const key of Array.from(newExpandedOffers.keys())) {
           if (key.startsWith(`${campaignId}-`)) {
             newExpandedOffers.delete(key);
@@ -494,7 +466,6 @@ function CampaignsTable({ filters = {} }) {
         newState.expandedHours = newExpandedHours;
         newState.expandedOffers = newExpandedOffers;
       } else {
-        // Expand campaign and generate date data if not cached
         newExpandedCampaigns.add(campaignId);
 
         if (!drillDownCache.dates.has(campaignId)) {
@@ -522,24 +493,20 @@ function CampaignsTable({ filters = {} }) {
       const newExpandedOffers = new Map(prev.expandedOffers);
 
       if (newExpandedDates.has(mapKey)) {
-        // Collapse date and all children
         newExpandedDates.delete(mapKey);
 
-        // Remove all hours related to this date
         for (const key of Array.from(newExpandedHours.keys())) {
           if (key.startsWith(`${mapKey}-`)) {
             newExpandedHours.delete(key);
           }
         }
 
-        // Remove all offers related to this date
         for (const key of Array.from(newExpandedOffers.keys())) {
           if (key.startsWith(`${mapKey}-`)) {
             newExpandedOffers.delete(key);
           }
         }
       } else {
-        // Expand date and generate hour data if not cached
         newExpandedDates.set(mapKey, true);
 
         if (!drillDownCache.hours.has(mapKey)) {
@@ -570,17 +537,14 @@ function CampaignsTable({ filters = {} }) {
       const newExpandedOffers = new Map(prev.expandedOffers);
 
       if (newExpandedHours.has(mapKey)) {
-        // Collapse hour and all children
         newExpandedHours.delete(mapKey);
 
-        // Remove all offers related to this hour
         for (const key of Array.from(newExpandedOffers.keys())) {
           if (key.startsWith(`${mapKey}-`)) {
             newExpandedOffers.delete(key);
           }
         }
       } else {
-        // Expand hour and generate offer data if not cached
         newExpandedHours.set(mapKey, true);
 
         if (!drillDownCache.offers.has(mapKey)) {
@@ -609,10 +573,8 @@ function CampaignsTable({ filters = {} }) {
       const newExpandedOffers = new Map(prev.expandedOffers);
 
       if (newExpandedOffers.has(mapKey)) {
-        // Collapse offer
         newExpandedOffers.delete(mapKey);
       } else {
-        // Expand offer and generate landing data if not cached
         newExpandedOffers.set(mapKey, true);
 
         if (!drillDownCache.landings.has(mapKey)) {
@@ -975,10 +937,8 @@ function CampaignsTable({ filters = {} }) {
     const result = [];
 
     baseRows.forEach((campaign) => {
-      // Add campaign row
       result.push(campaign);
 
-      // If campaign is expanded, show dates
       if (drillDownState.expandedCampaigns.has(campaign.id)) {
         let dateData = drillDownCache.dates.get(campaign.id);
         if (!dateData) {
@@ -993,7 +953,6 @@ function CampaignsTable({ filters = {} }) {
         dateData.forEach((date) => {
           result.push(date);
 
-          // If date is expanded, show hours
           const dateMapKey = `${campaign.id}-${date.id}`;
           if (drillDownState.expandedDates.has(dateMapKey)) {
             let hourData = drillDownCache.hours.get(dateMapKey);
@@ -1009,7 +968,6 @@ function CampaignsTable({ filters = {} }) {
             hourData.forEach((hour) => {
               result.push(hour);
 
-              // If hour is expanded, show offers
               const hourMapKey = `${campaign.id}-${date.id}-${hour.id}`;
               if (drillDownState.expandedHours.has(hourMapKey)) {
                 let offerData = drillDownCache.offers.get(hourMapKey);
@@ -1025,7 +983,6 @@ function CampaignsTable({ filters = {} }) {
                 offerData.forEach((offer) => {
                   result.push(offer);
 
-                  // If offer is expanded, show landings
                   const offerMapKey = `${campaign.id}-${date.id}-${hour.id}-${offer.id}`;
                   if (drillDownState.expandedOffers.has(offerMapKey)) {
                     let landingData = drillDownCache.landings.get(offerMapKey);
@@ -1127,53 +1084,23 @@ function CampaignsTable({ filters = {} }) {
     };
   };
 
-  // Profit formatting
+  // SIMPLIFIED: Only 2 colors for profit - Green or Red
   const formatProfitValue = (value) => {
-    const isPositive = value >= 0;
-    let colorClass;
-
-    if (isPositive) {
-      if (value > 40) colorClass = "text-emerald-700";
-      else if (value > 30) colorClass = "text-emerald-600";
-      else if (value > 20) colorClass = "text-green-600";
-      else if (value > 10) colorClass = "text-green-600";
-      else colorClass = "text-green-500";
-    } else {
-      if (value < -40) colorClass = "text-orange-700";
-      else if (value < -30) colorClass = "text-orange-600";
-      else if (value < -20) colorClass = "text-red-600";
-      else if (value < -10) colorClass = "text-red-600";
-      else colorClass = "text-red-500";
-    }
+    const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
 
     return (
-      <span className={`font-medium ${colorClass}`}>
+      <span className={`font-semibold ${colorClass}`}>
         ${Math.abs(value).toFixed(2)}
       </span>
     );
   };
 
-  // ROI formatting
+  // SIMPLIFIED: Only 2 colors for ROI - Green or Red
   const formatROIValue = (value) => {
-    const isPositive = value >= 0;
-    let colorClass;
-
-    if (isPositive) {
-      if (value > 150) colorClass = "text-emerald-700";
-      else if (value > 100) colorClass = "text-emerald-600";
-      else if (value > 50) colorClass = "text-green-600";
-      else if (value > 25) colorClass = "text-green-500";
-      else colorClass = "text-green-500";
-    } else {
-      if (value < -100) colorClass = "text-orange-700";
-      else if (value < -75) colorClass = "text-orange-600";
-      else if (value < -50) colorClass = "text-red-600";
-      else if (value < -25) colorClass = "text-red-500";
-      else colorClass = "text-red-500";
-    }
+    const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
 
     return (
-      <span className={`font-medium ${colorClass}`}>{value.toFixed(1)}%</span>
+      <span className={`font-semibold ${colorClass}`}>{value.toFixed(1)}%</span>
     );
   };
 
@@ -1203,7 +1130,7 @@ function CampaignsTable({ filters = {} }) {
       case "date":
         return (
           <svg
-            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600"
+            className="w-4 h-4 text-blue-600"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -1217,7 +1144,7 @@ function CampaignsTable({ filters = {} }) {
       case "hour":
         return (
           <svg
-            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-purple-600"
+            className="w-4 h-4 text-purple-600"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -1231,7 +1158,7 @@ function CampaignsTable({ filters = {} }) {
       case "offer":
         return (
           <svg
-            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-orange-600"
+            className="w-4 h-4 text-orange-600"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -1246,7 +1173,7 @@ function CampaignsTable({ filters = {} }) {
       case "landing":
         return (
           <svg
-            className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-teal-600"
+            className="w-4 h-4 text-teal-600"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -1264,11 +1191,11 @@ function CampaignsTable({ filters = {} }) {
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* Header */}
-      <div className="px-3 py-3 xs:px-6 xs:py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
+      {/* COMPACT STANDARD HEADER - No responsive variations */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg xs:text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900">
               Campaign Analytics
             </h2>
 
@@ -1276,7 +1203,7 @@ function CampaignsTable({ filters = {} }) {
               filters.title ||
               filters.tags ||
               filters.status?.length > 0) && (
-              <div className="mt-1 text-xs xs:text-sm text-gray-500 truncate max-w-[250px] ss:max-w-full">
+              <div className="mt-1 text-sm text-gray-500">
                 {filters.platforms?.length > 0 &&
                   `Platforms: ${filters.platforms.join(", ")} • `}
                 {filters.status?.length > 0 &&
@@ -1288,20 +1215,18 @@ function CampaignsTable({ filters = {} }) {
           </div>
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center gap-2 ss:gap-3">
+          <div className="flex items-center gap-3">
             {/* Refresh Button */}
             <button
               type="button"
-              className={`inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
+              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
                 isLoading ? "opacity-75 cursor-not-allowed" : ""
               }`}
               onClick={refreshData}
               disabled={isLoading}
             >
               <svg
-                className={`w-3.5 h-3.5 xs:w-4 xs:h-4 ${
-                  isLoading ? "animate-spin" : ""
-                }`}
+                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1313,25 +1238,20 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              <span className="hidden xs:inline">
-                {isLoading ? "Refreshing..." : "Refresh Data"}
-              </span>
-              <span className="inline xs:hidden">
-                {isLoading ? "..." : "Refresh"}
-              </span>
+              {isLoading ? "Refreshing..." : "Refresh Data"}
             </button>
 
             {/* Columns Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "columns" ? null : "columns"))
                 }
               >
                 <svg
-                  className="w-3.5 h-3.5 xs:w-4 xs:h-4"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1346,19 +1266,19 @@ function CampaignsTable({ filters = {} }) {
                 Columns
               </button>
               {openMenu === "columns" && (
-                <div className="absolute right-0 z-30 mt-2 w-64 xs:w-72 bg-white rounded-md shadow-lg border border-gray-200 py-2">
-                  <div className="px-3 py-1.5 xs:px-4 xs:py-2 border-b border-gray-100">
+                <div className="absolute right-0 z-30 mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                  <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex justify-between gap-2">
                       <button
                         type="button"
-                        className="px-2 py-1 xs:px-3 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         onClick={showAllColumns}
                       >
                         Show All
                       </button>
                       <button
                         type="button"
-                        className="px-2 py-1 xs:px-3 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded transition-colors"
                         onClick={hideAllColumns}
                       >
                         Hide All
@@ -1369,15 +1289,15 @@ function CampaignsTable({ filters = {} }) {
                     {columns.map((column, idx) => (
                       <label
                         key={column.id}
-                        className="flex items-center gap-2 xs:gap-3 px-2 py-1.5 xs:py-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
+                        className="flex items-center gap-3 px-2 py-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={!hiddenCols.has(idx)}
                           onChange={() => toggleColumn(idx)}
-                          className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <span className="text-xs xs:text-sm text-gray-700 flex-1">
+                        <span className="text-sm text-gray-700 flex-1">
                           {column.label}
                         </span>
                       </label>
@@ -1391,13 +1311,13 @@ function CampaignsTable({ filters = {} }) {
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "density" ? null : "density"))
                 }
               >
                 <svg
-                  className="w-3.5 h-3.5 xs:w-4 xs:h-4"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1412,7 +1332,7 @@ function CampaignsTable({ filters = {} }) {
                 Density
               </button>
               {openMenu === "density" && (
-                <div className="absolute right-0 z-30 mt-2 w-40 xs:w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                <div className="absolute right-0 z-30 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2">
                   {[
                     "compact",
                     "standard",
@@ -1421,16 +1341,16 @@ function CampaignsTable({ filters = {} }) {
                   ].map((opt) => (
                     <label
                       key={opt}
-                      className="flex items-center gap-2 xs:gap-3 px-3 py-1.5 xs:px-4 xs:py-2 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <input
                         type="radio"
                         name="density"
                         checked={density === opt}
                         onChange={() => setDensity(opt)}
-                        className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
-                      <span className="text-xs xs:text-sm text-gray-700">
+                      <span className="text-sm text-gray-700">
                         {opt === "veryComfortable"
                           ? "Very Comfortable"
                           : opt.charAt(0).toUpperCase() + opt.slice(1)}
@@ -1444,11 +1364,11 @@ function CampaignsTable({ filters = {} }) {
             {/* Reset Button */}
             <button
               type="button"
-              className="hidden ss:inline-flex items-center gap-1 xs:gap-2 px-2 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
               onClick={resetTable}
             >
               <svg
-                className="w-3.5 h-3.5 xs:w-4 xs:h-4"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1466,8 +1386,8 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* Mobile Table Notice */}
-      <div className="block ss:hidden px-3 py-2 bg-blue-50 text-blue-700 text-xs border-b border-blue-200">
+      {/* Info Notice */}
+      {/* <div className="px-4 py-2 bg-blue-50 text-blue-700 text-xs border-b border-blue-200">
         <p className="flex items-center gap-2">
           <svg
             className="w-4 h-4 flex-shrink-0"
@@ -1480,17 +1400,13 @@ function CampaignsTable({ filters = {} }) {
               clipRule="evenodd"
             />
           </svg>
-          Click campaign rows to drill down: Campaign → Date → Hour → Offer →
-          Landing
+      
         </p>
-      </div>
+      </div> */}
 
       {/* Table Container */}
-      <div
-        ref={scrollRef}
-        className="overflow-auto max-h-[60vh] xs:max-h-[70vh]"
-      >
-        <div className="min-w-[600px] xs:min-w-[800px] ss:min-w-[1200px] lg:w-full">
+      <div ref={scrollRef} className="overflow-auto max-h-[70vh]">
+        <div className="min-w-[1200px]">
           <table className="w-full table-fixed border-collapse">
             <thead className="sticky top-0 z-10 bg-gray-100">
               <tr className="border-t border-gray-200">
@@ -1504,7 +1420,7 @@ function CampaignsTable({ filters = {} }) {
                       key={column.id}
                       className={`
                         ${cellPadding[density]} 
-                        text-xs xs:text-sm font-semibold text-gray-900 
+                        text-sm font-semibold text-gray-900 
                         select-none 
                         hover:bg-gray-200 
                         transition-colors duration-150
@@ -1585,7 +1501,7 @@ function CampaignsTable({ filters = {} }) {
                         <span className="truncate">{column.label}</span>
                         <span
                           className={`
-                          ml-1 xs:ml-2 text-xs transition-colors
+                          ml-2 text-xs transition-colors
                           ${
                             sortIndicator.active
                               ? sortIndicator.ascending
@@ -1601,7 +1517,7 @@ function CampaignsTable({ filters = {} }) {
 
                       {/* Resizing handle */}
                       <div
-                        className="absolute top-0 right-0 w-3 xs:w-4 h-full cursor-col-resize group"
+                        className="absolute top-0 right-0 w-4 h-full cursor-col-resize group"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1629,10 +1545,8 @@ function CampaignsTable({ filters = {} }) {
                     content = "";
                   } else if (column.id === "title") {
                     content = (
-                      <div className="flex items-center gap-1 xs:gap-2">
-                        <span className="text-xs xs:text-sm font-bold">
-                          Total:
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold">Total:</span>
                       </div>
                     );
                   } else if (column.id === "status") {
@@ -1643,13 +1557,9 @@ function CampaignsTable({ filters = {} }) {
                     content = `$${totals.revenue.toFixed(2)}`;
                   } else if (column.id === "profit") {
                     const profitClass =
-                      totals.profit > 0
-                        ? "text-emerald-700"
-                        : "text-orange-700";
+                      totals.profit >= 0 ? "text-green-700" : "text-red-700";
                     content = (
-                      <span
-                        className={`${profitClass} font-bold text-xs xs:text-sm`}
-                      >
+                      <span className={`${profitClass} font-bold text-sm`}>
                         ${Math.abs(totals.profit).toFixed(2)}
                       </span>
                     );
@@ -1664,11 +1574,9 @@ function CampaignsTable({ filters = {} }) {
                       ? (totals.profit / totals.cost) * 100
                       : 0;
                     const roiClass =
-                      roiValue > 0 ? "text-emerald-700" : "text-orange-700";
+                      roiValue >= 0 ? "text-green-700" : "text-red-700";
                     content = (
-                      <span
-                        className={`${roiClass} font-bold text-xs xs:text-sm`}
-                      >
+                      <span className={`${roiClass} font-bold text-sm`}>
                         {roiValue.toFixed(1)}%
                       </span>
                     );
@@ -1715,7 +1623,7 @@ function CampaignsTable({ filters = {} }) {
                       key={column.id}
                       className={`${cellPadding[density]} ${
                         column.numeric ? "text-right" : ""
-                      } text-xs xs:text-sm font-semibold text-gray-900 border-r border-gray-300`}
+                      } text-sm font-semibold text-gray-900 border-r border-gray-300`}
                       style={{ width: `${columnWidths[column.id]}px` }}
                     >
                       {content}
@@ -1776,10 +1684,10 @@ function CampaignsTable({ filters = {} }) {
                           return (
                             <td
                               key={`${row.id}-${column.id}`}
-                              className={`${cellPadding[density]} text-xs xs:text-sm text-gray-900 border-r border-gray-300`}
+                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-300`}
                             >
                               <div
-                                className="flex items-center gap-1 xs:gap-2"
+                                className="flex items-center gap-2"
                                 style={{ paddingLeft: `${indentation}px` }}
                               >
                                 {canExpand && (
@@ -1811,7 +1719,7 @@ function CampaignsTable({ filters = {} }) {
                                   >
                                     {isExpanded ? (
                                       <svg
-                                        className="w-4 h-4 xs:w-5 xs:h-5"
+                                        className="w-5 h-5"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -1825,7 +1733,7 @@ function CampaignsTable({ filters = {} }) {
                                       </svg>
                                     ) : (
                                       <svg
-                                        className="w-4 h-4 xs:w-5 xs:h-5"
+                                        className="w-5 h-5"
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -1842,7 +1750,7 @@ function CampaignsTable({ filters = {} }) {
                                 )}
 
                                 {!canExpand && row.type === "landing" && (
-                                  <span className="w-4 h-4 xs:w-5 xs:h-5 flex-shrink-0"></span>
+                                  <span className="w-5 h-5 flex-shrink-0"></span>
                                 )}
 
                                 {row.type && (
@@ -1879,7 +1787,7 @@ function CampaignsTable({ filters = {} }) {
                             key={`${row.id}-${column.id}`}
                             className={`${cellPadding[density]} ${
                               column.numeric ? "text-right" : ""
-                            } text-xs xs:text-sm text-gray-900 border-r border-gray-300`}
+                            } text-sm text-gray-900 border-r border-gray-300`}
                           >
                             {getCellValue(row, column.id)}
                           </td>
@@ -1894,7 +1802,7 @@ function CampaignsTable({ filters = {} }) {
                     colSpan={
                       sortedColumnOrder.filter((idx) => !isHidden(idx)).length
                     }
-                    className="px-3 py-6 xs:px-6 xs:py-10 text-center text-xs xs:text-sm text-gray-500 border-r border-gray-300"
+                    className="px-6 py-10 text-center text-sm text-gray-500 border-r border-gray-300"
                   >
                     <div className="flex flex-col items-center gap-2">
                       <svg
@@ -1921,15 +1829,15 @@ function CampaignsTable({ filters = {} }) {
       </div>
 
       {/* Pagination Footer */}
-      <div className="px-3 py-3 xs:px-6 xs:py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-        <div className="flex flex-col ss:flex-row ss:items-center ss:justify-between gap-3">
-          <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4">
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-xs xs:text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700">
                 Rows per page:
               </label>
               <select
-                className="border border-gray-300 rounded-md px-2 py-1 text-xs xs:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
@@ -1944,7 +1852,7 @@ function CampaignsTable({ filters = {} }) {
               </select>
             </div>
 
-            <div className="text-xs xs:text-sm text-gray-700 mt-2 xs:mt-0">
+            <div className="text-sm text-gray-700">
               Showing {sortedData.length > 0 ? (page - 1) * rowsPerPage + 1 : 0}{" "}
               to {Math.min(page * rowsPerPage, sortedData.length)} of{" "}
               {sortedData.length} campaigns
@@ -1961,10 +1869,10 @@ function CampaignsTable({ filters = {} }) {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || isLoading}
-              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <svg
-                className="w-3.5 h-3.5 xs:w-4 xs:h-4 mr-0.5 xs:mr-1"
+                className="w-4 h-4 mr-1"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1976,13 +1884,11 @@ function CampaignsTable({ filters = {} }) {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              <span className="hidden xs:inline">Previous</span>
+              Previous
             </button>
 
-            <div className="flex items-center gap-1 xs:gap-2">
-              <span className="text-xs xs:text-sm text-gray-700 hidden xs:inline">
-                Page
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Page</span>
               <input
                 type="number"
                 min={1}
@@ -1994,23 +1900,20 @@ function CampaignsTable({ filters = {} }) {
                     setPage(Math.min(totalPages, Math.max(1, v)));
                 }}
                 disabled={isLoading}
-                className="w-12 xs:w-16 px-1.5 py-1 xs:px-2 text-xs xs:text-sm text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
+                className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
               />
-              <span className="text-xs xs:text-sm text-gray-700">
-                <span className="hidden xs:inline">of</span>
-                <span className="inline xs:hidden">/</span> {totalPages}
-              </span>
+              <span className="text-sm text-gray-700">of {totalPages}</span>
             </div>
 
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || isLoading}
-              className="inline-flex items-center px-2 py-1.5 xs:px-3 xs:py-2 text-xs xs:text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
-              <span className="hidden xs:inline">Next</span>
+              Next
               <svg
-                className="w-3.5 h-3.5 xs:w-4 xs:h-4 ml-0.5 xs:ml-1"
+                className="w-4 h-4 ml-1"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -2024,30 +1927,6 @@ function CampaignsTable({ filters = {} }) {
               </svg>
             </button>
           </div>
-        </div>
-
-        {/* Reset button for mobile */}
-        <div className="block ss:hidden mt-3">
-          <button
-            type="button"
-            className="w-full inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
-            onClick={resetTable}
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            Reset Table
-          </button>
         </div>
       </div>
     </div>

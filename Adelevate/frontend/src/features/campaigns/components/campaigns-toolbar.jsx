@@ -30,7 +30,65 @@ const PREDEFINED_TAGS = [
   "Gokulraj",
 ];
 
-// Available grouping options (Note: This is defined but not used in the provided JSX for the toolbar, but keeping for context)
+// Account options organized by platform
+const ACCOUNT_OPTIONS = {
+  snap: [
+    { id: "snap-eap", name: "EAP" },
+    { id: "snap-auto", name: "Auto" },
+    { id: "snap-sweeps", name: "Sweeps" },
+    { id: "snap-home-bath", name: "Home-Bath" },
+    { id: "snap-home-ins", name: "Home-Ins" },
+    { id: "snap-tsw-autoinsurancesaver", name: "TSW - autoinsurancesaver" },
+    { id: "snap-tsw-smartautosaver", name: "TSW - smartautosaver" },
+    { id: "snap-ato-ash", name: "ATO ASH" },
+    { id: "snap-ato-myt", name: "ATO MYT" },
+    { id: "snap-ato-nm", name: "ATO NM" },
+  ],
+  meta: {
+    ringJunction: {
+      main: { id: "meta-ring-junction-main", name: "Ring Junction Main" },
+    },
+    rjCha3: [
+      { id: "meta-rj-cha-3-a1", name: "RJ CHA 3 - A1" },
+      { id: "meta-rj-cha-3-a2", name: "RJ CHA 3 - A2" },
+      { id: "meta-rj-cha-3-a3", name: "RJ CHA 3 - A3" },
+      { id: "meta-rj-cha-3-a4", name: "RJ CHA 3 - A4" },
+      { id: "meta-rj-cha-3-a5", name: "RJ CHA 3 - A5" },
+    ],
+    rjCha4: [
+      { id: "meta-rj-cha-4-a1", name: "RJ CHA 4 - A1" },
+      { id: "meta-rj-cha-4-a2", name: "RJ CHA 4 - A2" },
+      { id: "meta-rj-cha-4-a3", name: "RJ CHA 4 - A3" },
+      { id: "meta-rj-cha-4-a4", name: "RJ CHA 4 - A4" },
+      { id: "meta-rj-cha-4-a5", name: "RJ CHA 4 - A5" },
+    ],
+    rjCha5: [{ id: "meta-rj-cha-5-a1", name: "RJ CHA 5 - A1" }],
+    sharpAdsCha: [
+      { id: "meta-sharp-ads-cha-a1", name: "Sharp Ads CHA - A1" },
+      { id: "meta-sharp-ads-cha-a2", name: "Sharp Ads CHA - A2" },
+      { id: "meta-sharp-ads-cha-a3", name: "Sharp Ads CHA - A3" },
+    ],
+    rjCha8: [
+      { id: "meta-rj-cha-8-hm-ins-pst-1", name: "HM-INS-PST-1" },
+      { id: "meta-rj-cha-8-hm-ins-pst-2", name: "HM-INS-PST-2" },
+    ],
+    chinaBm: [
+      { id: "meta-china-bm-rj-3", name: "RJ -3" },
+      {
+        id: "meta-china-bm-tsw-auto-insurance-pst",
+        name: "TSW Auto Insurance - PST",
+      },
+      { id: "meta-china-bm-sw-tsw-est3n", name: "SW-TSW-EST3N" },
+      { id: "meta-china-bm-sw-tsw-est4", name: "SW-TSW-EST4" },
+      { id: "meta-china-bm-sw-tsw-est2", name: "SW-TSW-EST2" },
+      { id: "meta-china-bm-sw-tsw-est1", name: "SW-TSW-EST1" },
+      { id: "meta-china-bm-sw-tsw-est", name: "SW-TSW-EST" },
+      { id: "meta-china-bm-wise-auto", name: "Wise - auto" },
+    ],
+  },
+};
+
+// Available grouping options
 const GROUPING_OPTIONS = [
   { id: "date", name: "Date" },
   { id: "hourOfDay", name: "Hour Of Day" },
@@ -55,6 +113,24 @@ export function CampaignsToolbar({
     initialFilters.platforms || []
   );
   const [showPlatformMenu, setShowPlatformMenu] = useState(false);
+  const [selectedAccounts, setSelectedAccounts] = useState(
+    initialFilters.accounts || []
+  );
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = useState({
+    snap: true,
+    meta: true,
+    ringJunction: true,
+    rjCha3: false,
+    rjCha4: false,
+    rjCha5: false,
+    sharpAdsCha: false,
+    rjCha8: false,
+    chinaBm: false,
+  });
+
   const [title, setTitle] = useState(initialFilters.title || "");
   const [tags, setTags] = useState(initialFilters.tags || "");
   const [showTagsMenu, setShowTagsMenu] = useState(false);
@@ -86,8 +162,23 @@ export function CampaignsToolbar({
       newPlatforms = [...selectedPlatforms, platformId];
     }
     setSelectedPlatforms(newPlatforms);
-    // Note: Kept setShowPlatformMenu(false) so checkbox clicks don't close the menu,
-    // allowing for multiple selections. The menu will close on outside click.
+  };
+
+  const toggleAccount = (accountId) => {
+    let newAccounts;
+    if (selectedAccounts.includes(accountId)) {
+      newAccounts = selectedAccounts.filter((a) => a !== accountId);
+    } else {
+      newAccounts = [...selectedAccounts, accountId];
+    }
+    setSelectedAccounts(newAccounts);
+  };
+
+  const toggleSection = (sectionId) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
   };
 
   const selectTag = (tag) => {
@@ -99,6 +190,7 @@ export function CampaignsToolbar({
     if (onApplyFilters) {
       onApplyFilters({
         platforms: selectedPlatforms,
+        accounts: selectedAccounts,
         title,
         tags,
         dateRange,
@@ -114,6 +206,7 @@ export function CampaignsToolbar({
 
   const resetForm = () => {
     setSelectedPlatforms([]);
+    setSelectedAccounts([]);
     setTitle("");
     setTags("");
     setDateRange({
@@ -126,6 +219,7 @@ export function CampaignsToolbar({
     if (onApplyFilters) {
       onApplyFilters({
         platforms: [],
+        accounts: [],
         title: "",
         tags: "",
         dateRange: {
@@ -281,6 +375,517 @@ export function CampaignsToolbar({
           )}
         </div>
 
+        {/* Account selector */}
+        <div className="relative w-full md:w-auto">
+          <button
+            type="button"
+            onClick={() => setShowAccountMenu(!showAccountMenu)}
+            className="flex w-full items-center justify-between gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100 md:justify-start"
+          >
+            <span className="text-gray-600">Accounts</span>
+            {selectedAccounts.length > 0 ? (
+              <span className="text-xs font-medium text-blue-600">
+                {selectedAccounts.length} selected
+              </span>
+            ) : (
+              <span className="text-gray-500 italic">Select...</span>
+            )}
+            <svg
+              className="h-4 w-4 text-gray-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {showAccountMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setShowAccountMenu(false)}
+              />
+              <div className="absolute left-0 z-40 mt-1 w-80 max-h-[32rem] overflow-y-auto rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                <div className="p-2">
+                  <div className="mb-2 px-3 py-2 text-xs font-semibold text-gray-500">
+                    Select accounts...
+                  </div>
+
+                  {/* Snap Accounts */}
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection("snap")}
+                      className="flex w-full items-center justify-between px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="flex items-center">
+                        <img
+                          src={snapchatIcon}
+                          alt="Snapchat icon"
+                          className="h-4 w-4 mr-2"
+                        />
+                        <span className="text-xs font-bold text-gray-800 uppercase">
+                          Snap Accounts
+                        </span>
+                      </div>
+                      <svg
+                        className={`h-4 w-4 text-gray-600 transition-transform ${
+                          expandedSections.snap ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {expandedSections.snap && (
+                      <div className="mt-1">
+                        {ACCOUNT_OPTIONS.snap.map((account) => (
+                          <label
+                            key={account.id}
+                            className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-6 hover:bg-gray-100"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedAccounts.includes(account.id)}
+                              onChange={() => toggleAccount(account.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {account.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Meta Accounts */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSection("meta")}
+                      className="flex w-full items-center justify-between px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors mb-1"
+                    >
+                      <div className="flex items-center">
+                        <img
+                          src={fb}
+                          alt="Facebook icon"
+                          className="h-4 w-4 mr-2"
+                        />
+                        <span className="text-xs font-bold text-gray-800 uppercase">
+                          Meta Accounts
+                        </span>
+                      </div>
+                      <svg
+                        className={`h-4 w-4 text-gray-600 transition-transform ${
+                          expandedSections.meta ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+
+                    {expandedSections.meta && (
+                      <div className="space-y-2 mt-2">
+                        {/* Ring Junction */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("ringJunction")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              Ring Junction
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.ringJunction
+                                  ? "rotate-180"
+                                  : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.ringJunction && (
+                            <label className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100 mt-1">
+                              <input
+                                type="checkbox"
+                                checked={selectedAccounts.includes(
+                                  ACCOUNT_OPTIONS.meta.ringJunction.main.id
+                                )}
+                                onChange={() =>
+                                  toggleAccount(
+                                    ACCOUNT_OPTIONS.meta.ringJunction.main.id
+                                  )
+                                }
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {ACCOUNT_OPTIONS.meta.ringJunction.main.name}
+                              </span>
+                            </label>
+                          )}
+                        </div>
+
+                        {/* RJ CHA 3 */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("rjCha3")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              RJ CHA 3
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.rjCha3 ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.rjCha3 && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.rjCha3.map((account) => (
+                                <label
+                                  key={account.id}
+                                  className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAccounts.includes(
+                                      account.id
+                                    )}
+                                    onChange={() => toggleAccount(account.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {account.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* RJ CHA 4 */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("rjCha4")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              RJ CHA 4
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.rjCha4 ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.rjCha4 && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.rjCha4.map((account) => (
+                                <label
+                                  key={account.id}
+                                  className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAccounts.includes(
+                                      account.id
+                                    )}
+                                    onChange={() => toggleAccount(account.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {account.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* RJ CHA 5 */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("rjCha5")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              RJ CHA 5
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.rjCha5 ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.rjCha5 && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.rjCha5.map((account) => (
+                                <label
+                                  key={account.id}
+                                  className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAccounts.includes(
+                                      account.id
+                                    )}
+                                    onChange={() => toggleAccount(account.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {account.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sharp Ads - CHA */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("sharpAdsCha")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              Sharp Ads - CHA
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.sharpAdsCha ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.sharpAdsCha && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.sharpAdsCha.map(
+                                (account) => (
+                                  <label
+                                    key={account.id}
+                                    className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedAccounts.includes(
+                                        account.id
+                                      )}
+                                      onChange={() => toggleAccount(account.id)}
+                                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                      {account.name}
+                                    </span>
+                                  </label>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* RJ CHA 8 */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("rjCha8")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              RJ CHA 8
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.rjCha8 ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.rjCha8 && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.rjCha8.map((account) => (
+                                <label
+                                  key={account.id}
+                                  className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAccounts.includes(
+                                      account.id
+                                    )}
+                                    onChange={() => toggleAccount(account.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {account.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* China BM */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleSection("chinaBm")}
+                            className="flex w-full items-center justify-between px-3 py-1.5 pl-6 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">
+                              China BM
+                            </span>
+                            <svg
+                              className={`h-3 w-3 text-gray-600 transition-transform ${
+                                expandedSections.chinaBm ? "rotate-180" : ""
+                              }`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </button>
+
+                          {expandedSections.chinaBm && (
+                            <div className="mt-1">
+                              {ACCOUNT_OPTIONS.meta.chinaBm.map((account) => (
+                                <label
+                                  key={account.id}
+                                  className="flex cursor-pointer items-center rounded px-3 py-1.5 pl-10 hover:bg-gray-100"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedAccounts.includes(
+                                      account.id
+                                    )}
+                                    onChange={() => toggleAccount(account.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                                  />
+                                  <span className="text-sm text-gray-700">
+                                    {account.name}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Clear selection button */}
+                  {selectedAccounts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAccounts([])}
+                      className="w-full text-left rounded px-3 py-2 text-sm text-red-600 hover:bg-red-50 border-t mt-3 pt-3 font-medium"
+                    >
+                      Clear all selections ({selectedAccounts.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Title input - flex-1 allows it to grow and fill space on larger screens */}
         <div className="w-full md:w-auto md:flex-1">
           <label className="flex w-full items-center gap-2 rounded-md border bg-gray-50 px-3 py-2 text-sm">
@@ -377,8 +982,6 @@ export function CampaignsToolbar({
         </div>
 
         {/* Action Buttons - Grouped for responsive positioning */}
-        {/* On mobile: full width, separated by a top border */}
-        {/* On desktop: aligned to the right */}
         <div className="flex w-full flex-col gap-2 border-t border-gray-200 pt-3 mt-1 md:w-auto md:flex-row md:border-t-0 md:pt-0 md:mt-0 md:ml-auto">
           <button
             type="button"
