@@ -12,6 +12,7 @@ import {
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
 import { MdOutlineDataSaverOff, MdDataSaverOn } from "react-icons/md";
+import { IoPersonAddOutline } from "react-icons/io5";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
@@ -181,6 +182,13 @@ const SlideSidebar = () => {
       path: "/authorization",
       icon: KeyRound,
       label: "Authorization",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/addAccount",
+      icon: IoPersonAddOutline,
+      label: "Integration ",
       badge: null,
     },
   ];

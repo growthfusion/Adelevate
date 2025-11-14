@@ -24,7 +24,7 @@ function PlatformIcon({ platform }) {
   return <img src={iconSrc} alt={`${platform} icon`} className="w-5 h-5" />;
 }
 
-// Status Badge Component - Only Active and Paused
+// Status Badge Component
 function StatusBadge({ status }) {
   const statusConfig = {
     active: {
@@ -65,8 +65,8 @@ function StatusBadge({ status }) {
     <div className="inline-flex items-center justify-center w-full">
       <span
         className={`
-          inline-flex items-center gap-1.5 
-          px-2.5 py-1 
+          inline-flex items-center gap-1.5
+          px-2.5 py-1
           rounded-full text-xs font-medium
           ${config.bgColor} ${config.textColor}
           transition-all duration-200 hover:shadow-sm
@@ -79,7 +79,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// Skeleton loader component for table rows
+// Skeleton loader component
 function TableSkeleton({ columnCount, rowCount }) {
   return (
     <>
@@ -88,7 +88,7 @@ function TableSkeleton({ columnCount, rowCount }) {
           {Array.from({ length: columnCount }).map((_, colIndex) => (
             <td
               key={`skeleton-cell-${rowIndex}-${colIndex}`}
-              className="px-4 py-3 border-r border-gray-300"
+              className="px-4 py-3 border-b border-gray-100"
             >
               <div
                 className={`h-5 bg-gray-200 rounded ${
@@ -175,8 +175,8 @@ function CampaignsTable({ filters = {} }) {
   }
 
   const columns = [
-    { id: "id", label: "#", numeric: true },
-    { id: "title", label: "Campaign Title", numeric: false },
+    { id: "id", label: "#", numeric: true, sticky: true },
+    { id: "title", label: "Campaign Title", numeric: false, sticky: true },
     { id: "status", label: "Status", numeric: false },
     {
       id: "cost",
@@ -194,19 +194,19 @@ function CampaignsTable({ filters = {} }) {
       id: "profit",
       label: "Profit",
       numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
     },
     {
       id: "lpCtr",
       label: "LP CTR",
       numeric: true,
       format: (val) => `${val.toFixed(1)}%`,
+      tooltip: "Landing Page CTR: (LP Clicks / LP Views) * 100",
     },
     {
       id: "roi",
       label: "ROI",
       numeric: true,
-      format: (val) => `${val.toFixed(1)}%`,
+      tooltip: "Return On Investment: (Profit / Cost) * 100",
     },
     { id: "purchases", label: "Purchases", numeric: true },
     {
@@ -214,30 +214,35 @@ function CampaignsTable({ filters = {} }) {
       label: "CPA",
       numeric: true,
       format: (val) => `$${val.toFixed(2)}`,
+      tooltip: "Cost Per Acquisition: Cost / Purchases",
     },
     {
       id: "aov",
       label: "AOV",
       numeric: true,
       format: (val) => `$${val.toFixed(2)}`,
+      tooltip: "Average Order Value: Revenue / Purchases",
     },
     {
       id: "cr",
       label: "Conv. Rate",
       numeric: true,
       format: (val) => `${val.toFixed(1)}%`,
+      tooltip: "Conversion Rate: (Purchases / Clicks) * 100",
     },
     {
       id: "lpcpc",
-      label: "LPCPC",
+      label: "LP CPC",
       numeric: true,
       format: (val) => val.toFixed(2),
+      tooltip: "Landing Page Cost Per Click: Cost / LP Clicks",
     },
     {
       id: "lpepc",
       label: "LP EPC",
       numeric: true,
       format: (val) => val.toFixed(2),
+      tooltip: "Landing Page Earnings Per Click: Revenue / LP Clicks",
     },
     { id: "clicks", label: "Clicks", numeric: true },
     { id: "lpViews", label: "LP Views", numeric: true },
@@ -254,7 +259,6 @@ function CampaignsTable({ filters = {} }) {
   const [columnSelectionOrder, setColumnSelectionOrder] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Hierarchical drill-down state: Campaign -> Date -> Hour -> Offer -> Landing
   const [drillDownState, setDrillDownState] = useState({
     expandedCampaigns: new Set(),
     expandedDates: new Map(),
@@ -262,7 +266,6 @@ function CampaignsTable({ filters = {} }) {
     expandedOffers: new Map(),
   });
 
-  // Drill-down data cache
   const [drillDownCache, setDrillDownCache] = useState({
     dates: new Map(),
     hours: new Map(),
@@ -270,7 +273,6 @@ function CampaignsTable({ filters = {} }) {
     landings: new Map(),
   });
 
-  // Column order and width management
   const [columnOrder, setColumnOrder] = useState(() =>
     columns.map((_, i) => i)
   );
@@ -285,32 +287,29 @@ function CampaignsTable({ filters = {} }) {
     return widths;
   });
 
-  // Column resize and drag state
   const [resizing, setResizing] = useState(null);
   const [draggedColumn, setDraggedColumn] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
-  // SIMPLIFIED: Only 2 colors - Green for profit, Red for loss
   const getRowBackgroundColor = (profit, level) => {
     const opacity =
       level === 0
         ? ""
         : level === 1
-        ? "bg-opacity-70"
+        ? "bg-opacity-80"
         : level === 2
-        ? "bg-opacity-50"
+        ? "bg-opacity-60"
         : level === 3
-        ? "bg-opacity-30"
+        ? "bg-opacity-40"
         : "bg-opacity-20";
 
     if (profit >= 0) {
-      return `bg-green-50 ${opacity} hover:bg-yellow-50`;
+      return `bg-green-50 ${opacity} hover:bg-yellow-100`;
     } else {
-      return `bg-red-50 ${opacity} hover:bg-yellow-50`;
+      return `bg-red-50 ${opacity} hover:bg-yellow-100`;
     }
   };
 
-  // Refresh data function
   const refreshData = () => {
     setIsLoading(true);
 
@@ -334,28 +333,31 @@ function CampaignsTable({ filters = {} }) {
     }, 1500);
   };
 
-  // Sort columns based on selection order
   const sortedColumnOrder = useMemo(() => {
     if (columnSelectionOrder.length === 0) return columnOrder;
 
     const result = [];
 
     for (const colId of columnSelectionOrder) {
-      if (!hiddenCols.has(colId) && columnOrder.includes(colId)) {
-        result.push(colId);
+      const colIndex = columns.findIndex((c) => c.id === colId);
+      if (
+        colIndex !== -1 &&
+        !hiddenCols.has(colIndex) &&
+        columnOrder.includes(colIndex)
+      ) {
+        result.push(colIndex);
       }
     }
 
-    for (const colId of columnOrder) {
-      if (!hiddenCols.has(colId) && !columnSelectionOrder.includes(colId)) {
-        result.push(colId);
+    for (const colIdx of columnOrder) {
+      if (!hiddenCols.has(colIdx) && !result.includes(colIdx)) {
+        result.push(colIdx);
       }
     }
 
     return result;
-  }, [columnOrder, columnSelectionOrder, hiddenCols]);
+  }, [columnOrder, columnSelectionOrder, hiddenCols, columns]);
 
-  // Handle column resize
   useEffect(() => {
     if (resizing === null) return;
 
@@ -383,22 +385,6 @@ function CampaignsTable({ filters = {} }) {
     };
   }, [resizing]);
 
-  // Load saved column configuration
-  useEffect(() => {
-    try {
-      const savedConfig = localStorage.getItem("campaignTableConfig");
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        setColumnOrder(config.order);
-        setColumnWidths(config.widths);
-        setHiddenCols(new Set(config.hidden));
-      }
-    } catch (error) {
-      console.error("Error loading saved table configuration", error);
-    }
-  }, []);
-
-  // COMPACT STANDARD CELL PADDING - No responsive variations
   const cellPadding = {
     compact: "px-2 py-1",
     standard: "px-3 py-2",
@@ -409,20 +395,19 @@ function CampaignsTable({ filters = {} }) {
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: null,
-    clickedColumn: null,
   });
 
-  // Toggle column function
   const toggleColumn = (idx) => {
     setHiddenCols((prev) => {
       const next = new Set(prev);
+      const colId = columns[idx].id;
       if (next.has(idx)) {
         next.delete(idx);
-        setColumnSelectionOrder((prevOrder) => [...prevOrder, idx]);
+        setColumnSelectionOrder((prevOrder) => [...prevOrder, colId]);
       } else {
         next.add(idx);
         setColumnSelectionOrder((prevOrder) =>
-          prevOrder.filter((i) => i !== idx)
+          prevOrder.filter((id) => id !== colId)
         );
       }
       return next;
@@ -431,7 +416,6 @@ function CampaignsTable({ filters = {} }) {
 
   const isHidden = (i) => hiddenCols.has(i);
 
-  // Toggle campaign expansion (shows dates)
   const toggleCampaignExpansion = (campaignId) => {
     setDrillDownState((prev) => {
       const newState = { ...prev };
@@ -483,7 +467,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Toggle date expansion (shows hours)
   const toggleDateExpansion = (campaignId, dateId) => {
     const mapKey = `${campaignId}-${dateId}`;
 
@@ -528,7 +511,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Toggle hour expansion (shows offers)
   const toggleHourExpansion = (campaignId, dateId, hourId) => {
     const mapKey = `${campaignId}-${dateId}-${hourId}`;
 
@@ -565,7 +547,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Toggle offer expansion (shows landings)
   const toggleOfferExpansion = (campaignId, dateId, hourId, offerId) => {
     const mapKey = `${campaignId}-${dateId}-${hourId}-${offerId}`;
 
@@ -627,26 +608,23 @@ function CampaignsTable({ filters = {} }) {
     return result;
   }, [rawData, filters]);
 
-  // Handle column sort
-  const handleSort = (columnId, columnIndex) => {
+  const handleSort = (columnId) => {
     let direction = "ascending";
-
-    if (sortConfig.key === columnId) {
-      if (sortConfig.direction === "ascending") {
-        direction = "descending";
-      } else if (sortConfig.direction === "descending") {
-        direction = null;
-      }
+    if (sortConfig.key === columnId && sortConfig.direction === "ascending") {
+      direction = "descending";
+    } else if (
+      sortConfig.key === columnId &&
+      sortConfig.direction === "descending"
+    ) {
+      direction = null;
     }
 
     setSortConfig({
       key: direction ? columnId : null,
       direction: direction,
-      clickedColumn: direction ? columnIndex : null,
     });
   };
 
-  // Apply sorting
   const sortedData = useMemo(() => {
     const dataToSort = [...filteredData];
 
@@ -665,7 +643,6 @@ function CampaignsTable({ filters = {} }) {
     });
   }, [filteredData, sortConfig]);
 
-  // Calculate totals
   const totals = useMemo(() => {
     return sortedData.reduce(
       (acc, row) => {
@@ -690,7 +667,6 @@ function CampaignsTable({ filters = {} }) {
     );
   }, [sortedData]);
 
-  // Get Date Breakdown (7 days)
   const getDateBreakdown = (campaignId) => {
     const campaign = sortedData.find((row) => row.id === campaignId);
     if (!campaign) return [];
@@ -748,7 +724,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Get Hour Breakdown (24 hours)
   const getHourBreakdown = (campaignId, dateId) => {
     const dateKey = `${campaignId}-${dateId}`;
     const dateData = drillDownCache.dates.get(campaignId);
@@ -802,7 +777,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Get Offer Breakdown
   const getOfferBreakdown = (campaignId, dateId, hourId) => {
     const hourKey = `${campaignId}-${dateId}-${hourId}`;
     const hourData = drillDownCache.hours.get(`${campaignId}-${dateId}`);
@@ -864,7 +838,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Get Landing Breakdown
   const getLandingBreakdown = (campaignId, dateId, hourId, offerId) => {
     const offerKey = `${campaignId}-${dateId}-${hourId}`;
     const offerData = drillDownCache.offers.get(offerKey);
@@ -927,7 +900,6 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Build rows with hierarchical drill-down: Campaign -> Date -> Hour -> Offer -> Landing
   const pageRows = useMemo(() => {
     const baseRows = sortedData.slice(
       (page - 1) * rowsPerPage,
@@ -1035,9 +1007,8 @@ function CampaignsTable({ filters = {} }) {
   };
 
   const hideAllColumns = () =>
-    setHiddenCols(new Set(Array.from({ length: columns.length }, (_, i) => i)));
+    setHiddenCols(new Set(columns.map((_, idx) => idx)));
 
-  // Reset function
   const resetTable = () => {
     setHiddenCols(new Set());
     setDensity("comfortable");
@@ -1072,30 +1043,34 @@ function CampaignsTable({ filters = {} }) {
     setColumnWidths(defaultWidths);
   };
 
-  const getSortIndicator = (columnId, columnIndex) => {
+  const getSortIndicator = (columnId) => {
     if (sortConfig.key !== columnId) {
-      return { icon: "⇅", active: false };
+      return "⇅";
     }
-
-    return {
-      icon: sortConfig.direction === "ascending" ? "↑" : "↓",
-      active: true,
-      ascending: sortConfig.direction === "ascending",
-    };
+    if (sortConfig.direction === "ascending") {
+      return "↑";
+    }
+    return "↓";
   };
 
-  // SIMPLIFIED: Only 2 colors for profit - Green or Red
   const formatProfitValue = (value) => {
     const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
+    const displayValue =
+      value >= 0 ? value.toFixed(2) : `-${Math.abs(value).toFixed(2)}`;
 
     return (
-      <span className={`font-semibold ${colorClass}`}>
-        ${Math.abs(value).toFixed(2)}
-      </span>
+      <span className={`font-semibold ${colorClass}`}>${displayValue}</span>
     );
   };
 
-  // SIMPLIFIED: Only 2 colors for ROI - Green or Red
+  const formatRevenueValue = (value, profit) => {
+    const colorClass = profit >= 0 ? "text-green-600" : "text-red-600";
+
+    return (
+      <span className={`font-semibold ${colorClass}`}>${value.toFixed(2)}</span>
+    );
+  };
+
   const formatROIValue = (value) => {
     const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
 
@@ -1104,7 +1079,6 @@ function CampaignsTable({ filters = {} }) {
     );
   };
 
-  // Get cell value
   const getCellValue = (row, columnId) => {
     const value = row[columnId];
     if (value === undefined || value === null) return "";
@@ -1115,6 +1089,8 @@ function CampaignsTable({ filters = {} }) {
       return <StatusBadge status={value} />;
     } else if (columnId === "profit") {
       return formatProfitValue(value);
+    } else if (columnId === "revenue") {
+      return formatRevenueValue(value, row.profit);
     } else if (columnId === "roi") {
       return formatROIValue(value);
     } else if (column && column.format) {
@@ -1124,7 +1100,6 @@ function CampaignsTable({ filters = {} }) {
     return value;
   };
 
-  // Get level icon based on row type
   const getLevelIcon = (type) => {
     switch (type) {
       case "date":
@@ -1189,13 +1164,85 @@ function CampaignsTable({ filters = {} }) {
     }
   };
 
+  const getTotalContent = (columnId) => {
+    if (columnId === "title") {
+      return "Total:";
+    } else if (columnId === "cost") {
+      return `$${totals.cost.toFixed(2)}`;
+    } else if (columnId === "revenue") {
+      const profitClass =
+        totals.profit >= 0 ? "text-green-700" : "text-red-700";
+      return (
+        <span className={`${profitClass} font-bold`}>
+          ${totals.revenue.toFixed(2)}
+        </span>
+      );
+    } else if (columnId === "profit") {
+      const profitClass =
+        totals.profit >= 0 ? "text-green-700" : "text-red-700";
+      const displayValue =
+        totals.profit >= 0
+          ? totals.profit.toFixed(2)
+          : `-${Math.abs(totals.profit).toFixed(2)}`;
+      return (
+        <span className={`${profitClass} font-bold`}>${displayValue}</span>
+      );
+    } else if (columnId === "lpCtr") {
+      return `${
+        totals.lpClicks && totals.lpViews
+          ? ((totals.lpClicks / totals.lpViews) * 100).toFixed(1)
+          : "0.0"
+      }%`;
+    } else if (columnId === "roi") {
+      const roiValue = totals.cost ? (totals.profit / totals.cost) * 100 : 0;
+      const roiClass = roiValue >= 0 ? "text-green-700" : "text-red-700";
+      return (
+        <span className={`${roiClass} font-bold`}>{roiValue.toFixed(1)}%</span>
+      );
+    } else if (columnId === "purchases") {
+      return totals.purchases.toLocaleString();
+    } else if (columnId === "cpa") {
+      return `$${
+        totals.purchases ? (totals.cost / totals.purchases).toFixed(2) : "0.00"
+      }`;
+    } else if (columnId === "aov") {
+      return `$${
+        totals.purchases
+          ? (totals.revenue / totals.purchases).toFixed(2)
+          : "0.00"
+      }`;
+    } else if (columnId === "cr") {
+      return `${
+        totals.clicks && totals.purchases
+          ? ((totals.purchases / totals.clicks) * 100).toFixed(1)
+          : "0.0"
+      }%`;
+    } else if (columnId === "lpcpc") {
+      return totals.lpClicks
+        ? (totals.cost / totals.lpClicks).toFixed(2)
+        : "0.00";
+    } else if (columnId === "lpepc") {
+      return totals.lpClicks
+        ? (totals.revenue / totals.lpClicks).toFixed(2)
+        : "0.00";
+    } else if (columnId === "clicks") {
+      return totals.clicks.toLocaleString();
+    } else if (columnId === "lpViews") {
+      return totals.lpViews.toLocaleString();
+    } else if (columnId === "lpClicks") {
+      return totals.lpClicks.toLocaleString();
+    } else {
+      return "";
+    }
+  };
+
   return (
-    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
-      {/* COMPACT STANDARD HEADER - No responsive variations */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-screen">
+      {/* HEADER */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/75 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
               Campaign Analytics
             </h2>
 
@@ -1203,23 +1250,36 @@ function CampaignsTable({ filters = {} }) {
               filters.title ||
               filters.tags ||
               filters.status?.length > 0) && (
-              <div className="mt-1 text-sm text-gray-500">
-                {filters.platforms?.length > 0 &&
-                  `Platforms: ${filters.platforms.join(", ")} • `}
-                {filters.status?.length > 0 &&
-                  `Status: ${filters.status.join(", ")} • `}
-                {filters.title && `Title: "${filters.title}" • `}
-                {filters.tags && `Tags: "${filters.tags}"`}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                {filters.platforms?.length > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Platforms: {filters.platforms.join(", ")}
+                  </span>
+                )}
+                {filters.status?.length > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    Status: {filters.status.join(", ")}
+                  </span>
+                )}
+                {filters.title && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Title: "{filters.title}"
+                  </span>
+                )}
+                {filters.tags && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    Tags: "{filters.tags}"
+                  </span>
+                )}
               </div>
             )}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            {/* Refresh Button */}
+          {/* CONTROLS */}
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-md shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
+              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
                 isLoading ? "opacity-75 cursor-not-allowed" : ""
               }`}
               onClick={refreshData}
@@ -1238,14 +1298,14 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {isLoading ? "Refreshing..." : "Refresh Data"}
+              {isLoading ? "Refreshing..." : "Refresh"}
             </button>
 
             {/* Columns Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "columns" ? null : "columns"))
                 }
@@ -1266,30 +1326,30 @@ function CampaignsTable({ filters = {} }) {
                 Columns
               </button>
               {openMenu === "columns" && (
-                <div className="absolute right-0 z-30 mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                <div className="absolute right-0 z-30 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex justify-between gap-2">
                       <button
                         type="button"
-                        className="px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                         onClick={showAllColumns}
                       >
                         Show All
                       </button>
                       <button
                         type="button"
-                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
                         onClick={hideAllColumns}
                       >
                         Hide All
                       </button>
                     </div>
                   </div>
-                  <div className="max-h-64 overflow-auto px-2">
+                  <div className="max-h-64 overflow-auto px-2 py-1">
                     {columns.map((column, idx) => (
                       <label
                         key={column.id}
-                        className="flex items-center gap-3 px-2 py-2 hover:bg-gray-50 rounded cursor-pointer transition-colors"
+                        className="flex items-center gap-3 px-2 py-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
@@ -1311,7 +1371,7 @@ function CampaignsTable({ filters = {} }) {
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
                 onClick={() =>
                   setOpenMenu((m) => (m === "density" ? null : "density"))
                 }
@@ -1332,7 +1392,7 @@ function CampaignsTable({ filters = {} }) {
                 Density
               </button>
               {openMenu === "density" && (
-                <div className="absolute right-0 z-30 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-2">
+                <div className="absolute right-0 z-30 mt-2 w-52 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
                   {[
                     "compact",
                     "standard",
@@ -1341,7 +1401,7 @@ function CampaignsTable({ filters = {} }) {
                   ].map((opt) => (
                     <label
                       key={opt}
-                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <input
                         type="radio"
@@ -1350,7 +1410,7 @@ function CampaignsTable({ filters = {} }) {
                         onChange={() => setDensity(opt)}
                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-gray-700 font-medium">
                         {opt === "veryComfortable"
                           ? "Very Comfortable"
                           : opt.charAt(0).toUpperCase() + opt.slice(1)}
@@ -1361,107 +1421,73 @@ function CampaignsTable({ filters = {} }) {
               )}
             </div>
 
-            {/* Reset Button */}
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
               onClick={resetTable}
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
               Reset
             </button>
           </div>
         </div>
       </div>
 
-      {/* Info Notice */}
-      {/* <div className="px-4 py-2 bg-blue-50 text-blue-700 text-xs border-b border-blue-200">
-        <p className="flex items-center gap-2">
-          <svg
-            className="w-4 h-4 flex-shrink-0"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-              clipRule="evenodd"
-            />
-          </svg>
-      
-        </p>
-      </div> */}
-
-      {/* Table Container */}
-      <div ref={scrollRef} className="overflow-auto max-h-[70vh]">
-        <div className="min-w-[1200px]">
-          <table className="w-full table-fixed border-collapse">
-            <thead className="sticky top-0 z-10 bg-gray-100">
-              <tr className="border-t border-gray-200">
+      {/* Table Container - SCROLLABLE */}
+      <div ref={scrollRef} className="overflow-auto flex-grow">
+        <div className="relative">
+          <table className="w-full border-collapse min-w-max">
+            {/* ✅ FIXED HEADER with RedTrack Style */}
+            <thead className="sticky top-0 z-20 bg-white">
+              <tr style={{ backgroundColor: "#ebeff3" }}>
                 {sortedColumnOrder.map((colIdx) => {
                   if (isHidden(colIdx)) return null;
                   const column = columns[colIdx];
-                  const sortIndicator = getSortIndicator(column.id, colIdx);
+                  const sortIcon = getSortIndicator(column.id);
+                  const isSorted = sortIcon !== "⇅";
+                  const totalContent = getTotalContent(column.id);
+                  const isSticky = column.sticky;
 
                   return (
                     <th
                       key={column.id}
                       className={`
-                        ${cellPadding[density]} 
-                        text-sm font-semibold text-gray-900 
-                        select-none 
-                        hover:bg-gray-200 
-                        transition-colors duration-150
                         relative
-                        border-r border-gray-300
+                        ${cellPadding[density]}
                         ${column.numeric ? "text-right" : "text-left"}
-                        ${
-                          colIdx === dragOverColumn
-                            ? "border-l-2 border-blue-500"
-                            : ""
-                        }
+                        hover:bg-gray-200 transition-colors cursor-pointer
+                        border-b-2 border-gray-300 border-r border-gray-200
                         ${
                           draggedColumn === colIdx
                             ? "opacity-50 bg-blue-100"
                             : ""
                         }
                         ${
-                          sortConfig.clickedColumn === colIdx
-                            ? "bg-blue-50"
+                          dragOverColumn === colIdx
+                            ? "border-l-4 border-blue-500"
+                            : ""
+                        }
+                        ${
+                          isSticky
+                            ? column.id === "id"
+                              ? "sticky left-0 z-30 bg-gray-100 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
+                              : "sticky left-[60px] z-30 bg-gray-100 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
                             : ""
                         }
                       `}
                       style={{
                         width: `${columnWidths[column.id]}px`,
-                        cursor: resizing ? "col-resize" : "grab",
-                        minWidth:
-                          colIdx === 0
-                            ? "40px"
-                            : colIdx === 1
-                            ? "150px"
-                            : colIdx === 2
-                            ? "100px"
-                            : "80px",
+                        backgroundColor: isSticky ? "#ebeff3" : "#ebeff3",
+                        paddingTop: "12px",
+                        paddingBottom: "12px",
+                        cursor: resizing ? "col-resize" : "pointer",
                       }}
-                      onClick={(e) => {
-                        if (!resizing) handleSort(column.id, colIdx);
+                      onClick={() => {
+                        if (!resizing) handleSort(column.id);
                       }}
                       draggable="true"
                       onDragStart={(e) => {
                         setDraggedColumn(colIdx);
-                        e.dataTransfer.setData("text/plain", column.id);
+                        e.dataTransfer.setData("text/plain", String(colIdx));
                         e.dataTransfer.effectAllowed = "move";
                       }}
                       onDragOver={(e) => {
@@ -1476,16 +1502,18 @@ function CampaignsTable({ filters = {} }) {
                       onDragLeave={() => setDragOverColumn(null)}
                       onDrop={(e) => {
                         e.preventDefault();
-                        if (
-                          draggedColumn !== null &&
-                          draggedColumn !== colIdx
-                        ) {
+                        const fromColIdx = Number(
+                          e.dataTransfer.getData("text/plain")
+                        );
+                        const toColIdx = colIdx;
+
+                        if (fromColIdx !== toColIdx) {
                           setColumnOrder((prev) => {
                             const newOrder = [...prev];
-                            const draggedIdx = newOrder.indexOf(draggedColumn);
-                            const targetIdx = newOrder.indexOf(colIdx);
-                            newOrder.splice(draggedIdx, 1);
-                            newOrder.splice(targetIdx, 0, draggedColumn);
+                            const fromIndex = newOrder.indexOf(fromColIdx);
+                            const toIndex = newOrder.indexOf(toColIdx);
+                            const [moved] = newOrder.splice(fromIndex, 1);
+                            newOrder.splice(toIndex, 0, moved);
                             return newOrder;
                           });
                         }
@@ -1497,158 +1525,83 @@ function CampaignsTable({ filters = {} }) {
                         setDragOverColumn(null);
                       }}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate">{column.label}</span>
-                        <span
-                          className={`
-                          ml-2 text-xs transition-colors
-                          ${
-                            sortIndicator.active
-                              ? sortIndicator.ascending
-                                ? "text-green-600"
-                                : "text-red-600"
-                              : "text-gray-400 group-hover:text-gray-600"
-                          }
-                        `}
-                        >
-                          {sortIndicator.icon}
-                        </span>
+                      <div className="flex flex-col gap-2">
+                        {/* Column Label Row with Icons */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-gray-700 font-semibold text-xs truncate">
+                            {column.label}
+                          </span>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <span
+                              className={`text-sm leading-none ${
+                                isSorted ? "text-gray-900" : "text-gray-500"
+                              }`}
+                            >
+                              {sortIcon}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-gray-500 hover:text-gray-700 p-0.5"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                alert(
+                                  `Filter options for '${column.label}' would appear here.`
+                                );
+                              }}
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="currentColor"
+                                viewBox="0 0 16 16"
+                              >
+                                <circle cx="2" cy="8" r="1.5" />
+                                <circle cx="8" cy="8" r="1.5" />
+                                <circle cx="14" cy="8" r="1.5" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        {/* Total Value Row */}
+                        <div className="font-bold text-sm text-gray-900 leading-tight">
+                          {totalContent}
+                        </div>
                       </div>
 
-                      {/* Resizing handle */}
+                      {/* Resizing Handle */}
                       <div
-                        className="absolute top-0 right-0 w-4 h-full cursor-col-resize group"
+                        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-10"
                         onMouseDown={(e) => {
-                          e.preventDefault();
                           e.stopPropagation();
-                          const startX = e.clientX;
-                          const startWidth = columnWidths[column.id];
-                          setResizing({ id: column.id, startX, startWidth });
+                          setResizing({
+                            id: column.id,
+                            startX: e.clientX,
+                            startWidth: columnWidths[column.id],
+                          });
                         }}
-                      >
-                        <div className="absolute right-0 w-1 h-full opacity-0 group-hover:opacity-100 bg-blue-400 transition-opacity"></div>
-                      </div>
+                      />
                     </th>
                   );
                 })}
               </tr>
             </thead>
-            <tbody className="bg-white">
-              {/* Totals Row */}
-              <tr className="bg-gray-100 border-b-2 border-gray-300 font-medium sticky top-[40px] z-[9]">
-                {sortedColumnOrder.map((colIdx) => {
-                  if (isHidden(colIdx)) return null;
-                  const column = columns[colIdx];
 
-                  let content;
-                  if (column.id === "id") {
-                    content = "";
-                  } else if (column.id === "title") {
-                    content = (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">Total:</span>
-                      </div>
-                    );
-                  } else if (column.id === "status") {
-                    content = "";
-                  } else if (column.id === "cost") {
-                    content = `$${totals.cost.toFixed(2)}`;
-                  } else if (column.id === "revenue") {
-                    content = `$${totals.revenue.toFixed(2)}`;
-                  } else if (column.id === "profit") {
-                    const profitClass =
-                      totals.profit >= 0 ? "text-green-700" : "text-red-700";
-                    content = (
-                      <span className={`${profitClass} font-bold text-sm`}>
-                        ${Math.abs(totals.profit).toFixed(2)}
-                      </span>
-                    );
-                  } else if (column.id === "lpCtr") {
-                    content = `${
-                      totals.lpClicks && totals.lpViews
-                        ? ((totals.lpClicks / totals.lpViews) * 100).toFixed(1)
-                        : "0.0"
-                    }%`;
-                  } else if (column.id === "roi") {
-                    const roiValue = totals.cost
-                      ? (totals.profit / totals.cost) * 100
-                      : 0;
-                    const roiClass =
-                      roiValue >= 0 ? "text-green-700" : "text-red-700";
-                    content = (
-                      <span className={`${roiClass} font-bold text-sm`}>
-                        {roiValue.toFixed(1)}%
-                      </span>
-                    );
-                  } else if (column.id === "purchases") {
-                    content = totals.purchases;
-                  } else if (column.id === "cpa") {
-                    content = `$${
-                      totals.purchases
-                        ? (totals.cost / totals.purchases).toFixed(2)
-                        : "0.00"
-                    }`;
-                  } else if (column.id === "aov") {
-                    content = `$${
-                      totals.purchases
-                        ? (totals.revenue / totals.purchases).toFixed(2)
-                        : "0.00"
-                    }`;
-                  } else if (column.id === "cr") {
-                    content = `${
-                      totals.clicks && totals.purchases
-                        ? ((totals.purchases / totals.clicks) * 100).toFixed(1)
-                        : "0.0"
-                    }%`;
-                  } else if (column.id === "lpcpc") {
-                    content = totals.lpClicks
-                      ? (totals.cost / totals.lpClicks).toFixed(2)
-                      : "0.00";
-                  } else if (column.id === "lpepc") {
-                    content = totals.lpClicks
-                      ? (totals.revenue / totals.lpClicks).toFixed(2)
-                      : "0.00";
-                  } else if (column.id === "clicks") {
-                    content = totals.clicks;
-                  } else if (column.id === "lpViews") {
-                    content = totals.lpViews;
-                  } else if (column.id === "lpClicks") {
-                    content = totals.lpClicks;
-                  } else {
-                    content = "";
-                  }
-
-                  return (
-                    <td
-                      key={column.id}
-                      className={`${cellPadding[density]} ${
-                        column.numeric ? "text-right" : ""
-                      } text-sm font-semibold text-gray-900 border-r border-gray-300`}
-                      style={{ width: `${columnWidths[column.id]}px` }}
-                    >
-                      {content}
-                    </td>
-                  );
-                })}
-              </tr>
-
-              {/* Data Rows */}
+            {/* Table Body */}
+            <tbody className="bg-white divide-y divide-gray-100">
               {isLoading ? (
                 <TableSkeleton
                   columnCount={
                     sortedColumnOrder.filter((idx) => !isHidden(idx)).length
                   }
-                  rowCount={10}
+                  rowCount={15}
                 />
               ) : pageRows.length > 0 ? (
                 pageRows.map((row) => {
-                  const indentation = row.level ? row.level * 12 : 0;
+                  const indentation = row.level ? row.level * 16 : 0;
                   const canExpand =
                     !row.type ||
                     row.type === "date" ||
                     row.type === "hour" ||
                     row.type === "offer";
-
                   let isExpanded = false;
                   if (!row.type) {
                     isExpanded = drillDownState.expandedCampaigns.has(row.id);
@@ -1665,111 +1618,99 @@ function CampaignsTable({ filters = {} }) {
                       `${row.campaignId}-${row.dateId}-${row.hourId}-${row.id}`
                     );
                   }
-
                   const rowBackground = getRowBackgroundColor(
                     row.profit,
                     row.level || 0
                   );
-
                   return (
                     <tr
                       key={`${row.type || "campaign"}-${row.id}`}
-                      className={`${rowBackground} transition-colors border-b border-gray-100`}
+                      className={`${rowBackground} transition-colors duration-150 border-b border-gray-100`}
                     >
-                      {sortedColumnOrder.map((colIdx) => {
+                      {sortedColumnOrder.map((colIdx, cellIndex) => {
                         if (isHidden(colIdx)) return null;
                         const column = columns[colIdx];
+                        const isSticky = column.sticky;
+
+                        if (column.id === "id") {
+                          return (
+                            <td
+                              key={`${row.id}-${column.id}`}
+                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-200 sticky left-0 z-10 ${rowBackground}`}
+                            >
+                              {row.id}
+                            </td>
+                          );
+                        }
 
                         if (column.id === "title") {
                           return (
                             <td
                               key={`${row.id}-${column.id}`}
-                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-300`}
+                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-200 sticky left-[60px] z-10 ${rowBackground}`}
                             >
                               <div
                                 className="flex items-center gap-2"
                                 style={{ paddingLeft: `${indentation}px` }}
                               >
-                                {canExpand && (
+                                {canExpand ? (
                                   <button
                                     onClick={() => {
-                                      if (!row.type) {
+                                      if (!row.type)
                                         toggleCampaignExpansion(row.id);
-                                      } else if (row.type === "date") {
+                                      else if (row.type === "date")
                                         toggleDateExpansion(
                                           row.campaignId,
                                           row.id
                                         );
-                                      } else if (row.type === "hour") {
+                                      else if (row.type === "hour")
                                         toggleHourExpansion(
                                           row.campaignId,
                                           row.dateId,
                                           row.id
                                         );
-                                      } else if (row.type === "offer") {
+                                      else if (row.type === "offer")
                                         toggleOfferExpansion(
                                           row.campaignId,
                                           row.dateId,
                                           row.hourId,
                                           row.id
                                         );
-                                      }
                                     }}
-                                    className="text-gray-500 hover:text-gray-800 focus:outline-none flex-shrink-0 transition-colors"
+                                    className="text-gray-500 hover:text-blue-600 focus:outline-none flex-shrink-0"
                                   >
-                                    {isExpanded ? (
-                                      <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 9l-7 7-7-7"
-                                        />
-                                      </svg>
-                                    ) : (
-                                      <svg
-                                        className="w-5 h-5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M9 5l7 7-7 7"
-                                        />
-                                      </svg>
-                                    )}
+                                    <svg
+                                      className={`w-5 h-5 transition-transform duration-200 ${
+                                        isExpanded ? "rotate-90" : ""
+                                      }`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 5l7 7-7 7"
+                                      />
+                                    </svg>
                                   </button>
-                                )}
-
-                                {!canExpand && row.type === "landing" && (
+                                ) : (
                                   <span className="w-5 h-5 flex-shrink-0"></span>
                                 )}
-
                                 {row.type && (
                                   <span className="flex-shrink-0">
                                     {getLevelIcon(row.type)}
                                   </span>
                                 )}
-
                                 {!row.type && (
                                   <div className="text-gray-600 flex-shrink-0">
                                     <PlatformIcon platform={row.platform} />
                                   </div>
                                 )}
-
                                 <span
                                   className={`truncate ${
-                                    row.type === "landing"
-                                      ? "text-gray-600 text-xs"
-                                      : row.type
+                                    row.type
                                       ? "font-medium text-gray-800"
                                       : "font-semibold"
                                   }`}
@@ -1781,13 +1722,12 @@ function CampaignsTable({ filters = {} }) {
                             </td>
                           );
                         }
-
                         return (
                           <td
                             key={`${row.id}-${column.id}`}
                             className={`${cellPadding[density]} ${
                               column.numeric ? "text-right" : ""
-                            } text-sm text-gray-900 border-r border-gray-300`}
+                            } text-sm text-gray-800 border-r border-gray-200`}
                           >
                             {getCellValue(row, column.id)}
                           </td>
@@ -1800,13 +1740,13 @@ function CampaignsTable({ filters = {} }) {
                 <tr>
                   <td
                     colSpan={
-                      sortedColumnOrder.filter((idx) => !isHidden(idx)).length
+                      sortedColumnOrder.filter((i) => !isHidden(i)).length
                     }
-                    className="px-6 py-10 text-center text-sm text-gray-500 border-r border-gray-300"
+                    className="px-6 py-16 text-center text-gray-500"
                   >
-                    <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col items-center gap-3">
                       <svg
-                        className="w-12 h-12 text-gray-400"
+                        className="w-16 h-16 text-gray-300"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1814,11 +1754,14 @@ function CampaignsTable({ filters = {} }) {
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
-                          strokeWidth={2}
+                          strokeWidth={1.5}
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
                       </svg>
-                      <p>No campaigns found matching your criteria</p>
+                      <p className="text-base font-medium text-gray-600">
+                        No campaigns found
+                      </p>
+                      <p className="text-sm">Try adjusting your filters.</p>
                     </div>
                   </td>
                 </tr>
@@ -1828,14 +1771,12 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* Pagination Footer */}
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+      {/* FOOTER - Pagination */}
+      <div className="px-6 py-3 bg-gray-50/75 border-t border-gray-200 rounded-b-lg flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Rows per page:
-              </label>
+              <label className="text-sm font-medium text-gray-700">Rows:</label>
               <select
                 className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 value={rowsPerPage}
@@ -1851,28 +1792,31 @@ function CampaignsTable({ filters = {} }) {
                 <option value={200}>200</option>
               </select>
             </div>
-
-            <div className="text-sm text-gray-700">
-              Showing {sortedData.length > 0 ? (page - 1) * rowsPerPage + 1 : 0}{" "}
-              to {Math.min(page * rowsPerPage, sortedData.length)} of{" "}
-              {sortedData.length} campaigns
+            <div className="text-sm font-medium text-gray-600">
+              <span className="font-bold text-gray-800">
+                {sortedData.length.toLocaleString()}
+              </span>{" "}
+              results
               {(filters.platforms?.length > 0 ||
                 filters.title ||
                 filters.tags ||
-                filters.status?.length > 0) &&
-                ` (filtered from ${rawData.length})`}
+                filters.status?.length > 0) && (
+                <span className="text-gray-500">
+                  {" "}
+                  (filtered from {rawData.length.toLocaleString()})
+                </span>
+              )}
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || isLoading}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <svg
-                className="w-4 h-4 mr-1"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1884,11 +1828,9 @@ function CampaignsTable({ filters = {} }) {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Previous
             </button>
-
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Page</span>
+              <span className="text-sm font-medium text-gray-700">Page</span>
               <input
                 type="number"
                 min={1}
@@ -1900,20 +1842,20 @@ function CampaignsTable({ filters = {} }) {
                     setPage(Math.min(totalPages, Math.max(1, v)));
                 }}
                 disabled={isLoading}
-                className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
+                className="w-16 px-2 py-1 text-sm text-center font-medium border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
               />
-              <span className="text-sm text-gray-700">of {totalPages}</span>
+              <span className="text-sm font-medium text-gray-700">
+                of {totalPages}
+              </span>
             </div>
-
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || isLoading}
-              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
-              Next
               <svg
-                className="w-4 h-4 ml-1"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

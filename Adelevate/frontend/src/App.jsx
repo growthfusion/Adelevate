@@ -13,6 +13,8 @@ import EditRuleFormExclusion from "./features/automation/rules/ExclusionRules";
 import Campaigns from "./features/campaigns/page";
 import CampaignPerformanceHub from "./features/metric_dashboard/campaign-performance/index";
 import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
+import Add_Acounts from "./features/addAccount/page";
+
 
 import { supabase } from "@/supabaseClient";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
@@ -76,6 +78,10 @@ function App() {
                         path="*"
                         element={<Navigate to="/dashboard" replace />}
                       />
+
+                      <Route path="addAccount" element={<Add_Acounts />} />
+
+                     
                     </Routes>
                   </main>
                 </div>
