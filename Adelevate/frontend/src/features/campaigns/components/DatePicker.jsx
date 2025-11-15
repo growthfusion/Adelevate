@@ -68,12 +68,13 @@ function formatDateRange(startDate, endDate) {
 
 function DatePickerToggle({ initialSelection, onChange }) {
   const [selection, setSelection] = useState(
-    initialSelection || {
-      startDate: subDays(new Date(), 2),
-      endDate: new Date(),
-      key: "last3days",
-    }
+      initialSelection || {
+        startDate: startOfDay(new Date()),
+        endDate: startOfDay(new Date()),
+        key: "today",
+      }
   );
+
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
