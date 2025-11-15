@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
@@ -249,12 +249,11 @@ function CampaignsTable({ filters = {} }) {
     }
   };
 
-  const fetchLiveData = async () => {
+  const fetchLiveData = useCallback(async () => {
     setIsLoading(true);
     setApiError(null);
     try {
       const res = await fetch(CAMPAIGNS_API, { method: "GET" });
-
       console.log("Campaign API status:", res.status);
 
       if (!res.ok) {
@@ -273,7 +272,6 @@ function CampaignsTable({ filters = {} }) {
 
       const data = await res.json();
       console.log("Campaign API raw data:", data);
-
       const rows =
           Array.isArray(data)
               ? data
@@ -287,10 +285,6 @@ function CampaignsTable({ filters = {} }) {
                       || [];
 
       console.log("Campaign rows derived:", rows);
-
-
-      console.log("Campaign rows derived:", rows);
-
       const mapped = rows
           .filter(Boolean) // safety: remove any null/undefined from API
           .map((r, idx) => {
@@ -413,18 +407,24 @@ function CampaignsTable({ filters = {} }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // 🟢 NEW: refresh button uses live fetch
   const refreshData = () => {
     fetchLiveData();
   };
 
-  // 🟢 NEW: initial load
   useEffect(() => {
     fetchLiveData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchLiveData]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      console.log("Auto-refreshing campaigns (5 min interval)");
+      fetchLiveData();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(intervalId);
+  }, [fetchLiveData]);
 
   // Sort columns based on selection order
   const sortedColumnOrder = useMemo(() => {
