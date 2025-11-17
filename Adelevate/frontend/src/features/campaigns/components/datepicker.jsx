@@ -61,10 +61,7 @@ function formatDateRange(startDate, endDate) {
   if (!endDate || isSameDay(startDate, endDate)) {
     return format(startDate, "MMM d, yyyy")
   }
-  return `${format(startDate, "MMM d, yyyy")} - ${format(
-    endDate,
-    "MMM d, yyyy"
-  )}`;
+  return `${format(startDate, "MMM d, yyyy")} - ${format(endDate, "MMM d, yyyy")}`
 }
 
 function DatePickerToggle({ initialSelection, onChange }) {
