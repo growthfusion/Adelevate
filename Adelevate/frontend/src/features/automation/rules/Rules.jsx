@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Plus, Copy, Trash2, Search as SearchIcon } from "lucide-react";
-import { SquarePen } from 'lucide-react';
+import {
+  ChevronDown,
+  Plus,
+  Copy,
+  Trash2,
+  Search as SearchIcon,
+  Edit2,
+} from "lucide-react";
+import { SquarePen } from "lucide-react";
 
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
@@ -14,18 +21,21 @@ import { supabase } from "@/supabaseClient";
 
 // Firestore
 import { db } from "@/firebase";
-import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
-
-const comparisonSymbol = { gte: "≥", lte: "≤", eq: "=" };
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
 const normalizeStatus = (s) => {
   const v = typeof s === "string" ? s.trim().toLowerCase() : s;
   if (v === true || v === "running" || v === "active") return "Running";
   if (v === false || v === "paused") return "Paused";
-  return "Running"; // default
+  return "Running";
 };
 
-// type → route
 function routeForType(t = "") {
   const s = String(t).toLowerCase().trim();
   if (s.includes("pause")) return "/editPause";
@@ -39,27 +49,27 @@ function routeForType(t = "") {
 const getComparisonSymbol = (operator) => {
   let symbol = "";
   let colorClass = "";
-  
-  switch(operator) {
+
+  switch (operator) {
     case "gt":
     case "Greater":
       symbol = ">";
-      colorClass = "text-green-600";
+      colorClass = "text-emerald-600";
       break;
     case "gte":
     case "Greater or Equal":
       symbol = "≥";
-      colorClass = "text-green-600";
+      colorClass = "text-emerald-600";
       break;
     case "lt":
     case "Less":
       symbol = "<";
-      colorClass = "text-red-600";
+      colorClass = "text-rose-600";
       break;
     case "lte":
     case "Less or Equal":
       symbol = "≤";
-      colorClass = "text-red-600";
+      colorClass = "text-rose-600";
       break;
     case "eq":
     case "Equal to":
@@ -68,13 +78,15 @@ const getComparisonSymbol = (operator) => {
       break;
     default:
       symbol = "=";
-      colorClass = "text-gray-600";
+      colorClass = "text-slate-600";
   }
-  
-  return <span className={`font-bold text-lg ${colorClass}`}>{symbol}</span>;
+
+  return (
+    <span className={`font-semibold text-base ${colorClass}`}>{symbol}</span>
+  );
 };
 
-// platform icons
+// Platform icons
 const PLATFORM_ICONS = {
   meta: fb,
   snap: snapchatIcon,
@@ -99,13 +111,15 @@ const PlatformIcon = ({ platform }) => {
   const key = normalizePlatformKey(platform);
   const src = PLATFORM_ICONS[key];
   if (!src) return null;
-  return <img src={src} alt={key} title={key} className="w-5 h-5" />;
+  return (
+    <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center">
+      <img src={src} alt={key} title={key} className="w-4 h-4 object-contain" />
+    </div>
+  );
 };
 
-// helper: unique key for a rule across collections
 const ruleKey = (r) => `${r.__colName}::${r.id}`;
 
-// fixed order for collections
 const COLLECTION_ORDER = [
   "meta_pause_campaign",
   "meta_active_campaign",
@@ -153,19 +167,17 @@ const RulesDashboard = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
   const [user, setUser] = useState(null);
-
-  // NEW: track pending write per row to avoid re-click and flicker
   const [pendingKeys, setPendingKeys] = useState([]);
   const isPending = (k) => pendingKeys.includes(k);
 
-  // session
+  // Session
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user);
     });
   }, []);
 
-  // live Firestore
+  // Live Firestore
   useEffect(() => {
     const colNames = COLLECTION_ORDER;
     const unsubs = colNames.map((col) =>
@@ -186,7 +198,7 @@ const RulesDashboard = () => {
     return () => unsubs.forEach((unsub) => unsub());
   }, []);
 
-  // scroll tracker
+  // Scroll tracker
   useEffect(() => {
     const handleScroll = () => {
       if (headerRef.current) {
@@ -217,7 +229,6 @@ const RulesDashboard = () => {
     },
   ];
 
-  // close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -230,15 +241,15 @@ const RulesDashboard = () => {
 
   const getStatusColor = (status) =>
     status === "Running"
-      ? "bg-green-100 text-green-800"
-      : "bg-yellow-100 text-yellow-800";
+      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+      : "bg-amber-50 border-amber-200 text-amber-700";
 
   const getConditionColor = (_, index) => {
     const colors = [
-      "bg-blue-100 text-blue-800",
-      "bg-green-100 text-green-800",
-      "bg-purple-100 text-purple-800",
-      "bg-orange-100 text-orange-800",
+      "bg-blue-50 border-blue-200 text-blue-700",
+      "bg-violet-50 border-violet-200 text-violet-700",
+      "bg-purple-50 border-purple-200 text-purple-700",
+      "bg-pink-50 border-pink-200 text-pink-700",
     ];
     return colors[index % colors.length];
   };
@@ -247,18 +258,14 @@ const RulesDashboard = () => {
     type.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Helper function to format conditions for log
   const formatConditionsForLog = (rule) => {
     const conds = rule.condition || rule.conditions || [];
     return conds
       .map((c) => {
         if (typeof c === "string") return c;
-
         const metric = (c.metric || "").toString().toUpperCase();
         const operator = c.comparison || c.operator || "eq";
         const threshold = c.threshold ?? c.value ?? "";
-
-        // Convert operator to symbol
         let symbol = "=";
         switch (operator) {
           case "gt":
@@ -282,19 +289,16 @@ const RulesDashboard = () => {
             symbol = "=";
             break;
         }
-
         return `${metric} ${symbol} ${threshold}`;
       })
       .join(", ");
   };
 
-  // Function to get platform icon URL
   const getPlatformIconUrl = (platform) => {
     const key = normalizePlatformKey(platform);
     return PLATFORM_ICONS[key] || "";
   };
 
-  // Function to get rule name safely
   const getRuleName = (rule) => {
     return rule.name || `${rule.type} Rule (${rule.id})` || `Rule ${rule.id}`;
   };
@@ -306,10 +310,8 @@ const RulesDashboard = () => {
     setSearchQuery("");
 
     if (user?.email) {
-      // Extract platform from type
       const platforms = type.platform || "";
       const firstPlatform = platforms.split(",")[0];
-
       await logAction({
         userEmail: user.email,
         action: "add",
@@ -348,7 +350,6 @@ const RulesDashboard = () => {
     } catch (e) {
       console.error(e);
       alert(`Failed to delete: ${e.message}`);
-
       if (user?.email) {
         await logAction({
           userEmail: user.email,
@@ -388,7 +389,6 @@ const RulesDashboard = () => {
     } catch (e) {
       console.error("Failed to update status:", e);
       alert("Failed to update status. Please try again.");
-
       if (user?.email) {
         await logAction({
           userEmail: user.email,
@@ -483,24 +483,21 @@ const RulesDashboard = () => {
     }
   };
 
-  // For duplicating a rule
   const duplicateRule = (rule) => {
-    // Implementation would go here
-    // For now just showing a message
     alert(`Duplicate feature for "${getRuleName(rule)}" coming soon!`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="min-h-screen bg-white pb-12 max-sm:pt-[20%] pt-0">
       <div ref={headerRef}></div>
 
       {/* Fixed action bar when scrolled */}
       {isScrolled && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-white shadow-md border-b border-gray-200">
-          <div className="max-w-7xl mx-auto flex items-center gap-3 px-4 xs:px-6 py-3">
+        <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
+          <div className="max-w-7xl mx-auto flex items-center gap-3 px-6 py-4">
             <div className="relative" ref={dropdownRef}>
               <button
-                className="flex items-center gap-2 px-3 xs:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-cyan-700 hover:to-teal-700 transition-all shadow-sm"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <Plus className="w-4 h-4" />
@@ -508,28 +505,30 @@ const RulesDashboard = () => {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 w-64 bg-white border shadow-lg rounded-md z-50 max-h-80 overflow-y-auto">
-                  <div className="p-2">
+                <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden">
+                  <div className="p-3">
                     <div className="relative mb-3">
-                      <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                       <input
-                        placeholder="Search for rules"
-                        className="pl-10 border border-gray-300 rounded-md w-full py-1"
+                        placeholder="Search rule types..."
+                        className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    {filteredRuleTypes.map((type) => (
-                      <button
-                        key={type.name}
-                        className="flex items-center w-full py-2 px-2 text-left hover:bg-gray-50 rounded-md"
-                        onClick={() => addNewRule(type)}
-                      >
-                        <span className="text-sm text-gray-700">
-                          {type.name}
-                        </span>
-                      </button>
-                    ))}
+                    <div className="space-y-1">
+                      {filteredRuleTypes.map((type) => (
+                        <button
+                          key={type.name}
+                          className="flex items-center w-full py-2.5 px-3 text-left hover:bg-slate-50 rounded-lg transition-colors"
+                          onClick={() => addNewRule(type)}
+                        >
+                          <span className="text-sm text-slate-700 font-medium">
+                            {type.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -539,21 +538,21 @@ const RulesDashboard = () => {
       )}
 
       {/* Main content */}
-      <div className={`p-3 xs:p-4 sm:p-6 ${isScrolled ? "pt-16" : ""}`}>
+      <div className={`px-6 sm:px-8 lg:px-12 ${isScrolled ? "pt-20" : "pt-8"}`}>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-cyan-600 pr-3">
-                Rules
-              </h1>
-            </div>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
+              Rules
+            </h1>
+           
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center gap-3 mb-4 sm:mb-6">
+          <div className="flex items-center gap-3 mb-6">
             <div className="relative" ref={dropdownRef}>
               <button
-                className="flex items-center gap-2 px-3 xs:px-4 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm hover:bg-gray-50"
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-sky-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-sky-700 transition-all shadow-sm"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <Plus className="w-4 h-4" />
@@ -561,79 +560,93 @@ const RulesDashboard = () => {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {dropdownOpen && (
-                <div className="absolute left-0 top-full mt-1 w-64 bg-white border shadow-lg rounded-md z-50">
-                  <div className="p-2">
+                <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden">
+                  <div className="p-3">
                     <div className="relative mb-3">
-                      <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                       <input
-                        placeholder="Search for rules"
-                        className="pl-10 border border-gray-300 rounded-md w-full py-1"
+                        placeholder="Search rule types..."
+                        className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
-                    {filteredRuleTypes.map((type) => (
-                      <button
-                        key={type.name}
-                        className="flex items-center w-full py-2 px-2 text-left hover:bg-gray-50 rounded-md"
-                        onClick={() => addNewRule(type)}
-                      >
-                        <span className="text-sm text-gray-700">
-                          {type.name}
-                        </span>
-                      </button>
-                    ))}
+                    <div className="space-y-1">
+                      {filteredRuleTypes.map((type) => (
+                        <button
+                          key={type.name}
+                          className="flex items-center w-full py-2.5 px-3 text-left hover:bg-slate-50 rounded-lg transition-colors"
+                          onClick={() => addNewRule(type)}
+                        >
+                          <span className="text-sm text-slate-700 font-medium">
+                            {type.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          {/* Table Card */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Desktop Table */}
-            <div className="hidden md:block">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-32">
-                      Actions
+                <thead className="sticky top-0 bg-slate-50 z-10">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Actions
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-64">
-                      Name
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Name
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-24">
-                      Status
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Status
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-40">
-                      Type
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Type
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-80">
-                      Conditions
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Conditions
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 border-r border-gray-200 p-3 text-left w-32">
-                      Frequency
+                    <th className="px-6 py-4 text-left border-r border-slate-200">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Frequency
+                      </span>
                     </th>
-                    <th className="font-medium text-gray-700 p-3 text-center w-32">
-                      Platform
+                    <th className="px-6 py-4 text-center">
+                      <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">
+                        Platform
+                      </span>
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="bg-white">
+                <tbody className="divide-y divide-slate-100">
                   {paginatedRules.length > 0 ? (
-                    paginatedRules.map((rule, index) => {
+                    paginatedRules.map((rule) => {
                       const displayStatus = normalizeStatus(rule.status);
                       const k = ruleKey(rule);
                       return (
                         <tr
                           key={k}
-                          className={`hover:bg-gray-50 border-b border-gray-200 ${
-                            index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          }`}
+                          className="hover:bg-slate-50 transition-colors group"
                         >
-                          <td className="py-3 px-3 border-r border-gray-200">
-                            <div className="flex items-center gap-2">
+                          <td className="px-6 py-4 border-r border-slate-100">
+                            <div className="flex items-center gap-3">
                               {/* Toggle */}
                               <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -645,79 +658,67 @@ const RulesDashboard = () => {
                                   disabled={isPending(k)}
                                   className="sr-only peer"
                                 />
-                                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500" />
+                                <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-checked:after:border-white" />
                               </label>
 
                               <div className="flex items-center gap-1">
-                                <div className="relative group">
+                                {/* Edit Button with Tooltip */}
+                                <div className="relative group/edit">
                                   <button
-                                    className="p-1 hover:bg-gray-100 rounded"
+                                    className="p-2 hover:bg-cyan-50 rounded-lg transition-colors"
                                     onClick={() => ruleEdit(rule)}
                                   >
-                                    <SquarePen className="w-4 h-4 text-gray-600" />
+                                    <SquarePen className="w-4 h-4 text-cyan-600" />
                                   </button>
-                                  <span
-                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
-                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
-                                    shadow opacity-0 group-hover:opacity-100 
-                                    pointer-events-none transition-all duration-150 
-                                    scale-95 group-hover:scale-100 whitespace-nowrap"
-                                  >
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover/edit:opacity-100 group-hover/edit:visible transition-all duration-200 pointer-events-none shadow-lg">
                                     Edit
-                                  </span>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[5px] border-transparent border-t-slate-900"></div>
+                                  </div>
                                 </div>
 
-                                <div className="relative group">
+                                {/* Duplicate Button with Tooltip */}
+                                <div className="relative group/duplicate">
                                   <button
-                                    className="p-1 hover:bg-gray-100 rounded"
+                                    className="p-2 hover:bg-violet-50 rounded-lg transition-colors"
                                     onClick={() => duplicateRule(rule)}
                                   >
-                                    <Copy className="w-4 h-4 text-blue-500" />
+                                    <Copy className="w-4 h-4 text-violet-600" />
                                   </button>
-                                  <span
-                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
-                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
-                                    shadow opacity-0 group-hover:opacity-100 
-                                    pointer-events-none transition-all duration-150 
-                                    scale-95 group-hover:scale-100 whitespace-nowrap"
-                                  >
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover/duplicate:opacity-100 group-hover/duplicate:visible transition-all duration-200 pointer-events-none shadow-lg">
                                     Duplicate
-                                  </span>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[5px] border-transparent border-t-slate-900"></div>
+                                  </div>
                                 </div>
 
-                                <div className="relative group">
+                                {/* Delete Button with Tooltip */}
+                                <div className="relative group/delete">
                                   <button
-                                    className="p-1 hover:bg-gray-100 rounded"
+                                    className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
                                     onClick={() => deleteRule(rule)}
                                   >
-                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                    <Trash2 className="w-4 h-4 text-rose-600" />
                                   </button>
-                                  <span
-                                    className="absolute -top-8 left-1/2 -translate-x-1/2 
-                                    bg-gray-800 text-white text-xs px-2 py-1 rounded 
-                                    shadow opacity-0 group-hover:opacity-100 
-                                    pointer-events-none transition-all duration-150 
-                                    scale-95 group-hover:scale-100 whitespace-nowrap"
-                                  >
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-1.5 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 invisible group-hover/delete:opacity-100 group-hover/delete:visible transition-all duration-200 pointer-events-none shadow-lg">
                                     Delete
-                                  </span>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[5px] border-transparent border-t-slate-900"></div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          <td className="py-3 px-3 border-r border-gray-200">
+                          <td className="px-6 py-4 border-r border-slate-100">
                             <button
                               onClick={() => ruleEdit(rule)}
-                              className="text-left hover:text-blue-600 transition-colors font-medium text-sm text-gray-900"
+                              className="text-left hover:text-slate-900 transition-colors font-medium text-sm text-slate-700"
                             >
                               {rule.name || `Unnamed ${rule.type}`}
                             </button>
                           </td>
 
-                          <td className="py-3 px-3 border-r border-gray-200">
+                          <td className="px-6 py-4 border-r border-slate-100">
                             <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(
                                 displayStatus
                               )}`}
                             >
@@ -725,16 +726,18 @@ const RulesDashboard = () => {
                             </span>
                           </td>
 
-                          <td className="text-sm text-gray-600 py-3 px-3 border-r border-gray-200">
-                            {rule.type}
+                          <td className="px-6 py-4 border-r border-slate-100">
+                            <span className="text-sm text-slate-600">
+                              {rule.type}
+                            </span>
                           </td>
 
-                          <td className="py-3 px-3 border-r border-gray-200">
-                            <div className="flex flex-wrap gap-1">
+                          <td className="px-6 py-4 border-r border-slate-100">
+                            <div className="flex flex-wrap gap-1.5">
                               {renderConditions(rule).map((txt, i) => (
                                 <span
                                   key={`${k}-c${i}`}
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getConditionColor(
                                     txt,
                                     i
                                   )}`}
@@ -745,11 +748,13 @@ const RulesDashboard = () => {
                             </div>
                           </td>
 
-                          <td className="text-sm text-gray-600 border-r border-gray-200 py-3 px-3">
-                            {rule.frequency}
+                          <td className="px-6 py-4 border-r border-slate-100">
+                            <span className="text-sm text-slate-600">
+                              {rule.frequency}
+                            </span>
                           </td>
 
-                          <td className="py-3 px-3 text-center">
+                          <td className="px-6 py-4">
                             <div className="flex justify-center">
                               <PlatformIcon platform={rule.platform} />
                             </div>
@@ -759,21 +764,26 @@ const RulesDashboard = () => {
                     })
                   ) : (
                     <tr>
-                      <td
-                        colSpan="7"
-                        className="py-12 text-center text-gray-500 bg-white"
-                      >
-                        <div className="flex flex-col items-center justify-center gap-3">
-                          <div className="text-gray-400 border border-gray-200 rounded-full p-3">
-                            <Plus className="w-8 h-8" />
+                      <td colSpan="7" className="py-16 text-center">
+                        <div className="flex flex-col items-center justify-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-50 to-teal-50 flex items-center justify-center">
+                            <Plus className="w-6 h-6 text-cyan-600" />
                           </div>
-                          <p className="text-lg font-medium text-gray-600">
-                            No rules found
-                          </p>
-                          <p className="text-gray-500 max-w-sm text-center">
-                            Create your first rule by clicking the "New Rule"
-                            button
-                          </p>
+                          <div>
+                            <p className="text-base font-medium text-slate-900">
+                              No rules yet
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                              Get started by creating your first automation rule
+                            </p>
+                          </div>
+                          <button
+                            className="mt-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-sky-600 text-white rounded-lg text-sm font-medium hover:from-cyan-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
+                            onClick={() => setDropdownOpen(true)}
+                          >
+                            <Plus className="w-4 h-4" />
+                            Create Rule
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -782,23 +792,31 @@ const RulesDashboard = () => {
               </table>
             </div>
 
-            {/* Mobile/Tablet View - Improved for better readability */}
-            <div className="md:hidden bg-white">
+            {/* Mobile/Tablet View */}
+            <div className="md:hidden divide-y divide-slate-100">
               {paginatedRules.length > 0 ? (
-                paginatedRules.map((rule, index) => {
+                paginatedRules.map((rule) => {
                   const displayStatus = normalizeStatus(rule.status);
                   const k = ruleKey(rule);
                   return (
-                    <div key={k} className={`p-4 border-b border-gray-200`}>
-                      <div className="flex flex-wrap items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 mb-1">
+                    <div
+                      key={k}
+                      className="p-5 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
                           <PlatformIcon platform={rule.platform} />
-                          <h3 className="font-medium text-gray-900">
-                            {rule.name || `Unnamed ${rule.type}`}
-                          </h3>
+                          <div>
+                            <h3 className="font-medium text-slate-900 text-sm">
+                              {rule.name || `Unnamed ${rule.type}`}
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {rule.type}
+                            </p>
+                          </div>
                         </div>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(
                             displayStatus
                           )}`}
                         >
@@ -806,44 +824,37 @@ const RulesDashboard = () => {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                        <div className="bg-gray-50 p-2 rounded-md">
-                          <p className="text-xs text-gray-500 mb-1 font-medium">
-                            Type
+                      <div className="grid grid-cols-1 gap-3 mb-4">
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                          <p className="text-xs text-slate-500 mb-1.5 font-medium uppercase tracking-wide">
+                            Conditions
                           </p>
-                          <p className="text-sm text-gray-800">{rule.type}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {renderConditions(rule).map((txt, i) => (
+                              <span
+                                key={`${k}-c${i}`}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getConditionColor(
+                                  txt,
+                                  i
+                                )}`}
+                              >
+                                {txt}
+                              </span>
+                            ))}
+                          </div>
                         </div>
 
-                        <div className="bg-gray-50 p-2 rounded-md">
-                          <p className="text-xs text-gray-500 mb-1 font-medium">
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                          <p className="text-xs text-slate-500 mb-1 font-medium uppercase tracking-wide">
                             Frequency
                           </p>
-                          <p className="text-sm text-gray-800">
+                          <p className="text-sm text-slate-900">
                             {rule.frequency}
                           </p>
                         </div>
                       </div>
 
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-500 mb-2 font-medium">
-                          Conditions
-                        </p>
-                        <div className="flex flex-wrap gap-1 bg-gray-50 p-2 rounded-md">
-                          {renderConditions(rule).map((txt, i) => (
-                            <span
-                              key={`${k}-c${i}`}
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(
-                                txt,
-                                i
-                              )}`}
-                            >
-                              {txt}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -852,37 +863,37 @@ const RulesDashboard = () => {
                             disabled={isPending(k)}
                             className="sr-only peer"
                           />
-                          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500" />
-                          <span className="ml-2 text-sm text-gray-700">
+                          <div className="w-10 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-slate-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-checked:after:border-white" />
+                          <span className="ml-3 text-sm text-slate-700 font-medium">
                             {normalizeStatus(rule.status) === "Running"
                               ? "Active"
                               : "Paused"}
                           </span>
                         </label>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
                           <button
-                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            className="p-2 hover:bg-cyan-50 rounded-lg transition-colors"
                             onClick={() => ruleEdit(rule)}
                             aria-label="Edit rule"
                           >
-                            <SquarePen className="w-4 h-4 text-gray-600" />
+                            <Edit2 className="w-4 h-4 text-cyan-600" />
                           </button>
 
                           <button
-                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            className="p-2 hover:bg-violet-50 rounded-lg transition-colors"
                             onClick={() => duplicateRule(rule)}
                             aria-label="Duplicate rule"
                           >
-                            <Copy className="w-4 h-4 text-blue-500" />
+                            <Copy className="w-4 h-4 text-violet-600" />
                           </button>
 
                           <button
-                            className="flex items-center justify-center p-2 hover:bg-gray-100 rounded-full"
+                            className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
                             onClick={() => deleteRule(rule)}
                             aria-label="Delete rule"
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-4 h-4 text-rose-600" />
                           </button>
                         </div>
                       </div>
@@ -890,132 +901,145 @@ const RulesDashboard = () => {
                   );
                 })
               ) : (
-                <div className="py-12 text-center text-gray-500">
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="text-gray-400 border border-gray-200 rounded-full p-3">
-                      <Plus className="w-8 h-8" />
+                <div className="py-16 text-center">
+                  <div className="flex flex-col items-center justify-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-50 to-teal-50 flex items-center justify-center">
+                      <Plus className="w-6 h-6 text-cyan-600" />
                     </div>
-                    <p className="text-lg font-medium text-gray-600">
-                      No rules found
-                    </p>
-                    <p className="text-gray-500 max-w-sm mx-auto">
-                      Create your first rule by clicking the "New Rule" button
-                    </p>
+                    <div>
+                      <p className="text-base font-medium text-slate-900">
+                        No rules yet
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                        Get started by creating your first automation rule
+                      </p>
+                    </div>
                     <button
-                      className="mt-3 px-4 py-2 bg-cyan-600 text-white rounded-md shadow-sm hover:bg-cyan-700"
+                      className="mt-2 px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-teal-600 text-white rounded-lg text-sm font-medium hover:from-cyan-700 hover:to-teal-700 transition-all shadow-sm flex items-center gap-2"
                       onClick={() => setDropdownOpen(true)}
                     >
-                      <span className="flex items-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        New Rule
-                      </span>
+                      <Plus className="w-4 h-4" />
+                      Create Rule
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Pagination footer */}
-            <div className="flex flex-col ss:flex-row ss:items-center justify-between px-4 py-4 border-t bg-gray-50">
-              <div className="text-sm text-gray-600 mb-3 ss:mb-0">
-                Total: {rules.length} rules
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    Rows per page:
-                  </span>
-                  <div className="relative" ref={rowsDropdownRef}>
+            {/* Pagination Footer */}
+            {paginatedRules.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+                <div className="text-sm text-slate-600 mb-3 sm:mb-0">
+                  Showing{" "}
+                  <span className="font-medium text-slate-900">
+                    {(currentPage - 1) * rowsPerPage + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-medium text-slate-900">
+                    {Math.min(currentPage * rowsPerPage, rules.length)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium text-slate-900">
+                    {rules.length}
+                  </span>{" "}
+                  rules
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600">Rows:</span>
+                    <div className="relative" ref={rowsDropdownRef}>
+                      <button
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+                        onClick={() => setRowsDropdownOpen(!rowsDropdownOpen)}
+                      >
+                        {rowsPerPage}
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                      </button>
+                      {rowsDropdownOpen && (
+                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-slate-200 shadow-lg rounded-lg overflow-hidden z-10">
+                          {[5, 10, 25, 50, 100].map((num) => (
+                            <button
+                              key={num}
+                              className={`block w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${
+                                rowsPerPage === num
+                                  ? "bg-cyan-50 text-cyan-700 font-medium"
+                                  : "text-slate-700"
+                              }`}
+                              onClick={() => {
+                                setRowsPerPage(num);
+                                setCurrentPage(1);
+                                setRowsDropdownOpen(false);
+                              }}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
                     <button
-                      className="flex items-center gap-1 px-2 ss:px-3 py-1 bg-white border border-gray-300 rounded-md text-sm"
-                      onClick={() => setRowsDropdownOpen(!rowsDropdownOpen)}
+                      className={`p-2 border rounded-lg transition-colors ${
+                        currentPage === 1
+                          ? "bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      }`}
+                      onClick={goToPrevPage}
+                      disabled={currentPage === 1}
                     >
-                      {rowsPerPage} <ChevronDown className="w-3 h-3" />
+                      <ChevronDown className="w-4 h-4 rotate-90" />
                     </button>
-                    {rowsDropdownOpen && (
-                      <div className="absolute right-0 top-full mt-1 bg-white border shadow-lg rounded-md z-10 p-2">
-                        {[5, 10, 25, 50, 100].map((num) => (
-                          <button
-                            key={num}
-                            className={`block w-full text-left px-3 py-1 hover:bg-gray-50 ${
-                              rowsPerPage === num
-                                ? "bg-blue-50 text-blue-600"
-                                : ""
-                            }`}
-                            onClick={() => {
-                              setRowsPerPage(num);
-                              setCurrentPage(1);
-                              setRowsDropdownOpen(false);
-                            }}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+
+                    <div className="flex items-center gap-1 px-2">
+                      {Array.from(
+                        { length: Math.min(totalPages, 3) },
+                        (_, i) => {
+                          let pageNum = currentPage;
+                          if (totalPages <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 2) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 1) {
+                            pageNum = totalPages - 2 + i;
+                          } else {
+                            pageNum = currentPage - 1 + i;
+                          }
+
+                          return (
+                            <button
+                              key={pageNum}
+                              className={`min-w-[2rem] h-8 px-2 rounded-lg text-sm font-medium transition-colors ${
+                                currentPage === pageNum
+                                  ? "bg-gradient-to-r from-blue-600 to-sky-600 text-white"
+                                  : "text-slate-700 hover:bg-slate-100"
+                              }`}
+                              onClick={() => setCurrentPage(pageNum)}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    <button
+                      className={`p-2 border rounded-lg transition-colors ${
+                        currentPage === totalPages || totalPages === 0
+                          ? "bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                      }`}
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                    >
+                      <ChevronDown className="w-4 h-4 -rotate-90" />
+                    </button>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-center gap-1">
-                  <button
-                    className={`px-3 py-1 border rounded-md text-sm flex items-center justify-center ${
-                      currentPage === 1
-                        ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
-                    onClick={goToPrevPage}
-                    disabled={currentPage === 1}
-                    aria-label="Previous page"
-                  >
-                    &#8249;
-                  </button>
-
-                  {/* Page numbers */}
-                  <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => {
-                      // Show pages around current page
-                      let pageNum = currentPage;
-                      if (totalPages <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 2) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 1) {
-                        pageNum = totalPages - 2 + i;
-                      } else {
-                        pageNum = currentPage - 1 + i;
-                      }
-
-                      return (
-                        <button
-                          key={pageNum}
-                          className={`px-3 py-1 border ${
-                            currentPage === pageNum
-                              ? "bg-cyan-600 text-white border-cyan-600 rounded-full"
-                              : "bg-white text-gray-700 border-gray-300 rounded-md hover:bg-gray-50"
-                          }`}
-                          onClick={() => setCurrentPage(pageNum)}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    className={`px-3 py-1 border rounded-md text-sm flex items-center justify-center ${
-                      currentPage === totalPages || totalPages === 0
-                        ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
-                    onClick={goToNextPage}
-                    disabled={currentPage === totalPages || totalPages === 0}
-                    aria-label="Next page"
-                  >
-                    &#8250;
-                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

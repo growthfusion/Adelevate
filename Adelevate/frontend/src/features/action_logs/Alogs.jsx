@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/supabaseClient";
 
 /**
- * Enhanced LogsDataTable with premium UI, platform icons, and fully responsive design
- * Optimized for all screen sizes with breakpoints: xs, ss, sm, md, lg, xl, 2xl
+ * Premium SaaS LogsDataTable Component - Full Screen
+ * Modern, clean design inspired by Linear, Vercel, and Stripe
  */
 
 function formatDate(ts) {
@@ -173,7 +173,7 @@ function generateAvatarUrl(email) {
   if (!email) return null;
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     email.split("@")[0]
-  )}&background=random&size=100`;
+  )}&background=6366f1&color=fff&bold=true&size=128`;
 }
 
 // Helper to format rule conditions
@@ -425,7 +425,7 @@ export default function LogsDataTable() {
     }
   };
 
-  // Helper to render action badge
+  // Helper to render action badge - PREMIUM STYLE WITH ALL ICONS
   const renderActionBadge = (action) => {
     if (!action) return null;
 
@@ -438,7 +438,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -449,8 +449,8 @@ export default function LogsDataTable() {
               />
             </svg>
           ),
-          color: "bg-green-100 text-green-800 border-green-300",
-          gradient: "from-green-50 to-green-100",
+          color: "bg-emerald-50 text-emerald-700 border-emerald-200/50",
+          dotColor: "bg-emerald-500",
           text: "Add",
         };
         break;
@@ -459,15 +459,15 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
               <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
             </svg>
           ),
-          color: "bg-amber-100 text-amber-800 border-amber-300",
-          gradient: "from-amber-50 to-amber-100",
+          color: "bg-amber-50 text-amber-700 border-amber-200/50",
+          dotColor: "bg-amber-500",
           text: "Edit",
         };
         break;
@@ -476,7 +476,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -487,8 +487,8 @@ export default function LogsDataTable() {
               />
             </svg>
           ),
-          color: "bg-rose-100 text-rose-800 border-rose-300",
-          gradient: "from-rose-50 to-rose-100",
+          color: "bg-rose-50 text-rose-700 border-rose-200/50",
+          dotColor: "bg-rose-500",
           text: "Delete",
         };
         break;
@@ -497,7 +497,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -508,8 +508,8 @@ export default function LogsDataTable() {
               />
             </svg>
           ),
-          color: "bg-sky-100 text-sky-800 border-sky-300",
-          gradient: "from-sky-50 to-sky-100",
+          color: "bg-blue-50 text-blue-700 border-blue-200/50",
+          dotColor: "bg-blue-500",
           text: "Update",
         };
         break;
@@ -518,7 +518,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -530,8 +530,8 @@ export default function LogsDataTable() {
               />
             </svg>
           ),
-          color: "bg-violet-100 text-violet-800 border-violet-300",
-          gradient: "from-violet-50 to-violet-100",
+          color: "bg-violet-50 text-violet-700 border-violet-200/50",
+          dotColor: "bg-violet-500",
           text: "View",
         };
         break;
@@ -540,7 +540,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -548,8 +548,8 @@ export default function LogsDataTable() {
               <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
             </svg>
           ),
-          color: "bg-gray-100 text-gray-800 border-gray-300",
-          gradient: "from-gray-50 to-gray-100",
+          color: "bg-slate-50 text-slate-600 border-slate-200/50",
+          dotColor: "bg-slate-400",
           text: "Draft",
         };
         break;
@@ -558,7 +558,7 @@ export default function LogsDataTable() {
           icon: (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4"
+              className="h-3.5 w-3.5"
               viewBox="0 0 20 20"
               fill="currentColor"
             >
@@ -569,36 +569,36 @@ export default function LogsDataTable() {
               />
             </svg>
           ),
-          color: "bg-slate-100 text-slate-800 border-slate-300",
-          gradient: "from-slate-50 to-slate-100",
+          color: "bg-gray-50 text-gray-600 border-gray-200/50",
+          dotColor: "bg-gray-400",
           text: action,
         };
     }
 
     return (
       <span
-        className={`inline-flex items-center gap-1 ss:gap-1.5 px-2 py-1 ss:px-3 ss:py-1.5 rounded-full text-[10px] ss:text-xs font-medium border ${badge.color} bg-gradient-to-r ${badge.gradient}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.color} shadow-sm`}
       >
         {badge.icon}
-        <span className="hidden ss:inline">{badge.text}</span>
+        <span className="hidden sm:inline">{badge.text}</span>
       </span>
     );
   };
 
-  // Helper to render platform with icon
+  // Helper to render platform with icon - PREMIUM STYLE WITH ALL PLATFORM ICONS
   const renderPlatform = (log) => {
-    if (!log.platform) return <span className="text-gray-400">N/A</span>;
+    if (!log.platform) return <span className="text-gray-400 text-sm">—</span>;
 
     const iconUrl = log.platformIcon || getPlatformIcon(log.platform);
 
     return (
-      <div className="flex items-center space-x-1.5 ss:space-x-2">
-        <div className="flex-shrink-0 h-5 w-5 ss:h-6 ss:w-6 bg-gray-100 dark:bg-gray-700 rounded-md shadow-sm flex items-center justify-center overflow-hidden">
+      <div className="flex items-center gap-2">
+        <div className="flex-shrink-0 h-7 w-7 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center overflow-hidden">
           {iconUrl ? (
             <img
               src={iconUrl}
               alt={log.platform}
-              className="h-4 w-4 ss:h-5 ss:w-5 object-contain"
+              className="h-5 w-5 object-contain"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = "/icons/platform-generic.svg";
@@ -607,7 +607,7 @@ export default function LogsDataTable() {
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 ss:h-4 ss:w-4 text-gray-400"
+              className="h-4 w-4 text-gray-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -621,45 +621,45 @@ export default function LogsDataTable() {
             </svg>
           )}
         </div>
-        <span className="text-xs ss:text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
           {log.platform}
         </span>
       </div>
     );
   };
 
-  // Card View Component for Mobile
+  // Card View Component for Mobile - PREMIUM STYLE WITH ALL ICONS
   const LogCard = ({ log }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 ss:p-4 hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200">
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-2 ss:space-x-3 flex-1 min-w-0">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex-shrink-0">
             {log.avatarUrl ? (
               <img
                 src={log.avatarUrl}
                 alt={log.email}
-                className="h-8 w-8 ss:h-10 ss:w-10 rounded-full object-cover"
+                className="h-10 w-10 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                     log.email?.charAt(0) || "U"
-                  )}&background=random`;
+                  )}&background=6366f1&color=fff&bold=true`;
                 }}
               />
             ) : (
-              <div className="h-8 w-8 ss:h-10 ss:w-10 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center">
-                <span className="text-xs ss:text-sm font-semibold">
+              <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-full flex items-center justify-center ring-2 ring-gray-100 dark:ring-gray-700">
+                <span className="text-sm font-semibold">
                   {log.email ? log.email.charAt(0).toUpperCase() : "?"}
                 </span>
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs ss:text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
               {log.email || "N/A"}
             </p>
-            <p className="text-[10px] ss:text-xs text-gray-500 dark:text-gray-400 flex items-center mt-0.5">
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-1">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-3 w-3 mr-1"
@@ -682,31 +682,31 @@ export default function LogsDataTable() {
       </div>
 
       {/* Platform & Rule */}
-      <div className="grid grid-cols-2 gap-2 ss:gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-[10px] ss:text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
             Platform
           </p>
           {renderPlatform(log)}
         </div>
         <div>
-          <p className="text-[10px] ss:text-xs text-gray-500 dark:text-gray-400 mb-1">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
             Rule
           </p>
-          <p className="text-xs ss:text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
-            {log.rule_name || "N/A"}
+          <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+            {log.rule_name || "—"}
           </p>
         </div>
       </div>
 
       {/* Conditions */}
       {log.rule_conditions && (
-        <div className="mb-3">
-          <p className="text-[10px] ss:text-xs text-gray-500 dark:text-gray-400 mb-1">
+        <div className="mb-4">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
             Conditions
           </p>
-          <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700">
-            <code className="text-[10px] ss:text-xs text-gray-700 dark:text-gray-300 break-words">
+          <div className="bg-gray-50 dark:bg-gray-900/50 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700">
+            <code className="text-xs text-gray-700 dark:text-gray-300 break-words font-mono">
               {log.formattedConditions}
             </code>
           </div>
@@ -715,11 +715,11 @@ export default function LogsDataTable() {
 
       {/* Details */}
       <div>
-        <p className="text-[10px] ss:text-xs text-gray-500 dark:text-gray-400 mb-1">
+        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
           Details
         </p>
-        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-200 dark:border-gray-700">
-          <p className="text-[10px] ss:text-xs text-gray-700 dark:text-gray-300 break-words line-clamp-2">
+        <div className="bg-gray-50 dark:bg-gray-900/50 px-3 py-2 rounded-lg border border-gray-100 dark:border-gray-700">
+          <p className="text-xs text-gray-700 dark:text-gray-300 break-words line-clamp-2">
             {typeof log.details === "string"
               ? log.details
               : JSON.stringify(log.details ?? "")}
@@ -728,14 +728,14 @@ export default function LogsDataTable() {
       </div>
 
       {/* Actions */}
-      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
         <button
           onClick={() => copyToClipboard(log.email)}
-          className="text-[10px] ss:text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
+          className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-1.5 transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-3 w-3 mr-1"
+            className="h-3.5 w-3.5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -754,377 +754,711 @@ export default function LogsDataTable() {
   );
 
   return (
-    <div className="p-2 xs:p-3 ss:p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-900 rounded-lg ss:rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 mt-4 ss:mt-6 sm:mt-0">
-      {/* Toast notification */}
-      {showToast && (
-        <div className="fixed top-2 right-2 ss:top-4 ss:right-4 z-50 flex items-center space-x-2 bg-indigo-600 text-white px-3 py-2 ss:px-4 rounded-md shadow-lg transition-opacity duration-300 animate-fade-in">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 ss:h-5 ss:w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span className="text-xs ss:text-sm">{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Header section */}
-      <div className="bg-gradient-to-r from-gray-50 to-slate-100 dark:from-gray-800 dark:to-gray-900 px-3 py-3 ss:px-4 ss:py-4 sm:px-6 border-b border-gray-200 dark:border-gray-800 rounded-t-lg ss:rounded-t-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ss:gap-3 sm:gap-4">
-          <h2 className="text-base ss:text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center">
-            Action Logs
-          </h2>
-
-          {/* Total counter and export button */}
-          <div className="flex items-center justify-between sm:justify-end space-x-2 ss:space-x-3">
-            <div className="flex items-center gap-1.5 ss:gap-2 bg-white dark:bg-gray-800 px-2 py-1.5 ss:px-4 ss:py-2 rounded-md ss:rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-              <span className="text-[10px] ss:text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300">
-                Total:
-              </span>
-              <span className="text-[10px] ss:text-xs sm:text-sm font-bold text-gray-900 dark:text-white">
-                {logs.length}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      {/* FULL SCREEN CONTAINER - NO MAX WIDTH */}
+      <div className="w-full h-full">
+        {/* Toast notification - PREMIUM STYLE WITH ICON */}
+        {showToast && (
+          <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl shadow-lg">
+              <div className="flex-shrink-0">
+                <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-indigo-600 dark:text-indigo-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {toastMessage}
               </span>
             </div>
+          </div>
+        )}
 
-            {/* View mode toggle (visible on sm and up) */}
-            <div className="hidden sm:flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-1">
-              <button
-                onClick={() => setViewMode("table")}
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === "table"
-                    ? "bg-indigo-100 text-indigo-600"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-                title="Table View"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+        {/* Main Container - PREMIUM STYLE FULL WIDTH */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden m-4 sm:m-6 lg:m-8">
+          {/* Header section - PREMIUM STYLE WITH ALL ICONS */}
+          <div className="bg-gradient-to-r from-white via-gray-50 to-white dark:from-gray-800 dark:via-gray-800/50 dark:to-gray-800 px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {/* Activity Icon */}
+                <div className="h-10 w-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-indigo-600 dark:text-indigo-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    Action Logs
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Track and monitor all system activities
+                  </p>
+                </div>
+              </div>
+
+              {/* Total counter and controls */}
+              <div className="flex items-center gap-3">
+                {/* Total badge with icon */}
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-600">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-gray-500 dark:text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    Total
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {logs.length}
+                  </span>
+                </div>
+
+                {/* View mode toggle with icons (visible on sm and up) */}
+                <div className="hidden sm:flex items-center bg-gray-100 dark:bg-gray-700/50 rounded-xl p-1 border border-gray-200 dark:border-gray-600">
+                  <button
+                    onClick={() => setViewMode("table")}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      viewMode === "table"
+                        ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    }`}
+                    title="Table View"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("card")}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      viewMode === "card"
+                        ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                    }`}
+                    title="Card View"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Export button with icon */}
+                <button
+                  onClick={exportCsv}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all duration-200 hover:shadow-md active:scale-95 font-medium text-sm"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode("card")}
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === "card"
-                    ? "bg-indigo-100 text-indigo-600"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-                title="Card View"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="sm:hidden">Export</span>
+                </button>
+              </div>
             </div>
+          </div>
 
-            <button
-              onClick={exportCsv}
-              className="flex items-center justify-center px-2 py-1.5 ss:px-4 ss:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md ss:rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3 w-3 ss:h-4 ss:w-4 sm:mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                  clipRule="evenodd"
+          {/* Search and filters section - PREMIUM STYLE WITH ICONS */}
+          <div className="px-6 py-4 bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search bar with icon */}
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  placeholder="Search by email, action, platform, or details..."
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
                 />
-              </svg>
-              <span className="hidden sm:inline text-sm">Export CSV</span>
-            </button>
-          </div>
-        </div>
-      </div>
+              </div>
 
-      {/* Search and filters section */}
-      <div className="px-3 py-3 ss:px-4 ss:py-4 sm:px-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-        <div className="flex flex-col gap-2 ss:gap-3">
-          {/* Search bar */}
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 pl-2 ss:pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-4 w-4 ss:h-5 ss:w-5 text-gray-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <input
-              type="text"
-              className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-8 ss:pl-10 pr-3 py-1.5 ss:py-2 text-xs ss:text-sm border border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:bg-gray-800 dark:text-gray-200"
-              placeholder="Search logs..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
+              {/* Filters with icons */}
+              <div className="flex gap-3">
+                {/* Action filter with icon */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                  </div>
+                  <select
+                    value={actionFilter}
+                    onChange={(e) => {
+                      setActionFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="pl-9 pr-10 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer font-medium appearance-none"
+                  >
+                    {actionTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type === "all"
+                          ? "All Actions"
+                          : type.charAt(0).toUpperCase() + type.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg
+                      className="h-4 w-4 text-gray-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </div>
 
-          {/* Filters */}
-          <div className="grid grid-cols-2 gap-2 ss:gap-3">
-            {/* Action filter */}
-            <select
-              value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
-              className="border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-1.5 ss:py-2 px-2 ss:px-3 text-xs ss:text-sm"
-            >
-              {actionTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type === "all"
-                    ? "All Actions"
-                    : type.charAt(0).toUpperCase() + type.slice(1)}
-                </option>
-              ))}
-            </select>
-
-            {/* Page size selector */}
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-1.5 ss:py-2 px-2 ss:px-3 text-xs ss:text-sm"
-            >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={20}>20 per page</option>
-              <option value={50}>50 per page</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Content section */}
-      {loading ? (
-        <div className="p-8 ss:p-12 flex justify-center items-center">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 ss:h-16 ss:w-16 border-t-2 border-b-2 border-indigo-600"></div>
-            <p className="mt-4 text-xs ss:text-sm text-gray-500 dark:text-gray-400">
-              Loading action logs...
-            </p>
-          </div>
-        </div>
-      ) : total === 0 ? (
-        <div className="p-8 ss:p-12 flex justify-center items-center">
-          <div className="flex flex-col items-center text-center max-w-md">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-16 w-16 ss:h-20 ss:w-20 text-gray-300 dark:text-gray-600 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <h3 className="text-lg ss:text-xl font-medium text-gray-900 dark:text-white">
-              No logs found
-            </h3>
-            <p className="mt-2 text-xs ss:text-sm text-gray-500 dark:text-gray-400">
-              {query || actionFilter !== "all"
-                ? "Try changing your search or filter criteria."
-                : "There are no action logs to display yet."}
-            </p>
-            {(query || actionFilter !== "all") && (
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setActionFilter("all");
-                }}
-                className="mt-4 px-3 py-1.5 ss:px-4 ss:py-2 bg-indigo-600 text-white rounded-md text-xs ss:text-sm font-medium hover:bg-indigo-700 transition-colors duration-150"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Card view for mobile (xs, ss), table view for larger screens or user preference */}
-          <div className="sm:hidden">
-            <div className="p-3 space-y-3">
-              {pageItems.map((log, idx) => (
-                <LogCard key={log.id ?? `log-${idx}`} log={log} />
-              ))}
+                {/* Page size selector with icon */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                      />
+                    </svg>
+                  </div>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="pl-9 pr-10 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all cursor-pointer font-medium appearance-none"
+                  >
+                    <option value={5}>5 / page</option>
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg
+                      className="h-4 w-4 text-gray-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Table view for sm and up (or when user selects table view) */}
-          <div
-            className={`hidden sm:block ${
-              viewMode === "card"
-                ? "sm:hidden md:hidden lg:hidden xl:hidden 2xl:hidden"
-                : ""
-            }`}
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+          {/* Content section */}
+          {loading ? (
+            <div className="p-16 flex justify-center items-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600"></div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-indigo-600 dark:text-indigo-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Loading action logs...
+                </p>
+              </div>
+            </div>
+          ) : total === 0 ? (
+            <div className="p-16 flex justify-center items-center">
+              <div className="flex flex-col items-center text-center max-w-md">
+                <div className="h-20 w-20 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-10 w-10 text-gray-400 dark:text-gray-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  No logs found
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {query || actionFilter !== "all"
+                    ? "Try adjusting your search or filter criteria."
+                    : "There are no action logs to display yet."}
+                </p>
+                {(query || actionFilter !== "all") && (
+                  <button
+                    onClick={() => {
+                      setQuery("");
+                      setActionFilter("all");
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      User
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      Action
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      Platform
-                    </th>
-                    <th
-                      scope="col"
-                      className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      Rule Name
-                    </th>
-                    <th
-                      scope="col"
-                      className="hidden lg:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      Conditions
-                    </th>
-                    <th
-                      scope="col"
-                      className="hidden xl:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      Details
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={() => toggleSort("created_at")}
-                    >
-                      <div className="flex items-center">
-                        Time
-                        {sortBy.key === "created_at" &&
-                          (sortBy.dir === "asc" ? (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3 w-3 sm:h-4 sm:w-4 ml-1"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3 w-3 sm:h-4 sm:w-4 ml-1"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          ))}
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Card view for mobile (xs, ss), table view for larger screens or user preference */}
+              <div className="sm:hidden">
+                <div className="p-4 space-y-3">
                   {pageItems.map((log, idx) => (
-                    <tr
-                      key={log.id ?? `log-${idx}`}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
-                    >
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 overflow-hidden rounded-full">
-                            {log.avatarUrl ? (
-                              <img
-                                src={log.avatarUrl}
-                                alt={log.email}
-                                className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 rounded-full object-cover"
-                                onError={(e) => {
-                                  e.target.onerror = null;
-                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    log.email?.charAt(0) || "U"
-                                  )}&background=random`;
-                                }}
+                    <LogCard key={log.id ?? `log-${idx}`} log={log} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Table view for sm and up (or when user selects table view) - FULL WIDTH */}
+              <div
+                className={`hidden sm:block ${
+                  viewMode === "card" ? "sm:hidden" : ""
+                }`}
+              >
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    {/* PREMIUM STICKY HEADER WITH ICONS */}
+                    <thead className="bg-gray-50/80 dark:bg-gray-800/80 backdrop-blur-sm sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                               />
-                            ) : (
-                              <div className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-full flex items-center justify-center">
-                                <span className="text-xs sm:text-sm font-semibold">
-                                  {log.email
-                                    ? log.email.charAt(0).toUpperCase()
-                                    : "?"}
-                                </span>
-                              </div>
+                            </svg>
+                            User
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 10V3L4 14h7v7l9-11h-7z"
+                              />
+                            </svg>
+                            Action
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Platform
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="hidden md:table-cell px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+                              />
+                            </svg>
+                            Rule Name
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="hidden lg:table-cell px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                              />
+                            </svg>
+                            Conditions
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="hidden xl:table-cell px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            Details
+                          </div>
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-6 py-3.5 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors rounded-lg"
+                          onClick={() => toggleSort("created_at")}
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            Timestamp
+                            {sortBy.key === "created_at" && (
+                              <span className="ml-1">
+                                {sortBy.dir === "asc" ? (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                )}
+                              </span>
                             )}
                           </div>
-                          <div className="ml-2 sm:ml-3 max-w-[120px] sm:max-w-[150px] lg:max-w-[200px]">
-                            <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                              {log.email || "N/A"}
+                        </th>
+                      </tr>
+                    </thead>
+
+                    {/* PREMIUM TABLE BODY WITH ZEBRA STRIPES AND ALL ICONS */}
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700/50">
+                      {pageItems.map((log, idx) => (
+                        <tr
+                          key={log.id ?? `log-${idx}`}
+                          className={`transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
+                            idx % 2 === 0
+                              ? "bg-white dark:bg-gray-800"
+                              : "bg-gray-50/30 dark:bg-gray-800/50"
+                          }`}
+                        >
+                          {/* User column - PREMIUM STYLE WITH AVATAR */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0">
+                                {log.avatarUrl ? (
+                                  <img
+                                    src={log.avatarUrl}
+                                    alt={log.email}
+                                    className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                        log.email?.charAt(0) || "U"
+                                      )}&background=6366f1&color=fff&bold=true`;
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="h-9 w-9 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-full flex items-center justify-center ring-2 ring-gray-100 dark:ring-gray-700">
+                                    <span className="text-xs font-semibold">
+                                      {log.email
+                                        ? log.email.charAt(0).toUpperCase()
+                                        : "?"}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
+                                  {log.email || "N/A"}
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(log.email)}
+                                  className="mt-0.5 text-xs text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 flex items-center gap-1 transition-colors"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-3 w-3"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  Copy
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => copyToClipboard(log.email)}
-                              className="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center"
-                            >
+                          </td>
+
+                          {/* Action badge with icon */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {renderActionBadge(log.action)}
+                          </td>
+
+                          {/* Platform with icon */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {renderPlatform(log)}
+                          </td>
+
+                          {/* Rule name */}
+                          <td className="hidden md:table-cell px-6 py-4">
+                            <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer truncate max-w-[200px] transition-colors">
+                              {log.rule_name || "—"}
+                            </div>
+                          </td>
+
+                          {/* Conditions */}
+                          <td className="hidden lg:table-cell px-6 py-4">
+                            {log.rule_conditions ? (
+                              <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 max-w-[280px] font-mono">
+                                <code className="whitespace-pre-wrap break-words">
+                                  {log.formattedConditions}
+                                </code>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 dark:text-gray-600 text-sm">
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Details */}
+                          <td className="hidden xl:table-cell px-6 py-4">
+                            <div className="text-xs text-gray-600 dark:text-gray-400 break-words max-w-[320px] bg-gray-50 dark:bg-gray-900/50 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 line-clamp-2">
+                              {typeof log.details === "string"
+                                ? log.details
+                                : JSON.stringify(log.details ?? "")}
+                            </div>
+                          </td>
+
+                          {/* Timestamp - PREMIUM CHIP STYLE WITH ICON */}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1"
+                                className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -1133,248 +1467,245 @@ export default function LogsDataTable() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                               </svg>
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-                      </td>
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                {formatDate(log.created_at)}
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 whitespace-nowrap">
-                        {renderActionBadge(log.action)}
-                      </td>
+              {/* Card view for larger screens when selected */}
+              {viewMode === "card" && (
+                <div className="hidden sm:block p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                    {pageItems.map((log, idx) => (
+                      <LogCard key={log.id ?? `log-${idx}`} log={log} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 whitespace-nowrap">
-                        {renderPlatform(log)}
-                      </td>
+          {/* Pagination - PREMIUM STYLE WITH ALL ICONS */}
+          {!loading && total > 0 && (
+            <div className="px-6 py-4 bg-gray-50/50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Showing{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {Math.min(startIndex + 1, total)}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {Math.min(startIndex + pageSize, total)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {total}
+                  </span>{" "}
+                  results
+                </div>
 
-                      <td className="hidden md:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6">
-                        <div className="text-xs sm:text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer truncate max-w-[150px] lg:max-w-[200px]">
-                          {log.rule_name || "N/A"}
-                        </div>
-                      </td>
+                <nav
+                  className="flex items-center gap-1"
+                  aria-label="Pagination"
+                >
+                  {/* First page */}
+                  <button
+                    onClick={() => setPage(1)}
+                    disabled={page === 1}
+                    className={`p-2 rounded-lg transition-all ${
+                      page === 1
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                    title="First page"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                      <td className="hidden lg:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6">
-                        {log.rule_conditions ? (
-                          <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-1.5 sm:p-2 rounded-md border border-gray-200 dark:border-gray-700 max-w-[200px] xl:max-w-[300px] overflow-hidden">
-                            <code className="whitespace-pre-wrap break-words">
-                              {log.formattedConditions}
-                            </code>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-600">
-                            N/A
-                          </span>
-                        )}
-                      </td>
+                  {/* Previous page */}
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className={`p-2 rounded-lg transition-all ${
+                      page === 1
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                    title="Previous page"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
 
-                      <td className="hidden xl:table-cell px-3 py-2 sm:px-4 sm:py-3 lg:px-6">
-                        <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 break-words max-w-[200px] xl:max-w-[300px] bg-gray-50 dark:bg-gray-800 p-1.5 sm:p-2 rounded-md border border-gray-200 dark:border-gray-700 line-clamp-2">
-                          {typeof log.details === "string"
-                            ? log.details
-                            : JSON.stringify(log.details ?? "")}
-                        </div>
-                      </td>
+                  {/* Page numbers */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }).map(
+                      (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (page <= 3) {
+                          pageNum = i + 1;
+                        } else if (page >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = page - 2 + i;
+                        }
 
-                      <td className="px-3 py-2 sm:px-4 sm:py-3 lg:px-6 whitespace-nowrap text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setPage(pageNum)}
+                            className={`min-w-[40px] px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                              page === pageNum
+                                ? "bg-indigo-600 text-white shadow-sm"
+                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                            }`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          <span className="hidden sm:inline">
-                            {formatDate(log.created_at)}
-                          </span>
-                          <span className="sm:hidden">
-                            {new Date(log.created_at).toLocaleDateString(
-                              "en-US",
-                              { month: "short", day: "numeric" }
-                            )}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                            {pageNum}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
 
-          {/* Card view for larger screens when selected */}
-          {viewMode === "card" && (
-            <div className="hidden sm:block p-3 ss:p-4 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 ss:gap-4">
-                {pageItems.map((log, idx) => (
-                  <LogCard key={log.id ?? `log-${idx}`} log={log} />
-                ))}
+                  {/* Current page indicator for mobile */}
+                  <div className="sm:hidden px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    {page} / {totalPages}
+                  </div>
+
+                  {/* Next page */}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className={`p-2 rounded-lg transition-all ${
+                      page === totalPages
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                    title="Next page"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Last page */}
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    disabled={page === totalPages}
+                    className={`p-2 rounded-lg transition-all ${
+                      page === totalPages
+                        ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                    title="Last page"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 6.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0zm7 0a1 1 0 010-1.414L15.586 10l-4.293-3.293a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                </nav>
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {/* Pagination */}
-      {!loading && total > 0 && (
-        <div className="px-3 py-3 ss:px-4 ss:py-4 sm:px-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg ss:rounded-b-xl">
-          <div className="flex items-center justify-between flex-wrap gap-2 ss:gap-3">
-            <div className="text-[10px] ss:text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-              Showing{" "}
-              <span className="font-medium">
-                {Math.min(startIndex + 1, total)}
-              </span>{" "}
-              to{" "}
-              <span className="font-medium">
-                {Math.min(startIndex + pageSize, total)}
-              </span>{" "}
-              of <span className="font-medium">{total}</span> results
-            </div>
-
-            <nav
-              className="relative z-0 inline-flex rounded-md shadow-sm"
-              aria-label="Pagination"
-            >
-              <button
-                onClick={() => setPage(1)}
-                disabled={page === 1}
-                className={`relative inline-flex items-center px-1.5 ss:px-2 py-1.5 ss:py-2 rounded-l-md border ${
-                  page === 1
-                    ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                    : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } text-xs ss:text-sm font-medium text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ss:h-5 ss:w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className={`relative inline-flex items-center px-1.5 ss:px-2 py-1.5 ss:py-2 border ${
-                  page === 1
-                    ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                    : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } text-xs ss:text-sm font-medium text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`}
-              >
-                <svg
-                  className="h-4 w-4 ss:h-5 ss:w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              {/* Page numbers - hidden on xs, visible from ss */}
-              <div className="hidden ss:flex">
-                {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (page <= 3) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = page - 2 + i;
-                  }
-
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`relative inline-flex items-center px-2 ss:px-3 sm:px-4 py-1.5 ss:py-2 border text-[10px] ss:text-xs sm:text-sm font-medium ${
-                        page === pageNum
-                          ? "z-10 bg-indigo-50 dark:bg-indigo-900 border-indigo-500 text-indigo-600 dark:text-indigo-300"
-                          : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Current page indicator for xs */}
-              <span className="ss:hidden relative inline-flex items-center px-2 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-300">
-                {page}/{totalPages}
-              </span>
-
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className={`relative inline-flex items-center px-1.5 ss:px-2 py-1.5 ss:py-2 border ${
-                  page === totalPages
-                    ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                    : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } text-xs ss:text-sm font-medium text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`}
-              >
-                <svg
-                  className="h-4 w-4 ss:h-5 ss:w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              <button
-                onClick={() => setPage(totalPages)}
-                disabled={page === totalPages}
-                className={`relative inline-flex items-center px-1.5 ss:px-2 py-1.5 ss:py-2 rounded-r-md border ${
-                  page === totalPages
-                    ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed"
-                    : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                } text-xs ss:text-sm font-medium text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 ss:h-5 ss:w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 6.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0zm7 0a1 1 0 010-1.414L15.586 10l-4.293-3.293a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </nav>
-          </div>
         </div>
-      )}
+      </div>
+
+      {/* Add custom animations */}
+      <style jsx>{`
+        @keyframes slide-in-right {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

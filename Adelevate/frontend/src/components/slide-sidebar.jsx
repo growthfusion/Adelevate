@@ -16,6 +16,7 @@ import { IoPersonAddOutline } from "react-icons/io5";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
+import { PiRocketLight } from "react-icons/pi";
 
 // Tooltip Component
 const Tooltip = ({ children, text, show = false }) => {
@@ -189,6 +190,13 @@ const SlideSidebar = () => {
       path: "/addAccount",
       icon: IoPersonAddOutline,
       label: "Integration ",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/lander",
+      icon: PiRocketLight,
+      label: "Lander ",
       badge: null,
     },
   ];

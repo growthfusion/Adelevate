@@ -1,3 +1,4 @@
+// src/services/accountsConfig.js
 import {
   collection,
   doc,
@@ -12,7 +13,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase";
 
-/* ------------------------ helpers ------------------------ */
+/* ------------------------ CONSTANTS ------------------------ */
+
+const PLATFORMS = ["meta", "newsbreak", "snapchat", "tiktok", "google"];
+
+/* ------------------------ HELPERS ------------------------ */
 
 /**
  * Generate a unique ID using Firebase's built-in method
@@ -36,6 +41,7 @@ function normalizePlatform(platform) {
     newsbreak: "newsbreak",
     nb: "newsbreak",
     snapchat: "snapchat",
+    snap: "snapchat",
     tiktok: "tiktok",
     google: "google",
   };
@@ -71,13 +77,17 @@ function validateAccountData(data) {
   return errors;
 }
 
-
+/**
+ * Get collection name for a platform
+ */
 function getCollectionName(platform) {
   const p = normalizePlatform(platform);
   return `${p}__ad_accounts`;
 }
 
-
+/**
+ * Convert Firestore document to UI object
+ */
 export function fromFirestoreDoc(docSnap) {
   if (!docSnap.exists()) return null;
 
@@ -90,17 +100,17 @@ export function fromFirestoreDoc(docSnap) {
     accessToken: d.accessToken || "",
     accountId: d.accountId || "",
     accountLabel: d.accountLabel || "",
-    status: d.status || "active", // active, inactive, error
+    status: d.status || "active",
     createdAt: d.createdAt || null,
     updatedAt: d.updatedAt || null,
-    lastSyncedAt: d.lastSyncedAt || null,
+    lastSync: d.lastSyncedAt || d.lastSync || null,
+    lastSyncedAt: d.lastSyncedAt || d.lastSync || null,
     metadata: d.metadata || {},
   };
 }
 
 /**
  * Convert UI payload to Firestore document format
- * Prepares data for saving to Firestore
  */
 export function toFirestoreDoc(ui, id) {
   const platform = normalizePlatform(ui.platform);
@@ -129,8 +139,8 @@ export function toFirestoreDoc(ui, id) {
   }
 
   // Preserve lastSyncedAt if it exists
-  if (ui.lastSyncedAt) {
-    baseDoc.lastSyncedAt = ui.lastSyncedAt;
+  if (ui.lastSyncedAt || ui.lastSync) {
+    baseDoc.lastSyncedAt = ui.lastSyncedAt || ui.lastSync;
   }
 
   // Add optional metadata
@@ -141,7 +151,7 @@ export function toFirestoreDoc(ui, id) {
   return baseDoc;
 }
 
-/* ------------------------ Firestore operations ------------------------ */
+/* ------------------------ FIRESTORE OPERATIONS ------------------------ */
 
 /**
  * Add or update an account in Firestore
@@ -149,40 +159,258 @@ export function toFirestoreDoc(ui, id) {
  * @returns {Promise<string>} - Document ID
  */
 export async function addAccount(uiPayload) {
-  // Validate data
-  const errors = validateAccountData(uiPayload);
-  if (errors.length > 0) {
-    throw new Error(`Validation failed: ${errors.join(", ")}`);
+  try {
+    // Validate data
+    const errors = validateAccountData(uiPayload);
+    if (errors.length > 0) {
+      throw new Error(`Validation failed: ${errors.join(", ")}`);
+    }
+
+    // Generate unique ID using Firebase
+    const id = uiPayload.id ?? generateId();
+    const colName = getCollectionName(uiPayload.platform);
+    const docData = toFirestoreDoc(uiPayload, id);
+
+    console.log("✅ Saving to collection:", colName);
+    console.log("✅ Document ID:", id);
+    console.log("✅ Document data:", docData);
+
+    await setDoc(doc(db, colName, id), docData, { merge: true });
+
+    return id;
+  } catch (error) {
+    console.error("❌ Error adding account:", error);
+    throw error;
   }
-
-  // Generate unique ID using Firebase (fixes crypto.randomUUID error)
-  const id = uiPayload.id ?? generateId();
-  const colName = getCollectionName(uiPayload.platform);
-  const docData = toFirestoreDoc(uiPayload, id);
-
-  console.log("Saving to collection:", colName);
-  console.log("Document ID:", id);
-  console.log("Document data:", docData);
-
-  await setDoc(doc(db, colName, id), docData, { merge: true });
-
-  return id;
 }
 
 /**
- * Update an existing account
- * @param {string} platform - Platform name
- * @param {string} id - Document ID
+ * Update an existing account (by account ID from the data object)
+ * @param {string} accountId - Document/Firestore ID
  * @param {Object} updates - Fields to update
  */
-export async function updateAccount(platform, id, updates) {
-  const colName = getCollectionName(platform);
-  const updateData = {
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
+export async function updateAccount(accountId, updates) {
+  try {
+    // If updates contain the full account object, extract platform
+    const platform = updates.platform;
 
-  await updateDoc(doc(db, colName, id), updateData);
+    if (!platform) {
+      throw new Error("Platform is required to update account");
+    }
+
+    const colName = getCollectionName(platform);
+    const updateData = {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Remove id from updates to avoid overwriting
+    delete updateData.id;
+
+    console.log("✅ Updating account:", accountId);
+    console.log("✅ Collection:", colName);
+    console.log("✅ Update data:", updateData);
+
+    await updateDoc(doc(db, colName, accountId), updateData);
+  } catch (error) {
+    console.error("❌ Error updating account:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete an account
+ * @param {string} accountId - Document/Firestore ID (can also accept platform if needed)
+ */
+export async function deleteAccount(accountId) {
+  try {
+    // Try to find and delete from all platform collections
+    let deleted = false;
+
+    for (const platform of PLATFORMS) {
+      const colName = getCollectionName(platform);
+      const docRef = doc(db, colName, accountId);
+
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          await deleteDoc(docRef);
+          console.log("✅ Deleted account from:", colName);
+          deleted = true;
+          break;
+        }
+      } catch (err) {
+        // Continue to next platform
+        console.log(`Account not found in ${colName}`);
+      }
+    }
+
+    if (!deleted) {
+      throw new Error("Account not found in any platform collection");
+    }
+  } catch (error) {
+    console.error("❌ Error deleting account:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all accounts across ALL platforms (unified)
+ * @returns {Promise<Array>} - Array of all account objects
+ */
+export async function getAllAccounts() {
+  try {
+    const allAccounts = [];
+
+    // Fetch from all platform collections
+    for (const platform of PLATFORMS) {
+      const colName = getCollectionName(platform);
+
+      try {
+        const snapshot = await getDocs(collection(db, colName));
+        const accounts = snapshot.docs
+          .map((docSnap) => fromFirestoreDoc(docSnap))
+          .filter(Boolean);
+
+        allAccounts.push(...accounts);
+        console.log(`✅ Loaded ${accounts.length} accounts from ${colName}`);
+      } catch (err) {
+        console.warn(`⚠️ Could not fetch from ${colName}:`, err.message);
+        // Continue with other platforms
+      }
+    }
+
+    // Sort by createdAt (newest first)
+    allAccounts.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA;
+    });
+
+    console.log(`✅ Total accounts loaded: ${allAccounts.length}`);
+    return allAccounts;
+  } catch (error) {
+    console.error("❌ Error getting all accounts:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all accounts for a specific platform
+ * @param {string} platform - Platform name
+ * @returns {Promise<Array>} - Array of account objects
+ */
+export async function getAccountsByPlatform(platform) {
+  try {
+    const colName = getCollectionName(platform);
+    const snapshot = await getDocs(collection(db, colName));
+
+    const accounts = snapshot.docs
+      .map((docSnap) => fromFirestoreDoc(docSnap))
+      .filter(Boolean);
+
+    console.log(`✅ Loaded ${accounts.length} accounts from ${platform}`);
+    return accounts;
+  } catch (error) {
+    console.error(`❌ Error getting accounts for ${platform}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get a single account by ID
+ * @param {string} platform - Platform name
+ * @param {string} id - Document ID
+ * @returns {Promise<Object|null>} - Account object or null
+ */
+export async function getAccount(platform, id) {
+  try {
+    const colName = getCollectionName(platform);
+    const docRef = doc(db, colName, id);
+    const docSnap = await getDoc(docRef);
+
+    return fromFirestoreDoc(docSnap);
+  } catch (error) {
+    console.error("❌ Error getting account:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete an account (alternative version with platform parameter)
+ * @param {string} platform - Platform name
+ * @param {string} id - Document ID
+ */
+export async function removeAccount(platform, id) {
+  try {
+    const colName = getCollectionName(platform);
+    await deleteDoc(doc(db, colName, id));
+    console.log(`✅ Deleted account ${id} from ${platform}`);
+  } catch (error) {
+    console.error("❌ Error removing account:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update account status (active, inactive, error)
+ * @param {string} platform - Platform name
+ * @param {string} id - Document ID
+ * @param {string} status - New status value
+ */
+export async function setAccountStatus(platform, id, status) {
+  try {
+    const colName = getCollectionName(platform);
+    await updateDoc(doc(db, colName, id), {
+      status,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(`✅ Updated status for ${id} to ${status}`);
+  } catch (error) {
+    console.error("❌ Error updating status:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update last synced timestamp
+ * @param {string} platform - Platform name
+ * @param {string} id - Document ID
+ */
+export async function updateLastSynced(platform, id) {
+  try {
+    const colName = getCollectionName(platform);
+    await updateDoc(doc(db, colName, id), {
+      lastSyncedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(`✅ Updated last synced for ${id}`);
+  } catch (error) {
+    console.error("❌ Error updating last synced:", error);
+    throw error;
+  }
+}
+
+/**
+ * Check if an account ID already exists for a platform
+ * @param {string} platform - Platform name
+ * @param {string} accountId - Account ID to check
+ * @returns {Promise<boolean>} - True if exists
+ */
+export async function accountExists(platform, accountId) {
+  try {
+    const colName = getCollectionName(platform);
+    const q = query(
+      collection(db, colName),
+      where("accountId", "==", accountId)
+    );
+
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error("❌ Error checking account existence:", error);
+    throw error;
+  }
 }
 
 /**
@@ -203,7 +431,7 @@ export function watchAccounts(platform, callback) {
       callback(accounts);
     },
     (error) => {
-      console.error("Error watching accounts:", error);
+      console.error("❌ Error watching accounts:", error);
       callback([]);
     }
   );
@@ -236,82 +464,71 @@ export function watchAllAccounts(platforms, callback) {
 }
 
 /**
- * Get a single account by ID
- * @param {string} platform - Platform name
- * @param {string} id - Document ID
- * @returns {Promise<Object|null>} - Account object or null
+ * Batch delete multiple accounts
+ * @param {Array<{platform: string, id: string}>} accounts - Array of account objects
  */
-export async function getAccount(platform, id) {
-  const colName = getCollectionName(platform);
-  const docRef = doc(db, colName, id);
-  const docSnap = await getDoc(docRef);
+export async function batchDeleteAccounts(accounts) {
+  try {
+    const deletePromises = accounts.map((account) =>
+      removeAccount(account.platform, account.id)
+    );
 
-  return fromFirestoreDoc(docSnap);
+    await Promise.all(deletePromises);
+    console.log(`✅ Deleted ${accounts.length} accounts`);
+  } catch (error) {
+    console.error("❌ Error batch deleting accounts:", error);
+    throw error;
+  }
 }
 
 /**
- * Delete an account
- * @param {string} platform - Platform name
- * @param {string} id - Document ID
+ * Search accounts across all platforms
+ * @param {string} searchTerm - Search term
+ * @returns {Promise<Array>} - Matching accounts
  */
-export async function removeAccount(platform, id) {
-  const colName = getCollectionName(platform);
-  await deleteDoc(doc(db, colName, id));
-}
+export async function searchAccounts(searchTerm) {
+  try {
+    const allAccounts = await getAllAccounts();
+    const term = searchTerm.toLowerCase();
 
-/**
- * Update account status (active, inactive, error)
- * @param {string} platform - Platform name
- * @param {string} id - Document ID
- * @param {string} status - New status value
- */
-export async function setAccountStatus(platform, id, status) {
-  const colName = getCollectionName(platform);
-  await updateDoc(doc(db, colName, id), {
-    status,
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Update last synced timestamp
- * @param {string} platform - Platform name
- * @param {string} id - Document ID
- */
-export async function updateLastSynced(platform, id) {
-  const colName = getCollectionName(platform);
-  await updateDoc(doc(db, colName, id), {
-    lastSyncedAt: new Date().toISOString(),
-  });
-}
-
-/**
- * Check if an account ID already exists for a platform
- * @param {string} platform - Platform name
- * @param {string} accountId - Account ID to check
- * @returns {Promise<boolean>} - True if exists
- */
-export async function accountExists(platform, accountId) {
-  const colName = getCollectionName(platform);
-  const q = query(collection(db, colName), where("accountId", "==", accountId));
-
-  const snapshot = await getDocs(q);
-  return !snapshot.empty;
-}
-
-/**
- * Get all accounts for a platform (one-time fetch)
- * @param {string} platform - Platform name
- * @returns {Promise<Array>} - Array of account objects
- */
-export async function getAllAccounts(platform) {
-  const colName = getCollectionName(platform);
-  const snapshot = await getDocs(collection(db, colName));
-
-  return snapshot.docs
-    .map((docSnap) => fromFirestoreDoc(docSnap))
-    .filter(Boolean);
+    return allAccounts.filter(
+      (account) =>
+        account.accountLabel?.toLowerCase().includes(term) ||
+        account.accountId?.toLowerCase().includes(term) ||
+        account.bmName?.toLowerCase().includes(term) ||
+        account.platform?.toLowerCase().includes(term)
+    );
+  } catch (error) {
+    console.error("❌ Error searching accounts:", error);
+    throw error;
+  }
 }
 
 // Export helper functions
-export { getCollectionName, normalizePlatform, validateAccountData };
+export {
+  getCollectionName,
+  normalizePlatform,
+  validateAccountData,
+  generateId,
+  PLATFORMS,
+};
+
+// Default export with all functions
+export default {
+  addAccount,
+  updateAccount,
+  deleteAccount,
+  getAllAccounts,
+  getAccountsByPlatform,
+  getAccount,
+  removeAccount,
+  setAccountStatus,
+  updateLastSynced,
+  accountExists,
+  watchAccounts,
+  watchAllAccounts,
+  batchDeleteAccounts,
+  searchAccounts,
+  normalizePlatform,
+  validateAccountData,
+};

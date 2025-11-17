@@ -41,8 +41,17 @@ const MediaBuyerDashboard = () => {
     start: null,
     end: null,
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [metricsData, setMetricsData] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [metricsData, setMetricsData] = useState({
+    amount_spent: {},
+    revenue: {},
+    net: {},
+    roi: {},
+    clicks: {},
+    conversions: {},
+    cpa: {},
+    epc: {},
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tabletMenuOpen, setTabletMenuOpen] = useState(false);
   // Track which card is expanded - only one card can be expanded at a time
@@ -199,7 +208,7 @@ const MediaBuyerDashboard = () => {
         },
       });
       setIsLoading(false);
-    }, 100);
+    }, 1000);
   };
 
   // Handle date range change
@@ -251,7 +260,7 @@ const MediaBuyerDashboard = () => {
   );
 
   return (
-    <div className="p-3 xs:p-4 md:p-6 w-full xs:pt-[10%] ss:pt-[15%] md:pt-[5%] lg:pt-[3%]">
+    <div className="p-3 xs:p-4 md:p-6 w-full xs:pt-[25%] ss:pt-[15%] md:pt-[5%] lg:pt-[3%]">
       {/* Main header with filters - Optimized for all device sizes */}
       <div className="mb-4 md:mb-6">
         {/* Mobile Layout (up to 640px) */}
