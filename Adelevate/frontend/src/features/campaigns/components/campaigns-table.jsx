@@ -1,18 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Platform Icon Component
+// Base URL for API
+const BASE_URL = import.meta.env.PROD ? "/api/campaigns" : "http://5.78.123.130:8080/v1/campaigns";
+
+// Platform-specific endpoints - only snap and meta have dedicated endpoints
+const PLATFORM_ENDPOINTS = {
+  facebook: `${BASE_URL}/meta`, // Facebook → /meta endpoint
+  snap: `${BASE_URL}/snap`, // Snap → /snap endpoint
+  newsbreak: `${BASE_URL}/active`, // Newsbreak → default /active
+  tiktok: `${BASE_URL}/active`, // TikTok → default /active
+  google: `${BASE_URL}/active` // Google → default /active
+};
+
+// Default endpoint for all active campaigns (all 5 platforms)
+const DEFAULT_ENDPOINT = `${BASE_URL}/active`;
+
 function PlatformIcon({ platform }) {
   const platformIconsMap = {
     google: googleIcon,
     facebook: fb,
     tiktok: tiktokIcon,
     snap: snapchatIcon,
-    newsbreak: nb,
+    newsbreak: nb
   };
 
   const iconSrc = platformIconsMap[platform];
@@ -24,7 +38,6 @@ function PlatformIcon({ platform }) {
   return <img src={iconSrc} alt={`${platform} icon`} className="w-5 h-5" />;
 }
 
-// Status Badge Component
 function StatusBadge({ status }) {
   const statusConfig = {
     active: {
@@ -40,7 +53,7 @@ function StatusBadge({ status }) {
             clipRule="evenodd"
           />
         </svg>
-      ),
+      )
     },
     paused: {
       label: "Paused",
@@ -55,8 +68,8 @@ function StatusBadge({ status }) {
             clipRule="evenodd"
           />
         </svg>
-      ),
-    },
+      )
+    }
   };
 
   const config = statusConfig[status] || statusConfig.paused;
@@ -79,134 +92,82 @@ function StatusBadge({ status }) {
   );
 }
 
-// Skeleton loader component
 function TableSkeleton({ columnCount, rowCount }) {
   return (
     <>
       {Array.from({ length: rowCount }).map((_, rowIndex) => (
-        <tr key={`skeleton-row-${rowIndex}`} className="animate-pulse">
+        <tr key={`skeleton-row-${rowIndex}`} className="border-b border-gray-100">
           {Array.from({ length: columnCount }).map((_, colIndex) => (
             <td
               key={`skeleton-cell-${rowIndex}-${colIndex}`}
-              className="px-4 py-3 border-b border-gray-100"
+              className="px-4 py-3 border-r border-gray-200"
             >
               <div
-                className={`h-5 bg-gray-200 rounded ${
+                className={`h-4 rounded-md animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] ${
                   colIndex === 0
-                    ? "w-12"
+                    ? "w-10"
                     : colIndex === 1
-                    ? "w-full"
-                    : "w-16 ml-auto"
+                      ? "w-full max-w-md"
+                      : colIndex === 2
+                        ? "w-20 ml-auto"
+                        : "w-16 ml-auto"
                 }`}
+                style={{
+                  animation: "shimmer 1.5s ease-in-out infinite"
+                }}
               ></div>
             </td>
           ))}
         </tr>
       ))}
+      <style jsx>{`
+        @keyframes shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+      `}</style>
     </>
   );
 }
 
 function CampaignsTable({ filters = {} }) {
-  function makeRows(count = 100) {
-    const baseId = 7000;
-    const titles = [
-      "f1 | atmt | nvn | s29 | atnk | oct14",
-      "HomeService | Google | Homefixpro | 23OCT | arbu",
-      "AUTO | SNAP | SV1F | RT | NK",
-      "Auto | R3 | Meta | SV1F",
-      "SW Mx | Meta | Everydaydeals | 25 OCT | eubla",
-      "Auto | Meta | Autoinsurancesaver | 27 OCT | multicar",
-      "Homeinsurance | Newsbreak | HomeShieldplus | 27 OCT | lphome",
-    ];
-
-    const platforms = ["google", "facebook", "tiktok", "snap", "newsbreak"];
-    const statuses = ["active", "paused"];
-
-    const rows = [];
-    for (let i = 0; i < count; i++) {
-      const clicks = Math.floor(Math.random() * 140);
-      const lpViews = clicks + Math.floor(Math.random() * 40);
-      const lpClicks = Math.max(
-        0,
-        Math.floor(clicks * 0.2) - Math.floor(Math.random() * 4)
-      );
-      const purchases = Math.floor(Math.random() * 8);
-      const cost = Math.random() * 100;
-      const revenue = Math.random() * 150;
-      const profit = revenue - cost;
-
-      rows.push({
-        id: baseId - i,
-        title: titles[i % titles.length],
-        platform: platforms[i % platforms.length],
-        status: statuses[i % statuses.length],
-        tag: [
-          "Mythili",
-          "Naga",
-          "Shanker",
-          "Ramanan",
-          "Jai",
-          "ArunS",
-          "naveen",
-          "Ashwin",
-          "Raju",
-          "Sudhanshu",
-          "Hari",
-          "Gokulraj",
-        ][i % 12],
-        cost,
-        revenue,
-        profit,
-        lpCtr: lpViews > 0 ? (lpClicks / lpViews) * 100 : 0,
-        roi: cost > 0 ? (profit / cost) * 100 : 0,
-        purchases,
-        cpa: purchases > 0 ? cost / purchases : 0,
-        aov: purchases > 0 ? revenue / purchases : 0,
-        cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
-        lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
-        lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        clicks,
-        lpViews,
-        lpClicks,
-      });
-    }
-    return rows;
-  }
-
   const columns = [
-    { id: "id", label: "#", numeric: true, sticky: true },
-    { id: "title", label: "Campaign Title", numeric: false, sticky: true },
+    { id: "id", label: "#", numeric: true },
+    { id: "title", label: "Campaign Title", numeric: false },
     { id: "status", label: "Status", numeric: false },
     {
       id: "cost",
       label: "Cost",
       numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
+      format: (val) => `$${val.toFixed(2)}`
     },
     {
       id: "revenue",
       label: "Revenue",
       numeric: true,
-      format: (val) => `$${val.toFixed(2)}`,
+      format: (val) => `$${val.toFixed(2)}`
     },
     {
       id: "profit",
       label: "Profit",
-      numeric: true,
+      numeric: true
     },
     {
       id: "lpCtr",
       label: "LP CTR",
       numeric: true,
       format: (val) => `${val.toFixed(1)}%`,
-      tooltip: "Landing Page CTR: (LP Clicks / LP Views) * 100",
+      tooltip: "Landing Page CTR: (LP Clicks / LP Views) * 100"
     },
     {
       id: "roi",
       label: "ROI",
       numeric: true,
-      tooltip: "Return On Investment: (Profit / Cost) * 100",
+      tooltip: "Return On Investment: (Profit / Cost) * 100"
     },
     { id: "purchases", label: "Purchases", numeric: true },
     {
@@ -214,42 +175,43 @@ function CampaignsTable({ filters = {} }) {
       label: "CPA",
       numeric: true,
       format: (val) => `$${val.toFixed(2)}`,
-      tooltip: "Cost Per Acquisition: Cost / Purchases",
+      tooltip: "Cost Per Acquisition: Cost / Purchases"
     },
     {
       id: "aov",
       label: "AOV",
       numeric: true,
       format: (val) => `$${val.toFixed(2)}`,
-      tooltip: "Average Order Value: Revenue / Purchases",
+      tooltip: "Average Order Value: Revenue / Purchases"
     },
     {
       id: "cr",
       label: "Conv. Rate",
       numeric: true,
       format: (val) => `${val.toFixed(1)}%`,
-      tooltip: "Conversion Rate: (Purchases / Clicks) * 100",
+      tooltip: "Conversion Rate: (Purchases / Clicks) * 100"
     },
     {
       id: "lpcpc",
       label: "LP CPC",
       numeric: true,
       format: (val) => val.toFixed(2),
-      tooltip: "Landing Page Cost Per Click: Cost / LP Clicks",
+      tooltip: "Landing Page Cost Per Click: Cost / LP Clicks"
     },
     {
       id: "lpepc",
       label: "LP EPC",
       numeric: true,
       format: (val) => val.toFixed(2),
-      tooltip: "Landing Page Earnings Per Click: Revenue / LP Clicks",
+      tooltip: "Landing Page Earnings Per Click: Revenue / LP Clicks"
     },
     { id: "clicks", label: "Clicks", numeric: true },
     { id: "lpViews", label: "LP Views", numeric: true },
-    { id: "lpClicks", label: "LP Clicks", numeric: true },
+    { id: "lpClicks", label: "LP Clicks", numeric: true }
   ];
 
-  const [rawData, setRawData] = useState(() => makeRows(100));
+  const [rawData, setRawData] = useState([]);
+  const [apiError, setApiError] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [page, setPage] = useState(1);
   const scrollRef = useRef(null);
@@ -263,19 +225,17 @@ function CampaignsTable({ filters = {} }) {
     expandedCampaigns: new Set(),
     expandedDates: new Map(),
     expandedHours: new Map(),
-    expandedOffers: new Map(),
+    expandedOffers: new Map()
   });
 
   const [drillDownCache, setDrillDownCache] = useState({
     dates: new Map(),
     hours: new Map(),
     offers: new Map(),
-    landings: new Map(),
+    landings: new Map()
   });
 
-  const [columnOrder, setColumnOrder] = useState(() =>
-    columns.map((_, i) => i)
-  );
+  const [columnOrder, setColumnOrder] = useState(() => columns.map((_, i) => i));
   const [columnWidths, setColumnWidths] = useState(() => {
     const widths = {};
     columns.forEach((col, i) => {
@@ -296,12 +256,12 @@ function CampaignsTable({ filters = {} }) {
       level === 0
         ? ""
         : level === 1
-        ? "bg-opacity-80"
-        : level === 2
-        ? "bg-opacity-60"
-        : level === 3
-        ? "bg-opacity-40"
-        : "bg-opacity-20";
+          ? "bg-opacity-80"
+          : level === 2
+            ? "bg-opacity-60"
+            : level === 3
+              ? "bg-opacity-40"
+              : "bg-opacity-20";
 
     if (profit >= 0) {
       return `bg-green-50 ${opacity} hover:bg-yellow-100`;
@@ -310,28 +270,356 @@ function CampaignsTable({ filters = {} }) {
     }
   };
 
-  const refreshData = () => {
+  // Fetch data from a single endpoint
+  const fetchFromEndpoint = async (endpoint, platformName) => {
+    try {
+      console.log(`🔄 Fetching ${platformName} campaigns from:`, endpoint);
+      const res = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log(`✅ ${platformName} API Response Status:`, res.status);
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const errJson = await res.json();
+          console.error(`❌ ${platformName} API Error JSON:`, errJson);
+          if (errJson && (errJson.error || errJson.message)) {
+            msg = errJson.error || errJson.message;
+          }
+        } catch {
+          const errText = await res.text();
+          console.error(`❌ ${platformName} API Error Text:`, errText);
+        }
+        throw new Error(`${platformName} API ${res.status}: ${msg}`);
+      }
+
+      const data = await res.json();
+      console.log(`📊 ${platformName} API Raw Data:`, data);
+
+      // Extract rows from various possible response structures
+      const rows = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.data?.items)
+            ? data.data.items
+            : data?.data || data?.rows || data?.campaigns || [];
+
+      console.log(`📈 ${platformName} Extracted Rows Count:`, rows.length);
+      return rows.filter(Boolean);
+    } catch (err) {
+      console.error(`❌ Failed to fetch ${platformName} campaigns:`, err);
+      throw err;
+    }
+  };
+
+  // Map raw data to table format
+  const mapCampaignData = (rows, startIdx = 0) => {
+    return rows.map((r, idx) => {
+      const platformRaw = String(r.platform || "").toLowerCase();
+      const statusRaw = String(r.status || "")
+        .toUpperCase()
+        .trim();
+
+      const cost = Number(r.spend ?? r.cost ?? 0);
+      const revenue = Number(r.revenue ?? 0);
+      const profit = Number(
+        r.profit !== undefined && r.profit !== null ? r.profit : revenue - cost
+      );
+
+      const clicks = Number(r.clicks ?? 0);
+      const lpViews = Number(r.lp_views ?? r.lpViews ?? 0);
+      const lpClicks = Number(r.lp_clicks ?? r.lpClicks ?? 0);
+      const conversions = Number(r.conversions ?? r.purchases ?? 0);
+
+      const lpCtr = lpViews > 0 ? (lpClicks / lpViews) * 100 : 0;
+      const roi = typeof r.roi === "number" ? r.roi * 100 : cost > 0 ? (profit / cost) * 100 : 0;
+
+      const cpa = conversions > 0 ? cost / conversions : 0;
+      const aov = conversions > 0 ? revenue / conversions : 0;
+      const cr = clicks > 0 ? (conversions / clicks) * 100 : 0;
+      const lpcpc = lpClicks > 0 ? cost / lpClicks : 0;
+      const lpepc = lpClicks > 0 ? revenue / lpClicks : 0;
+
+      const campaignName = r.campaign_name || r.campaignName || r.name || "";
+      const tag = (() => {
+        const parts = String(campaignName).split("|");
+        return (parts[parts.length - 1] || "").trim() || "—";
+      })();
+
+      // Normalize platform name
+      let platform = platformRaw;
+      if (platform === "meta" || platform === "fb" || platform === "facebook") {
+        platform = "facebook";
+      } else if (platform === "snapchat") {
+        platform = "snap";
+      } else if (!["facebook", "snap", "newsbreak", "tiktok", "google"].includes(platform)) {
+        const name = String(campaignName).toLowerCase();
+        if (name.includes("snap")) platform = "snap";
+        else if (name.includes("newsbreak")) platform = "newsbreak";
+        else if (name.includes("tiktok")) platform = "tiktok";
+        else if (name.includes("google")) platform = "google";
+        else platform = "facebook";
+      }
+
+      // FIXED: Properly normalize status - handle both ACTIVE and PAUSED/INACTIVE
+      let status = "paused"; // default
+      if (statusRaw === "ACTIVE" || statusRaw === "ENABLED") {
+        status = "active";
+      } else if (statusRaw === "PAUSED" || statusRaw === "INACTIVE" || statusRaw === "DISABLED") {
+        status = "paused";
+      }
+
+      console.log(
+        `Campaign "${campaignName}" - Raw Status: "${r.status}" -> Normalized: "${status}"`
+      );
+
+      return {
+        id: startIdx + idx + 1,
+        title: String(campaignName || `Campaign ${startIdx + idx + 1}`),
+        platform,
+        status,
+        tag,
+        cost,
+        revenue,
+        profit,
+        lpCtr,
+        roi,
+        purchases: conversions,
+        cpa,
+        aov,
+        cr,
+        lpcpc,
+        lpepc,
+        clicks,
+        lpViews,
+        lpClicks
+      };
+    });
+  };
+
+  // Main fetch function - handles different platform filter scenarios
+  const fetchLiveData = useCallback(async (platformFilters = []) => {
     setIsLoading(true);
+    setApiError(null);
+    setRawData([]);
+
+    console.log("🚀 ========== FETCH LIVE DATA STARTED ==========");
+    console.log("📋 Platform Filters Received:", platformFilters);
+
+    try {
+      let allRows = [];
+      let fetchErrors = [];
+
+      // SCENARIO 1: No platform filters → Use DEFAULT /active endpoint (all 5 platforms)
+      if (!platformFilters || platformFilters.length === 0) {
+        console.log("📡 SCENARIO: No filters - Using DEFAULT endpoint");
+        console.log("🌐 Calling:", DEFAULT_ENDPOINT);
+
+        try {
+          const rows = await fetchFromEndpoint(
+            DEFAULT_ENDPOINT,
+            "All Active Campaigns (5 Platforms)"
+          );
+          allRows = mapCampaignData(rows);
+          console.log("✅ SUCCESS: Fetched all active campaigns");
+        } catch (err) {
+          fetchErrors.push(`All active campaigns: ${err.message}`);
+          console.error("❌ FAILED: Default endpoint error");
+        }
+      }
+      // SCENARIO 2: Platform filters selected
+      else {
+        console.log("📡 SCENARIO: Platform filters applied");
+        console.log("🎯 Selected Platforms:", platformFilters);
+
+        // Check if we need to call /active or specific endpoints
+        const needsSnapEndpoint = platformFilters.includes("snap");
+        const needsMetaEndpoint = platformFilters.includes("facebook");
+        const otherPlatforms = platformFilters.filter((p) => p !== "snap" && p !== "facebook");
+
+        console.log("🔍 Platform Analysis:");
+        console.log("  - Snap selected:", needsSnapEndpoint);
+        console.log("  - Meta/Facebook selected:", needsMetaEndpoint);
+        console.log("  - Other platforms:", otherPlatforms);
+
+        const fetchPromises = [];
+
+        // Fetch from Snap endpoint if needed
+        if (needsSnapEndpoint) {
+          console.log("📞 Adding SNAP endpoint to fetch queue");
+          fetchPromises.push(
+            (async () => {
+              try {
+                const endpoint = PLATFORM_ENDPOINTS.snap;
+                console.log("🌐 Calling SNAP:", endpoint);
+                const rows = await fetchFromEndpoint(endpoint, "SNAP");
+                return rows;
+              } catch (err) {
+                fetchErrors.push(`Snap: ${err.message}`);
+                return [];
+              }
+            })()
+          );
+        }
+
+        // Fetch from Meta endpoint if needed
+        if (needsMetaEndpoint) {
+          console.log("📞 Adding META/Facebook endpoint to fetch queue");
+          fetchPromises.push(
+            (async () => {
+              try {
+                const endpoint = PLATFORM_ENDPOINTS.facebook;
+                console.log("🌐 Calling META:", endpoint);
+                const rows = await fetchFromEndpoint(endpoint, "META/Facebook");
+                return rows;
+              } catch (err) {
+                fetchErrors.push(`Meta/Facebook: ${err.message}`);
+                return [];
+              }
+            })()
+          );
+        }
+
+        // For other platforms (newsbreak, tiktok, google), use /active and filter client-side
+        if (otherPlatforms.length > 0) {
+          console.log("📞 Adding DEFAULT endpoint for other platforms:", otherPlatforms);
+          fetchPromises.push(
+            (async () => {
+              try {
+                console.log("🌐 Calling DEFAULT (for filtering):", DEFAULT_ENDPOINT);
+                const rows = await fetchFromEndpoint(
+                  DEFAULT_ENDPOINT,
+                  "Other Platforms (via /active)"
+                );
+                // Filter to only include the requested platforms
+                return rows.filter((r) => {
+                  const platform = String(r.platform || "").toLowerCase();
+                  return otherPlatforms.some((p) => {
+                    if (p === "newsbreak") return platform === "newsbreak";
+                    if (p === "tiktok") return platform === "tiktok";
+                    if (p === "google") return platform === "google";
+                    return false;
+                  });
+                });
+              } catch (err) {
+                fetchErrors.push(`Other platforms: ${err.message}`);
+                return [];
+              }
+            })()
+          );
+        }
+
+        console.log("⏳ Executing", fetchPromises.length, "fetch operations...");
+        const results = await Promise.all(fetchPromises);
+        const combinedRows = results.flat();
+
+        console.log("📊 Combined Results:");
+        console.log("  - Total rows fetched:", combinedRows.length);
+
+        allRows = mapCampaignData(combinedRows);
+      }
+
+      console.log("✅ FINAL RESULT:");
+      console.log("  - Total mapped campaigns:", allRows.length);
+      console.log("  - Sample data:", allRows.slice(0, 2));
+
+      // Clear drill-down state
+      setDrillDownCache({
+        dates: new Map(),
+        hours: new Map(),
+        offers: new Map(),
+        landings: new Map()
+      });
+
+      setDrillDownState({
+        expandedCampaigns: new Set(),
+        expandedDates: new Map(),
+        expandedHours: new Map(),
+        expandedOffers: new Map()
+      });
+
+      setRawData(allRows);
+      setPage(1);
+
+      // Show errors if any
+      if (fetchErrors.length > 0) {
+        console.warn("⚠️ WARNINGS: Some endpoints had errors:", fetchErrors);
+        setApiError(`Warning: Some platforms failed to load: ${fetchErrors.join("; ")}`);
+      }
+
+      console.log("🎉 ========== FETCH COMPLETE ==========");
+    } catch (err) {
+      console.error("❌ ========== CRITICAL ERROR ==========");
+      console.error("Error details:", err);
+      setApiError(
+        err?.message?.includes("ECONNREFUSED")
+          ? "Campaign API is unreachable (ECONNREFUSED). Check that the Spring Boot backend at 5.78.123.130:8080 is running and CORS is allowed for this frontend."
+          : err?.message || "Unknown error while loading campaigns."
+      );
+      setRawData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const refreshData = () => {
+    console.log("🔄 ========== MANUAL REFRESH ==========");
+    console.log("Current filters:", filters.platforms);
+
+    setRawData([]);
+    setApiError(null);
 
     setDrillDownCache({
       dates: new Map(),
       hours: new Map(),
       offers: new Map(),
-      landings: new Map(),
+      landings: new Map()
     });
 
     setDrillDownState({
       expandedCampaigns: new Set(),
       expandedDates: new Map(),
       expandedHours: new Map(),
-      expandedOffers: new Map(),
+      expandedOffers: new Map()
     });
 
-    setTimeout(() => {
-      setRawData(makeRows(100));
-      setIsLoading(false);
-    }, 1500);
+    // Fetch with current platform filters
+    fetchLiveData(filters.platforms || []);
   };
+
+  // Initial load - fetch from /active endpoint (all platforms)
+  useEffect(() => {
+    console.log("🎬 ========== INITIAL COMPONENT MOUNT ==========");
+    console.log("Loading all active campaigns from /active endpoint");
+    fetchLiveData([]);
+  }, [fetchLiveData]);
+
+  // Watch for filter changes (when Apply button is clicked from parent)
+  useEffect(() => {
+    console.log("🔍 ========== FILTER CHANGE DETECTED ==========");
+    console.log("New platform filters:", filters.platforms);
+    fetchLiveData(filters.platforms || []);
+  }, [filters.platforms, fetchLiveData]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const intervalId = setInterval(
+      () => {
+        console.log("⏰ ========== AUTO-REFRESH (5 min) ==========");
+        console.log("Current filters:", filters.platforms);
+        fetchLiveData(filters.platforms || []);
+      },
+      5 * 60 * 1000
+    );
+
+    return () => clearInterval(intervalId);
+  }, [fetchLiveData, filters.platforms]);
 
   const sortedColumnOrder = useMemo(() => {
     if (columnSelectionOrder.length === 0) return columnOrder;
@@ -340,11 +628,7 @@ function CampaignsTable({ filters = {} }) {
 
     for (const colId of columnSelectionOrder) {
       const colIndex = columns.findIndex((c) => c.id === colId);
-      if (
-        colIndex !== -1 &&
-        !hiddenCols.has(colIndex) &&
-        columnOrder.includes(colIndex)
-      ) {
+      if (colIndex !== -1 && !hiddenCols.has(colIndex) && columnOrder.includes(colIndex)) {
         result.push(colIndex);
       }
     }
@@ -365,10 +649,7 @@ function CampaignsTable({ filters = {} }) {
       e.preventDefault();
       setColumnWidths((prev) => ({
         ...prev,
-        [resizing.id]: Math.max(
-          60,
-          resizing.startWidth + (e.clientX - resizing.startX)
-        ),
+        [resizing.id]: Math.max(60, resizing.startWidth + (e.clientX - resizing.startX))
       }));
     };
 
@@ -389,12 +670,12 @@ function CampaignsTable({ filters = {} }) {
     compact: "px-2 py-1",
     standard: "px-3 py-2",
     comfortable: "px-4 py-3",
-    veryComfortable: "px-6 py-4",
+    veryComfortable: "px-6 py-4"
   };
 
   const [sortConfig, setSortConfig] = useState({
     key: null,
-    direction: null,
+    direction: null
   });
 
   const toggleColumn = (idx) => {
@@ -406,9 +687,7 @@ function CampaignsTable({ filters = {} }) {
         setColumnSelectionOrder((prevOrder) => [...prevOrder, colId]);
       } else {
         next.add(idx);
-        setColumnSelectionOrder((prevOrder) =>
-          prevOrder.filter((id) => id !== colId)
-        );
+        setColumnSelectionOrder((prevOrder) => prevOrder.filter((id) => id !== colId));
       }
       return next;
     });
@@ -506,7 +785,7 @@ function CampaignsTable({ filters = {} }) {
         ...prev,
         expandedDates: newExpandedDates,
         expandedHours: newExpandedHours,
-        expandedOffers: newExpandedOffers,
+        expandedOffers: newExpandedOffers
       };
     });
   };
@@ -542,7 +821,7 @@ function CampaignsTable({ filters = {} }) {
       return {
         ...prev,
         expandedHours: newExpandedHours,
-        expandedOffers: newExpandedOffers,
+        expandedOffers: newExpandedOffers
       };
     });
   };
@@ -559,12 +838,7 @@ function CampaignsTable({ filters = {} }) {
         newExpandedOffers.set(mapKey, true);
 
         if (!drillDownCache.landings.has(mapKey)) {
-          const landingData = getLandingBreakdown(
-            campaignId,
-            dateId,
-            hourId,
-            offerId
-          );
+          const landingData = getLandingBreakdown(campaignId, dateId, hourId, offerId);
           setDrillDownCache((prev) => {
             const newCache = { ...prev };
             newCache.landings.set(mapKey, landingData);
@@ -575,7 +849,7 @@ function CampaignsTable({ filters = {} }) {
 
       return {
         ...prev,
-        expandedOffers: newExpandedOffers,
+        expandedOffers: newExpandedOffers
       };
     });
   };
@@ -583,27 +857,48 @@ function CampaignsTable({ filters = {} }) {
   const filteredData = useMemo(() => {
     let result = [...rawData];
 
+    console.log("🔍 FILTERING DATA:");
+    console.log("  - Raw data count:", result.length);
+    console.log("  - Filters:", filters);
+
+    // Additional client-side filtering
     if (filters.platforms && filters.platforms.length > 0) {
+      console.log("  - Applying platform filter:", filters.platforms);
       result = result.filter((row) => filters.platforms.includes(row.platform));
+      console.log("  - After platform filter:", result.length);
     }
 
     if (filters.title && filters.title.trim()) {
       const searchTerm = filters.title.toLowerCase();
-      result = result.filter((row) =>
-        row.title.toLowerCase().includes(searchTerm)
-      );
+      console.log("  - Applying title filter:", searchTerm);
+      result = result.filter((row) => row.title.toLowerCase().includes(searchTerm));
+      console.log("  - After title filter:", result.length);
     }
 
     if (filters.tags && filters.tags.trim()) {
       const searchTerm = filters.tags.toLowerCase();
-      result = result.filter((row) =>
-        row.tag.toLowerCase().includes(searchTerm)
-      );
+      console.log("  - Applying tags filter:", searchTerm);
+      result = result.filter((row) => row.tag.toLowerCase().includes(searchTerm));
+      console.log("  - After tags filter:", result.length);
     }
 
     if (filters.status && filters.status.length > 0) {
-      result = result.filter((row) => filters.status.includes(row.status));
+      console.log("  - Applying status filter:", filters.status);
+      console.log(
+        "  - Sample row statuses before filter:",
+        result.slice(0, 5).map((r) => r.status)
+      );
+      result = result.filter((row) => {
+        const included = filters.status.includes(row.status);
+        if (!included) {
+          console.log(`    - Excluding row with status "${row.status}" (title: ${row.title})`);
+        }
+        return included;
+      });
+      console.log("  - After status filter:", result.length);
     }
+
+    console.log("  - Final filtered count:", result.length);
 
     return result;
   }, [rawData, filters]);
@@ -612,16 +907,13 @@ function CampaignsTable({ filters = {} }) {
     let direction = "ascending";
     if (sortConfig.key === columnId && sortConfig.direction === "ascending") {
       direction = "descending";
-    } else if (
-      sortConfig.key === columnId &&
-      sortConfig.direction === "descending"
-    ) {
+    } else if (sortConfig.key === columnId && sortConfig.direction === "descending") {
       direction = null;
     }
 
     setSortConfig({
       key: direction ? columnId : null,
-      direction: direction,
+      direction: direction
     });
   };
 
@@ -646,13 +938,14 @@ function CampaignsTable({ filters = {} }) {
   const totals = useMemo(() => {
     return sortedData.reduce(
       (acc, row) => {
-        acc.cost += row.cost;
-        acc.revenue += row.revenue;
-        acc.profit += row.profit;
-        acc.purchases += row.purchases;
-        acc.clicks += row.clicks;
-        acc.lpViews += row.lpViews;
-        acc.lpClicks += row.lpClicks;
+        if (!row) return acc;
+        acc.cost += row.cost || 0;
+        acc.revenue += row.revenue || 0;
+        acc.profit += row.profit || 0;
+        acc.purchases += row.purchases || 0;
+        acc.clicks += row.clicks || 0;
+        acc.lpViews += row.lpViews || 0;
+        acc.lpClicks += row.lpClicks || 0;
         return acc;
       },
       {
@@ -662,7 +955,7 @@ function CampaignsTable({ filters = {} }) {
         purchases: 0,
         clicks: 0,
         lpViews: 0,
-        lpClicks: 0,
+        lpClicks: 0
       }
     );
   }, [sortedData]);
@@ -678,7 +971,7 @@ function CampaignsTable({ filters = {} }) {
       "2025-01-23",
       "2025-01-24",
       "2025-01-25",
-      "2025-01-26",
+      "2025-01-26"
     ];
 
     const statuses = ["active", "paused"];
@@ -690,10 +983,7 @@ function CampaignsTable({ filters = {} }) {
       const clicks = Math.floor((campaign.clicks / divider) * variation);
       const lpViews = Math.floor((campaign.lpViews / divider) * variation);
       const lpClicks = Math.floor((campaign.lpClicks / divider) * variation);
-      const purchases = Math.max(
-        0,
-        Math.floor((campaign.purchases / divider) * variation)
-      );
+      const purchases = Math.max(0, Math.floor((campaign.purchases / divider) * variation));
       const cost = (campaign.cost / divider) * variation;
       const revenue = (campaign.revenue / divider) * variation;
       const profit = revenue - cost;
@@ -719,7 +1009,7 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        platform: campaign.platform,
+        platform: campaign.platform
       };
     });
   };
@@ -742,10 +1032,7 @@ function CampaignsTable({ filters = {} }) {
       const clicks = Math.floor((date.clicks / divider) * variation);
       const lpViews = Math.floor((date.lpViews / divider) * variation);
       const lpClicks = Math.floor((date.lpClicks / divider) * variation);
-      const purchases = Math.max(
-        0,
-        Math.floor((date.purchases / divider) * variation)
-      );
+      const purchases = Math.max(0, Math.floor((date.purchases / divider) * variation));
       const cost = (date.cost / divider) * variation;
       const revenue = (date.revenue / divider) * variation;
       const profit = revenue - cost;
@@ -772,7 +1059,7 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        platform: date.platform,
+        platform: date.platform
       };
     });
   };
@@ -789,7 +1076,7 @@ function CampaignsTable({ filters = {} }) {
       "AutoQuoteZone | CPL $15 | Monthly",
       "Auto | 7828 | Rev Share | mid",
       "HomeService | Quote | 30USD",
-      "Finance | Loans | CPS $75",
+      "Finance | Loans | CPS $75"
     ];
 
     const statuses = ["active", "paused"];
@@ -802,10 +1089,7 @@ function CampaignsTable({ filters = {} }) {
       const clicks = Math.floor((hour.clicks / divider) * variation);
       const lpViews = Math.floor((hour.lpViews / divider) * variation);
       const lpClicks = Math.floor((hour.lpClicks / divider) * variation);
-      const purchases = Math.max(
-        0,
-        Math.floor((hour.purchases / divider) * variation)
-      );
+      const purchases = Math.max(0, Math.floor((hour.purchases / divider) * variation));
       const cost = (hour.cost / divider) * variation;
       const revenue = (hour.revenue / divider) * variation;
       const profit = revenue - cost;
@@ -833,7 +1117,7 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        platform: hour.platform,
+        platform: hour.platform
       };
     });
   };
@@ -850,7 +1134,7 @@ function CampaignsTable({ filters = {} }) {
       "Auto | Newsbreak | Autoinsurancesaver | 29AUG | ccggv12",
       "Auto | Newsbreak | Autoinsurancesaver | 1SEP | drivesecurepro",
       "Home | Snapchat | HomeRepairPro | 15OCT | quotev8",
-      "Loans | Meta | FastCashNow | 20OCT | apply-online",
+      "Loans | Meta | FastCashNow | 20OCT | apply-online"
     ];
 
     const statuses = ["active", "paused"];
@@ -863,10 +1147,7 @@ function CampaignsTable({ filters = {} }) {
       const clicks = Math.floor((offer.clicks / divider) * variation);
       const lpViews = Math.floor((offer.lpViews / divider) * variation);
       const lpClicks = Math.floor((offer.lpClicks / divider) * variation);
-      const purchases = Math.max(
-        0,
-        Math.floor((offer.purchases / divider) * variation)
-      );
+      const purchases = Math.max(0, Math.floor((offer.purchases / divider) * variation));
       const cost = (offer.cost / divider) * variation;
       const revenue = (offer.revenue / divider) * variation;
       const profit = revenue - cost;
@@ -895,16 +1176,13 @@ function CampaignsTable({ filters = {} }) {
         cr: clicks > 0 ? (purchases / clicks) * 100 : 0,
         lpcpc: lpClicks > 0 ? cost / lpClicks : 0,
         lpepc: lpClicks > 0 ? revenue / lpClicks : 0,
-        platform: offer.platform,
+        platform: offer.platform
       };
     });
   };
 
   const pageRows = useMemo(() => {
-    const baseRows = sortedData.slice(
-      (page - 1) * rowsPerPage,
-      page * rowsPerPage
-    );
+    const baseRows = sortedData.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
     const result = [];
 
@@ -959,12 +1237,7 @@ function CampaignsTable({ filters = {} }) {
                   if (drillDownState.expandedOffers.has(offerMapKey)) {
                     let landingData = drillDownCache.landings.get(offerMapKey);
                     if (!landingData) {
-                      landingData = getLandingBreakdown(
-                        campaign.id,
-                        date.id,
-                        hour.id,
-                        offer.id
-                      );
+                      landingData = getLandingBreakdown(campaign.id, date.id, hour.id, offer.id);
                       setDrillDownCache((prev) => {
                         const newCache = { ...prev };
                         newCache.landings.set(offerMapKey, landingData);
@@ -997,17 +1270,12 @@ function CampaignsTable({ filters = {} }) {
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [page]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [filters]);
-
   const showAllColumns = () => {
     setHiddenCols(new Set());
     setColumnSelectionOrder([]);
   };
 
-  const hideAllColumns = () =>
-    setHiddenCols(new Set(columns.map((_, idx) => idx)));
+  const hideAllColumns = () => setHiddenCols(new Set(columns.map((_, idx) => idx)));
 
   const resetTable = () => {
     setHiddenCols(new Set());
@@ -1015,21 +1283,21 @@ function CampaignsTable({ filters = {} }) {
     setRowsPerPage(100);
     setPage(1);
     setOpenMenu(null);
-    setSortConfig({ key: null, direction: null, clickedColumn: null });
+    setSortConfig({ key: null, direction: null });
     setColumnSelectionOrder([]);
 
     setDrillDownState({
       expandedCampaigns: new Set(),
       expandedDates: new Map(),
       expandedHours: new Map(),
-      expandedOffers: new Map(),
+      expandedOffers: new Map()
     });
 
     setDrillDownCache({
       dates: new Map(),
       hours: new Map(),
       offers: new Map(),
-      landings: new Map(),
+      landings: new Map()
     });
 
     setColumnOrder(columns.map((_, i) => i));
@@ -1055,28 +1323,21 @@ function CampaignsTable({ filters = {} }) {
 
   const formatProfitValue = (value) => {
     const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
-    const displayValue =
-      value >= 0 ? value.toFixed(2) : `-${Math.abs(value).toFixed(2)}`;
+    const displayValue = value >= 0 ? value.toFixed(2) : `-${Math.abs(value).toFixed(2)}`;
 
-    return (
-      <span className={`font-semibold ${colorClass}`}>${displayValue}</span>
-    );
+    return <span className={`font-semibold ${colorClass}`}>${displayValue}</span>;
   };
 
   const formatRevenueValue = (value, profit) => {
     const colorClass = profit >= 0 ? "text-green-600" : "text-red-600";
 
-    return (
-      <span className={`font-semibold ${colorClass}`}>${value.toFixed(2)}</span>
-    );
+    return <span className={`font-semibold ${colorClass}`}>${value.toFixed(2)}</span>;
   };
 
   const formatROIValue = (value) => {
     const colorClass = value >= 0 ? "text-green-600" : "text-red-600";
 
-    return (
-      <span className={`font-semibold ${colorClass}`}>{value.toFixed(1)}%</span>
-    );
+    return <span className={`font-semibold ${colorClass}`}>{value.toFixed(1)}%</span>;
   };
 
   const getCellValue = (row, columnId) => {
@@ -1104,11 +1365,7 @@ function CampaignsTable({ filters = {} }) {
     switch (type) {
       case "date":
         return (
-          <svg
-            className="w-4 h-4 text-blue-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
@@ -1118,11 +1375,7 @@ function CampaignsTable({ filters = {} }) {
         );
       case "hour":
         return (
-          <svg
-            className="w-4 h-4 text-purple-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
@@ -1132,11 +1385,7 @@ function CampaignsTable({ filters = {} }) {
         );
       case "offer":
         return (
-          <svg
-            className="w-4 h-4 text-orange-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
             <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
             <path
               fillRule="evenodd"
@@ -1147,11 +1396,7 @@ function CampaignsTable({ filters = {} }) {
         );
       case "landing":
         return (
-          <svg
-            className="w-4 h-4 text-teal-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg className="w-4 h-4 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
@@ -1170,23 +1415,13 @@ function CampaignsTable({ filters = {} }) {
     } else if (columnId === "cost") {
       return `$${totals.cost.toFixed(2)}`;
     } else if (columnId === "revenue") {
-      const profitClass =
-        totals.profit >= 0 ? "text-green-700" : "text-red-700";
-      return (
-        <span className={`${profitClass} font-bold`}>
-          ${totals.revenue.toFixed(2)}
-        </span>
-      );
+      const profitClass = totals.profit >= 0 ? "text-green-700" : "text-red-700";
+      return <span className={`${profitClass} font-bold`}>${totals.revenue.toFixed(2)}</span>;
     } else if (columnId === "profit") {
-      const profitClass =
-        totals.profit >= 0 ? "text-green-700" : "text-red-700";
+      const profitClass = totals.profit >= 0 ? "text-green-700" : "text-red-700";
       const displayValue =
-        totals.profit >= 0
-          ? totals.profit.toFixed(2)
-          : `-${Math.abs(totals.profit).toFixed(2)}`;
-      return (
-        <span className={`${profitClass} font-bold`}>${displayValue}</span>
-      );
+        totals.profit >= 0 ? totals.profit.toFixed(2) : `-${Math.abs(totals.profit).toFixed(2)}`;
+      return <span className={`${profitClass} font-bold`}>${displayValue}</span>;
     } else if (columnId === "lpCtr") {
       return `${
         totals.lpClicks && totals.lpViews
@@ -1196,21 +1431,13 @@ function CampaignsTable({ filters = {} }) {
     } else if (columnId === "roi") {
       const roiValue = totals.cost ? (totals.profit / totals.cost) * 100 : 0;
       const roiClass = roiValue >= 0 ? "text-green-700" : "text-red-700";
-      return (
-        <span className={`${roiClass} font-bold`}>{roiValue.toFixed(1)}%</span>
-      );
+      return <span className={`${roiClass} font-bold`}>{roiValue.toFixed(1)}%</span>;
     } else if (columnId === "purchases") {
       return totals.purchases.toLocaleString();
     } else if (columnId === "cpa") {
-      return `$${
-        totals.purchases ? (totals.cost / totals.purchases).toFixed(2) : "0.00"
-      }`;
+      return `$${totals.purchases ? (totals.cost / totals.purchases).toFixed(2) : "0.00"}`;
     } else if (columnId === "aov") {
-      return `$${
-        totals.purchases
-          ? (totals.revenue / totals.purchases).toFixed(2)
-          : "0.00"
-      }`;
+      return `$${totals.purchases ? (totals.revenue / totals.purchases).toFixed(2) : "0.00"}`;
     } else if (columnId === "cr") {
       return `${
         totals.clicks && totals.purchases
@@ -1218,13 +1445,9 @@ function CampaignsTable({ filters = {} }) {
           : "0.0"
       }%`;
     } else if (columnId === "lpcpc") {
-      return totals.lpClicks
-        ? (totals.cost / totals.lpClicks).toFixed(2)
-        : "0.00";
+      return totals.lpClicks ? (totals.cost / totals.lpClicks).toFixed(2) : "0.00";
     } else if (columnId === "lpepc") {
-      return totals.lpClicks
-        ? (totals.revenue / totals.lpClicks).toFixed(2)
-        : "0.00";
+      return totals.lpClicks ? (totals.revenue / totals.lpClicks).toFixed(2) : "0.00";
     } else if (columnId === "clicks") {
       return totals.clicks.toLocaleString();
     } else if (columnId === "lpViews") {
@@ -1238,11 +1461,28 @@ function CampaignsTable({ filters = {} }) {
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-screen">
-      {/* HEADER */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/75 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
+      {apiError && (
+        <div className="px-3 sm:px-4 md:px-6 py-3 bg-red-50 text-red-700 border-b border-red-200 flex-shrink-0">
+          <div className="flex items-start gap-2">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">Failed to load campaigns</div>
+              <div className="text-xs mt-1 opacity-90 break-words">{apiError}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="px-3 sm:px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 bg-gray-50/75 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 md:gap-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 tracking-tight">
               Campaign Analytics
             </h2>
 
@@ -1250,24 +1490,24 @@ function CampaignsTable({ filters = {} }) {
               filters.title ||
               filters.tags ||
               filters.status?.length > 0) && (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm text-gray-600">
                 {filters.platforms?.length > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Platforms: {filters.platforms.join(", ")}
                   </span>
                 )}
                 {filters.status?.length > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                     Status: {filters.status.join(", ")}
                   </span>
                 )}
                 {filters.title && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 max-w-xs truncate">
                     Title: "{filters.title}"
                   </span>
                 )}
                 {filters.tags && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 max-w-xs truncate">
                     Tags: "{filters.tags}"
                   </span>
                 )}
@@ -1275,18 +1515,17 @@ function CampaignsTable({ filters = {} }) {
             )}
           </div>
 
-          {/* CONTROLS */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <button
               type="button"
-              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
+              className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${
                 isLoading ? "opacity-75 cursor-not-allowed" : ""
               }`}
               onClick={refreshData}
               disabled={isLoading}
             >
               <svg
-                className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? "animate-spin" : ""}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1298,20 +1537,17 @@ function CampaignsTable({ filters = {} }) {
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
               </svg>
-              {isLoading ? "Refreshing..." : "Refresh"}
+              <span className="hidden xs:inline">{isLoading ? "Refreshing..." : "Refresh"}</span>
             </button>
 
-            {/* Columns Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
-                onClick={() =>
-                  setOpenMenu((m) => (m === "columns" ? null : "columns"))
-                }
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                onClick={() => setOpenMenu((m) => (m === "columns" ? null : "columns"))}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1323,10 +1559,10 @@ function CampaignsTable({ filters = {} }) {
                     d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
                   />
                 </svg>
-                Columns
+                <span className="hidden sm:inline">Columns</span>
               </button>
               {openMenu === "columns" && (
-                <div className="absolute right-0 z-30 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
+                <div className="absolute right-0 z-30 mt-2 w-64 sm:w-72 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex justify-between gap-2">
                       <button
@@ -1357,9 +1593,7 @@ function CampaignsTable({ filters = {} }) {
                           onChange={() => toggleColumn(idx)}
                           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700 flex-1">
-                          {column.label}
-                        </span>
+                        <span className="text-sm text-gray-700 flex-1">{column.label}</span>
                       </label>
                     ))}
                   </div>
@@ -1367,17 +1601,14 @@ function CampaignsTable({ filters = {} }) {
               )}
             </div>
 
-            {/* Density Menu */}
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
-                onClick={() =>
-                  setOpenMenu((m) => (m === "density" ? null : "density"))
-                }
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                onClick={() => setOpenMenu((m) => (m === "density" ? null : "density"))}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1389,16 +1620,11 @@ function CampaignsTable({ filters = {} }) {
                     d="M4 6h16M4 12h16M4 18h16"
                   />
                 </svg>
-                Density
+                <span className="hidden sm:inline">Density</span>
               </button>
               {openMenu === "density" && (
                 <div className="absolute right-0 z-30 mt-2 w-52 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
-                  {[
-                    "compact",
-                    "standard",
-                    "comfortable",
-                    "veryComfortable",
-                  ].map((opt) => (
+                  {["compact", "standard", "comfortable", "veryComfortable"].map((opt) => (
                     <label
                       key={opt}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -1423,20 +1649,19 @@ function CampaignsTable({ filters = {} }) {
 
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
               onClick={resetTable}
             >
-              Reset
+              <span className="hidden sm:inline">Reset</span>
+              <span className="sm:hidden">↺</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Table Container - SCROLLABLE */}
       <div ref={scrollRef} className="overflow-auto flex-grow">
-        <div className="relative">
-          <table className="w-full border-collapse min-w-max">
-            {/* ✅ FIXED HEADER with RedTrack Style */}
+        <div className="relative min-w-max">
+          <table className="w-full border-collapse">
             <thead className="sticky top-0 z-20 bg-white">
               <tr style={{ backgroundColor: "#ebeff3" }}>
                 {sortedColumnOrder.map((colIdx) => {
@@ -1445,7 +1670,6 @@ function CampaignsTable({ filters = {} }) {
                   const sortIcon = getSortIndicator(column.id);
                   const isSorted = sortIcon !== "⇅";
                   const totalContent = getTotalContent(column.id);
-                  const isSticky = column.sticky;
 
                   return (
                     <th
@@ -1456,30 +1680,16 @@ function CampaignsTable({ filters = {} }) {
                         ${column.numeric ? "text-right" : "text-left"}
                         hover:bg-gray-200 transition-colors cursor-pointer
                         border-b-2 border-gray-300 border-r border-gray-200
-                        ${
-                          draggedColumn === colIdx
-                            ? "opacity-50 bg-blue-100"
-                            : ""
-                        }
-                        ${
-                          dragOverColumn === colIdx
-                            ? "border-l-4 border-blue-500"
-                            : ""
-                        }
-                        ${
-                          isSticky
-                            ? column.id === "id"
-                              ? "sticky left-0 z-30 bg-gray-100 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
-                              : "sticky left-[60px] z-30 bg-gray-100 shadow-[2px_0_4px_rgba(0,0,0,0.1)]"
-                            : ""
-                        }
+                        ${draggedColumn === colIdx ? "opacity-50 bg-blue-100" : ""}
+                        ${dragOverColumn === colIdx ? "border-l-4 border-blue-500" : ""}
                       `}
                       style={{
                         width: `${columnWidths[column.id]}px`,
-                        backgroundColor: isSticky ? "#ebeff3" : "#ebeff3",
+                        minWidth: `${columnWidths[column.id]}px`,
+                        backgroundColor: "#ebeff3",
                         paddingTop: "12px",
                         paddingBottom: "12px",
-                        cursor: resizing ? "col-resize" : "pointer",
+                        cursor: resizing ? "col-resize" : "pointer"
                       }}
                       onClick={() => {
                         if (!resizing) handleSort(column.id);
@@ -1492,19 +1702,14 @@ function CampaignsTable({ filters = {} }) {
                       }}
                       onDragOver={(e) => {
                         e.preventDefault();
-                        if (
-                          draggedColumn !== null &&
-                          draggedColumn !== colIdx
-                        ) {
+                        if (draggedColumn !== null && draggedColumn !== colIdx) {
                           setDragOverColumn(colIdx);
                         }
                       }}
                       onDragLeave={() => setDragOverColumn(null)}
                       onDrop={(e) => {
                         e.preventDefault();
-                        const fromColIdx = Number(
-                          e.dataTransfer.getData("text/plain")
-                        );
+                        const fromColIdx = Number(e.dataTransfer.getData("text/plain"));
                         const toColIdx = colIdx;
 
                         if (fromColIdx !== toColIdx) {
@@ -1525,9 +1730,8 @@ function CampaignsTable({ filters = {} }) {
                         setDragOverColumn(null);
                       }}
                     >
-                      <div className="flex flex-col gap-2">
-                        {/* Column Label Row with Icons */}
-                        <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-1.5 sm:gap-2">
+                        <div className="flex items-center justify-between gap-1.5 sm:gap-2">
                           <span className="text-gray-700 font-semibold text-xs truncate">
                             {column.label}
                           </span>
@@ -1544,13 +1748,11 @@ function CampaignsTable({ filters = {} }) {
                               className="text-gray-500 hover:text-gray-700 p-0.5"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                alert(
-                                  `Filter options for '${column.label}' would appear here.`
-                                );
+                                alert(`Filter options for '${column.label}' would appear here.`);
                               }}
                             >
                               <svg
-                                className="w-3.5 h-3.5"
+                                className="w-3 h-3 sm:w-3.5 sm:h-3.5"
                                 fill="currentColor"
                                 viewBox="0 0 16 16"
                               >
@@ -1561,13 +1763,11 @@ function CampaignsTable({ filters = {} }) {
                             </button>
                           </div>
                         </div>
-                        {/* Total Value Row */}
-                        <div className="font-bold text-sm text-gray-900 leading-tight">
+                        <div className="font-bold text-xs sm:text-sm text-gray-900 leading-tight">
                           {totalContent}
                         </div>
                       </div>
 
-                      {/* Resizing Handle */}
                       <div
                         className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-10"
                         onMouseDown={(e) => {
@@ -1575,7 +1775,7 @@ function CampaignsTable({ filters = {} }) {
                           setResizing({
                             id: column.id,
                             startX: e.clientX,
-                            startWidth: columnWidths[column.id],
+                            startWidth: columnWidths[column.id]
                           });
                         }}
                       />
@@ -1585,30 +1785,22 @@ function CampaignsTable({ filters = {} }) {
               </tr>
             </thead>
 
-            {/* Table Body */}
             <tbody className="bg-white divide-y divide-gray-100">
               {isLoading ? (
                 <TableSkeleton
-                  columnCount={
-                    sortedColumnOrder.filter((idx) => !isHidden(idx)).length
-                  }
+                  columnCount={sortedColumnOrder.filter((idx) => !isHidden(idx)).length}
                   rowCount={15}
                 />
               ) : pageRows.length > 0 ? (
                 pageRows.map((row) => {
                   const indentation = row.level ? row.level * 16 : 0;
                   const canExpand =
-                    !row.type ||
-                    row.type === "date" ||
-                    row.type === "hour" ||
-                    row.type === "offer";
+                    !row.type || row.type === "date" || row.type === "hour" || row.type === "offer";
                   let isExpanded = false;
                   if (!row.type) {
                     isExpanded = drillDownState.expandedCampaigns.has(row.id);
                   } else if (row.type === "date") {
-                    isExpanded = drillDownState.expandedDates.has(
-                      `${row.campaignId}-${row.id}`
-                    );
+                    isExpanded = drillDownState.expandedDates.has(`${row.campaignId}-${row.id}`);
                   } else if (row.type === "hour") {
                     isExpanded = drillDownState.expandedHours.has(
                       `${row.campaignId}-${row.dateId}-${row.id}`
@@ -1618,25 +1810,21 @@ function CampaignsTable({ filters = {} }) {
                       `${row.campaignId}-${row.dateId}-${row.hourId}-${row.id}`
                     );
                   }
-                  const rowBackground = getRowBackgroundColor(
-                    row.profit,
-                    row.level || 0
-                  );
+                  const rowBackground = getRowBackgroundColor(row.profit, row.level || 0);
                   return (
                     <tr
                       key={`${row.type || "campaign"}-${row.id}`}
                       className={`${rowBackground} transition-colors duration-150 border-b border-gray-100`}
                     >
-                      {sortedColumnOrder.map((colIdx, cellIndex) => {
+                      {sortedColumnOrder.map((colIdx) => {
                         if (isHidden(colIdx)) return null;
                         const column = columns[colIdx];
-                        const isSticky = column.sticky;
 
                         if (column.id === "id") {
                           return (
                             <td
                               key={`${row.id}-${column.id}`}
-                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-200 sticky left-0 z-10 ${rowBackground}`}
+                              className={`${cellPadding[density]} text-xs sm:text-sm text-gray-900 border-r border-gray-200`}
                             >
                               {row.id}
                             </td>
@@ -1647,28 +1835,20 @@ function CampaignsTable({ filters = {} }) {
                           return (
                             <td
                               key={`${row.id}-${column.id}`}
-                              className={`${cellPadding[density]} text-sm text-gray-900 border-r border-gray-200 sticky left-[60px] z-10 ${rowBackground}`}
+                              className={`${cellPadding[density]} text-xs sm:text-sm text-gray-900 border-r border-gray-200`}
                             >
                               <div
-                                className="flex items-center gap-2"
+                                className="flex items-center gap-1.5 sm:gap-2"
                                 style={{ paddingLeft: `${indentation}px` }}
                               >
                                 {canExpand ? (
                                   <button
                                     onClick={() => {
-                                      if (!row.type)
-                                        toggleCampaignExpansion(row.id);
+                                      if (!row.type) toggleCampaignExpansion(row.id);
                                       else if (row.type === "date")
-                                        toggleDateExpansion(
-                                          row.campaignId,
-                                          row.id
-                                        );
+                                        toggleDateExpansion(row.campaignId, row.id);
                                       else if (row.type === "hour")
-                                        toggleHourExpansion(
-                                          row.campaignId,
-                                          row.dateId,
-                                          row.id
-                                        );
+                                        toggleHourExpansion(row.campaignId, row.dateId, row.id);
                                       else if (row.type === "offer")
                                         toggleOfferExpansion(
                                           row.campaignId,
@@ -1680,7 +1860,7 @@ function CampaignsTable({ filters = {} }) {
                                     className="text-gray-500 hover:text-blue-600 focus:outline-none flex-shrink-0"
                                   >
                                     <svg
-                                      className={`w-5 h-5 transition-transform duration-200 ${
+                                      className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200 ${
                                         isExpanded ? "rotate-90" : ""
                                       }`}
                                       fill="none"
@@ -1696,12 +1876,10 @@ function CampaignsTable({ filters = {} }) {
                                     </svg>
                                   </button>
                                 ) : (
-                                  <span className="w-5 h-5 flex-shrink-0"></span>
+                                  <span className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"></span>
                                 )}
                                 {row.type && (
-                                  <span className="flex-shrink-0">
-                                    {getLevelIcon(row.type)}
-                                  </span>
+                                  <span className="flex-shrink-0">{getLevelIcon(row.type)}</span>
                                 )}
                                 {!row.type && (
                                   <div className="text-gray-600 flex-shrink-0">
@@ -1710,9 +1888,7 @@ function CampaignsTable({ filters = {} }) {
                                 )}
                                 <span
                                   className={`truncate ${
-                                    row.type
-                                      ? "font-medium text-gray-800"
-                                      : "font-semibold"
+                                    row.type ? "font-medium text-gray-800" : "font-semibold"
                                   }`}
                                   title={row.title}
                                 >
@@ -1727,7 +1903,7 @@ function CampaignsTable({ filters = {} }) {
                             key={`${row.id}-${column.id}`}
                             className={`${cellPadding[density]} ${
                               column.numeric ? "text-right" : ""
-                            } text-sm text-gray-800 border-r border-gray-200`}
+                            } text-xs sm:text-sm text-gray-800 border-r border-gray-200`}
                           >
                             {getCellValue(row, column.id)}
                           </td>
@@ -1739,14 +1915,12 @@ function CampaignsTable({ filters = {} }) {
               ) : (
                 <tr>
                   <td
-                    colSpan={
-                      sortedColumnOrder.filter((i) => !isHidden(i)).length
-                    }
-                    className="px-6 py-16 text-center text-gray-500"
+                    colSpan={sortedColumnOrder.filter((i) => !isHidden(i)).length}
+                    className="px-4 sm:px-6 py-12 sm:py-16 text-center text-gray-500"
                   >
                     <div className="flex flex-col items-center gap-3">
                       <svg
-                        className="w-16 h-16 text-gray-300"
+                        className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1758,10 +1932,12 @@ function CampaignsTable({ filters = {} }) {
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
                       </svg>
-                      <p className="text-base font-medium text-gray-600">
+                      <p className="text-sm sm:text-base font-medium text-gray-600">
                         No campaigns found
                       </p>
-                      <p className="text-sm">Try adjusting your filters.</p>
+                      <p className="text-xs sm:text-sm">
+                        Try adjusting your filters or refresh data.
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -1771,14 +1947,15 @@ function CampaignsTable({ filters = {} }) {
         </div>
       </div>
 
-      {/* FOOTER - Pagination */}
-      <div className="px-6 py-3 bg-gray-50/75 border-t border-gray-200 rounded-b-lg flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Rows:</label>
+      <div className="px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 bg-gray-50/75 border-t border-gray-200 rounded-b-lg flex-shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                Rows:
+              </label>
               <select
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="h-8 sm:h-9 border border-gray-300 rounded-md px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all min-w-[70px] sm:min-w-[80px]"
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
@@ -1792,31 +1969,29 @@ function CampaignsTable({ filters = {} }) {
                 <option value={200}>200</option>
               </select>
             </div>
-            <div className="text-sm font-medium text-gray-600">
-              <span className="font-bold text-gray-800">
-                {sortedData.length.toLocaleString()}
-              </span>{" "}
-              results
+            <div className="text-xs sm:text-sm font-medium text-gray-600">
+              <span className="font-bold text-gray-800">{sortedData.length.toLocaleString()}</span>{" "}
+              <span className="hidden xs:inline">results</span>
               {(filters.platforms?.length > 0 ||
                 filters.title ||
                 filters.tags ||
                 filters.status?.length > 0) && (
-                <span className="text-gray-500">
+                <span className="text-gray-500 hidden md:inline">
                   {" "}
                   (filtered from {rawData.length.toLocaleString()})
                 </span>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || isLoading}
-              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1829,8 +2004,10 @@ function CampaignsTable({ filters = {} }) {
                 />
               </svg>
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Page</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap hidden xs:inline">
+                Page
+              </span>
               <input
                 type="number"
                 min={1}
@@ -1838,24 +2015,24 @@ function CampaignsTable({ filters = {} }) {
                 value={page}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  if (!Number.isNaN(v))
-                    setPage(Math.min(totalPages, Math.max(1, v)));
+                  if (!Number.isNaN(v)) setPage(Math.min(totalPages, Math.max(1, v)));
                 }}
                 disabled={isLoading}
-                className="w-16 px-2 py-1 text-sm text-center font-medium border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
+                className="w-14 sm:w-16 md:w-20 h-8 sm:h-9 px-1.5 sm:px-2 py-1 sm:py-1.5 text-xs sm:text-sm text-center font-medium border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100 transition-all"
               />
-              <span className="text-sm font-medium text-gray-700">
-                of {totalPages}
+              <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                <span className="hidden xs:inline">of </span>
+                {totalPages}
               </span>
             </div>
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || isLoading}
-              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+              className="inline-flex items-center px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
             >
               <svg
-                className="w-4 h-4"
+                className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

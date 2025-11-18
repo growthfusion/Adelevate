@@ -593,7 +593,7 @@ export default function LogsDataTable() {
 
     return (
       <div className="flex items-center gap-2">
-        <div className="flex-shrink-0 h-7 w-7 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+        <div className="flex-shrink-0 h-7 w-7 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-center overflow-hidden ">
           {iconUrl ? (
             <img
               src={iconUrl}
@@ -630,7 +630,7 @@ export default function LogsDataTable() {
 
   // Card View Component for Mobile - PREMIUM STYLE WITH ALL ICONS
   const LogCard = ({ log }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200 ">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -754,7 +754,7 @@ export default function LogsDataTable() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 max-sm:pt-[20%] pt-0">
       {/* FULL SCREEN CONTAINER - NO MAX WIDTH */}
       <div className="w-full h-full">
         {/* Toast notification - PREMIUM STYLE WITH ICON */}

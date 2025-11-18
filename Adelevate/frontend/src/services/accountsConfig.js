@@ -82,7 +82,7 @@ function validateAccountData(data) {
  */
 function getCollectionName(platform) {
   const p = normalizePlatform(platform);
-  return `${p}__ad_accounts`;
+  return `${p}_ad_accounts`;
 }
 
 /**

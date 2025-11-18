@@ -587,7 +587,7 @@ function UserCard({
   const rowDisabled = updatingId === id;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 mb-4 ">
       {/* Card header - user info with Microsoft Avatar */}
       <div className="px-4 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center">
@@ -619,7 +619,7 @@ function UserCard({
       </div>
 
       {/* Card body */}
-      <div className="p-4">
+      <div className="p-4 ">
         {/* Platform section */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -909,7 +909,7 @@ export default function AuthorizationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 grid place-items-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 grid place-items-center ">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600"></div>

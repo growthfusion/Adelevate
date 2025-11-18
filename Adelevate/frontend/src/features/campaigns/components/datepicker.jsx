@@ -70,8 +70,8 @@ function DatePickerToggle({ initialSelection, onChange }) {
       startDate: subDays(new Date(), 2),
       endDate: new Date(),
       key: "last3days",
-    },
-  )
+    }
+  );
 
   const [showDatePicker, setShowDatePicker] = useState(false)
 

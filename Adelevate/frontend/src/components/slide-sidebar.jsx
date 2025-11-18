@@ -577,14 +577,14 @@ const SlideSidebar = () => {
               <Menu className="w-5.5 h-5.5 text-gray-700" />
             </button>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-gradient-to-br from-[#0b57d0] to-[#0947b3] rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
+              {/* <div className="w-9 h-9 bg-gradient-to-br from-[#0b57d0] to-[#0947b3] rounded-xl flex items-center justify-center shadow-lg shadow-[#0b57d0]/30">
                 <span className="text-white font-bold text-base">A</span>
               </div>
               <div>
                 <h1 className="font-bold text-gray-900 text-base tracking-tight">
                   Adelevate
                 </h1>
-              </div>
+              </div> */}
             </div>
             <div className="w-9"></div>
           </div>

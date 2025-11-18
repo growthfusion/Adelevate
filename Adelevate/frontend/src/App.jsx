@@ -16,6 +16,7 @@ import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
 import Add_Acounts from "./features/addAccount/page";
 
 
+
 import { supabase } from "@/supabaseClient";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import AuthCallback from "@/pages/AuthCallback.jsx";
@@ -47,41 +48,18 @@ function App() {
                     <Routes>
                       <Route path="logout" element={<Page />} />
                       <Route path="rules" element={<RulesDashboard />} />
-                      <Route
-                        path="editActivate"
-                        element={<EditRuleFormActivate />}
-                      />
-                      <Route
-                        path="editBudget"
-                        element={<EditRuleFormBudget />}
-                      />
+                      <Route path="editActivate" element={<EditRuleFormActivate />} />
+                      <Route path="editBudget" element={<EditRuleFormBudget />} />
                       <Route path="editPause" element={<EditRuleFormPause />} />
-                      <Route
-                        path="editExclusion"
-                        element={<EditRuleFormExclusion />}
-                      />
+                      <Route path="editExclusion" element={<EditRuleFormExclusion />} />
                       <Route path="log" element={<LogsDashboard />} />
-                      <Route
-                        path="actionlog"
-                        element={<ActionLogsDashboard />}
-                      />
+                      <Route path="actionlog" element={<ActionLogsDashboard />} />
                       <Route path="campaigns" element={<Campaigns />} />
-                      <Route
-                        path="dashboard"
-                        element={<CampaignPerformanceHub />}
-                      />
-                      <Route
-                        path="authorization"
-                        element={<AuthorizationPage />}
-                      />
-                      <Route
-                        path="*"
-                        element={<Navigate to="/dashboard" replace />}
-                      />
+                      <Route path="dashboard" element={<CampaignPerformanceHub />} />
+                      <Route path="authorization" element={<AuthorizationPage />} />
+                      <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
                       <Route path="addAccount" element={<Add_Acounts />} />
-
-                     
                     </Routes>
                   </main>
                 </div>
