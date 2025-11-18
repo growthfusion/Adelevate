@@ -80,7 +80,7 @@ function DatePickerToggle({ initialSelection, onChange }) {
 
   useEffect(() => {
     if (initialSelection) {
-      setSelection(initialSelection)
+      setSelection(initialSelection);
     }
   }, [initialSelection]);
 
@@ -98,40 +98,29 @@ function DatePickerToggle({ initialSelection, onChange }) {
 
   const getButtonLabel = () => {
     if (selection.key) {
-      const preset = PRESETS.find((p) => p.value === selection.key);
-      if (preset) return preset.label;
+      const preset = PRESETS.find((p) => p.value === selection.key)
+      if (preset) return preset.label
     }
-    return formatDateRange(selection.startDate, selection.endDate);
-  };
+    return formatDateRange(selection.startDate, selection.endDate)
+  }
 
   useEffect(() => {
-    if (!showDatePicker) return;
+    if (!showDatePicker) return
 
     const handleClickOutside = (e) => {
-      if (
-        !e.target.closest(".datepicker-content") &&
-        !e.target.closest(".datepicker-toggle")
-      ) {
-        setShowDatePicker(false);
+      if (!e.target.closest(".datepicker-content") && !e.target.closest(".datepicker-toggle")) {
+        setShowDatePicker(false)
       }
-    };
+    }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showDatePicker]);
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [showDatePicker])
 
   return (
     <div className={styles.wrapper}>
-      <button
-        className={`${styles.button} datepicker-toggle`}
-        onClick={() => setShowDatePicker(!showDatePicker)}
-      >
-        <svg
-          className="h-5 w-5 text-gray-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+      <button className={`${styles.button} datepicker-toggle`} onClick={() => setShowDatePicker(!showDatePicker)}>
+        <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -146,102 +135,94 @@ function DatePickerToggle({ initialSelection, onChange }) {
         <div className={styles.datepickerContainer}>
           <div className={styles.overlay} onClick={handleCancel}></div>
           <div className={`${styles.datepickerContent} datepicker-content`}>
-            <DatePicker
-              initialSelection={selection}
-              onApply={handleApply}
-              onCancel={handleCancel}
-            />
+            <DatePicker initialSelection={selection} onApply={handleApply} onCancel={handleCancel} />
           </div>
         </div>
       )}
     </div>
-  );
+  )
 }
 
 function DatePicker({ initialSelection, onApply, onCancel }) {
-  const [viewDate, setViewDate] = useState(
-    initialSelection.startDate || new Date()
-  );
-  const [startDate, setStartDate] = useState(initialSelection.startDate);
-  const [endDate, setEndDate] = useState(initialSelection.endDate);
-  const [activePresetKey, setActivePresetKey] = useState(initialSelection.key);
-  const [showSecondMonth, setShowSecondMonth] = useState(
-    window.innerWidth > 768
-  );
+  const [viewDate, setViewDate] = useState(initialSelection.startDate || new Date())
+  const [startDate, setStartDate] = useState(initialSelection.startDate)
+  const [endDate, setEndDate] = useState(initialSelection.endDate)
+  const [activePresetKey, setActivePresetKey] = useState(initialSelection.key)
+  const [showSecondMonth, setShowSecondMonth] = useState(window.innerWidth > 768)
 
   useEffect(() => {
     function handleResize() {
-      setShowSecondMonth(window.innerWidth > 768);
+      setShowSecondMonth(window.innerWidth > 768)
     }
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   const handleDayClick = (day) => {
-    setActivePresetKey(null);
+    setActivePresetKey(null)
     if (!startDate || (startDate && endDate)) {
-      setStartDate(day);
-      setEndDate(null);
+      setStartDate(day)
+      setEndDate(null)
     } else if (isBefore(day, startDate)) {
-      setStartDate(day);
+      setStartDate(day)
     } else {
-      setEndDate(day);
+      setEndDate(day)
     }
-  };
+  }
 
   const handlePreset = (preset) => {
-    const today = startOfDay(new Date());
-    let newStart;
-    let newEnd = today;
+    const today = startOfDay(new Date())
+    let newStart
+    let newEnd = today
 
     switch (preset.value) {
       case "today":
-        newStart = today;
-        break;
+        newStart = today
+        break
       case "yesterday":
-        newStart = newEnd = subDays(today, 1);
-        break;
+        newStart = newEnd = subDays(today, 1)
+        break
       case "last3days":
-        newStart = subDays(today, 2);
-        break;
+        newStart = subDays(today, 2)
+        break
       case "last7days":
-        newStart = subDays(today, 6);
-        break;
+        newStart = subDays(today, 6)
+        break
       case "last30days":
-        newStart = subDays(today, 29);
-        break;
+        newStart = subDays(today, 29)
+        break
       case "thisMonth":
-        newStart = startOfMonth(today);
-        break;
+        newStart = startOfMonth(today)
+        break
       case "lastMonth":
-        const lastMonth = subMonths(today, 1);
-        newStart = startOfMonth(lastMonth);
-        newEnd = endOfMonth(lastMonth);
-        break;
+        const lastMonth = subMonths(today, 1)
+        newStart = startOfMonth(lastMonth)
+        newEnd = endOfMonth(lastMonth)
+        break
       case "thisYear":
-        newStart = startOfYear(today);
-        break;
+        newStart = startOfYear(today)
+        break
       case "lastYear":
-        const lastYear = subYears(today, 1);
-        newStart = startOfYear(lastYear);
-        newEnd = endOfYear(lastYear);
-        break;
+        const lastYear = subYears(today, 1)
+        newStart = startOfYear(lastYear)
+        newEnd = endOfYear(lastYear)
+        break
       default:
-        return;
+        return
     }
-    setStartDate(newStart);
-    setEndDate(newEnd);
-    setViewDate(newStart);
-    setActivePresetKey(preset.value);
-  };
+    setStartDate(newStart)
+    setEndDate(newEnd)
+    setViewDate(newStart)
+    setActivePresetKey(preset.value)
+  }
 
   const renderMonth = (dateToRender) => {
-    const monthStart = startOfMonth(dateToRender);
-    const monthEnd = endOfMonth(dateToRender);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    const monthStart = startOfMonth(dateToRender)
+    const monthEnd = endOfMonth(dateToRender)
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
     return (
       <div className={styles.calendar}>
@@ -251,40 +232,18 @@ function DatePicker({ initialSelection, onApply, onCancel }) {
             onClick={() => setViewDate(subMonths(viewDate, 1))}
             className="p-1 rounded-full hover:bg-gray-100"
           >
-            <svg
-              className="h-5 w-5 text-gray-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
+            <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h2 className="text-gray-800 font-medium">
-            {format(dateToRender, "MMMM yyyy")}
-          </h2>
+          <h2 className="text-gray-800 font-medium">{format(dateToRender, "MMMM yyyy")}</h2>
           <button
             type="button"
             onClick={() => setViewDate(addMonths(viewDate, 1))}
             className="p-1 rounded-full hover:bg-gray-100"
           >
-            <svg
-              className="h-5 w-5 text-gray-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+            <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
@@ -295,22 +254,15 @@ function DatePicker({ initialSelection, onApply, onCancel }) {
             </div>
           ))}
           {days.map((day) => {
-            const isCurrentMonth = isSameMonth(day, dateToRender);
-            const isStartDate = startDate && isSameDay(day, startDate);
-            const isEndDate = endDate && isSameDay(day, endDate);
-            const isInRange =
-              startDate &&
-              endDate &&
-              isAfter(day, startDate) &&
-              isBefore(day, endDate);
-            let buttonClass =
-              "py-2 rounded-full transition-colors duration-150 ease-in-out ";
-            if (!isCurrentMonth) buttonClass += "text-gray-300";
-            else if (isStartDate || isEndDate)
-              buttonClass += "bg-blue-600 text-white";
-            else if (isInRange)
-              buttonClass += "bg-blue-100 text-blue-800 hover:bg-blue-200";
-            else buttonClass += "text-gray-800 hover:bg-gray-100";
+            const isCurrentMonth = isSameMonth(day, dateToRender)
+            const isStartDate = startDate && isSameDay(day, startDate)
+            const isEndDate = endDate && isSameDay(day, endDate)
+            const isInRange = startDate && endDate && isAfter(day, startDate) && isBefore(day, endDate)
+            let buttonClass = "py-2 rounded-full transition-colors duration-150 ease-in-out "
+            if (!isCurrentMonth) buttonClass += "text-gray-300"
+            else if (isStartDate || isEndDate) buttonClass += "bg-blue-600 text-white"
+            else if (isInRange) buttonClass += "bg-blue-100 text-blue-800 hover:bg-blue-200"
+            else buttonClass += "text-gray-800 hover:bg-gray-100"
             return (
               <button
                 key={day.toString()}
@@ -320,21 +272,15 @@ function DatePicker({ initialSelection, onApply, onCancel }) {
               >
                 {format(day, "d")}
               </button>
-            );
+            )
           })}
         </div>
       </div>
-    );
-  };
+    )
+  }
 
-  const firstCalendar = useMemo(
-    () => renderMonth(viewDate),
-    [viewDate, startDate, endDate]
-  );
-  const secondCalendar = useMemo(
-    () => renderMonth(addMonths(viewDate, 1)),
-    [viewDate, startDate, endDate]
-  );
+  const firstCalendar = useMemo(() => renderMonth(viewDate), [viewDate, startDate, endDate])
+  const secondCalendar = useMemo(() => renderMonth(addMonths(viewDate, 1)), [viewDate, startDate, endDate])
 
   return (
     <div className={styles.calendarLayout}>
@@ -358,23 +304,15 @@ function DatePicker({ initialSelection, onApply, onCancel }) {
       </div>
 
       <div className={styles.footerContainer}>
-        <div className={styles.dateDisplay}>
-          {formatDateRange(startDate, endDate)}
-        </div>
+        <div className={styles.dateDisplay}>{formatDateRange(startDate, endDate)}</div>
         <div className={styles.buttonContainer}>
-          <button
-            type="button"
-            className={styles.cancelButton}
-            onClick={onCancel}
-          >
+          <button type="button" className={styles.cancelButton} onClick={onCancel}>
             Cancel
           </button>
           <button
             type="button"
             className={styles.applyButton}
-            onClick={() =>
-              onApply({ startDate, endDate, key: activePresetKey })
-            }
+            onClick={() => onApply({ startDate, endDate, key: activePresetKey })}
             disabled={!startDate || !endDate}
           >
             Apply
@@ -382,7 +320,7 @@ function DatePicker({ initialSelection, onApply, onCancel }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default DatePickerToggle;
+export default DatePickerToggle
