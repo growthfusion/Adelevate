@@ -40,8 +40,8 @@ function normalizePlatform(platform) {
     meta: "meta",
     newsbreak: "newsbreak",
     nb: "newsbreak",
-    snapchat: "snapchat",
-    snap: "snapchat",
+    snapchat: "snap",
+    snap: "snap",
     tiktok: "tiktok",
     google: "google",
   };
@@ -82,7 +82,7 @@ function validateAccountData(data) {
  */
 function getCollectionName(platform) {
   const p = normalizePlatform(platform);
-  return `${p}_ad_accounts`;
+  return `${p}_ad_account`;
 }
 
 /**
