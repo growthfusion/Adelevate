@@ -10,11 +10,11 @@ const BASE_URL = import.meta.env.PROD ? "/api/campaigns" : "http://5.78.123.130:
 
 // Platform-specific endpoints - only snap and meta have dedicated endpoints
 const PLATFORM_ENDPOINTS = {
-  facebook: `${BASE_URL}/meta`, // Facebook → /meta endpoint
-  snap: `${BASE_URL}/snap`, // Snap → /snap endpoint
-  newsbreak: `${BASE_URL}/active`, // Newsbreak → default /active
-  tiktok: `${BASE_URL}/active`, // TikTok → default /active
-  google: `${BASE_URL}/active` // Google → default /active
+  facebook: `${BASE_URL}/meta`,
+  snap: `${BASE_URL}/snap`,
+  newsbreak: `${BASE_URL}/active`,
+  tiktok: `${BASE_URL}/active`,
+  google: `${BASE_URL}/active`
 };
 
 // Default endpoint for all active campaigns (all 5 platforms)
@@ -270,54 +270,6 @@ function CampaignsTable({ filters = {} }) {
     }
   };
 
-  // Fetch data from a single endpoint
-  const fetchFromEndpoint = async (endpoint, platformName) => {
-    try {
-      console.log(`🔄 Fetching ${platformName} campaigns from:`, endpoint);
-      const res = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
-
-      console.log(`✅ ${platformName} API Response Status:`, res.status);
-
-      if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try {
-          const errJson = await res.json();
-          console.error(`❌ ${platformName} API Error JSON:`, errJson);
-          if (errJson && (errJson.error || errJson.message)) {
-            msg = errJson.error || errJson.message;
-          }
-        } catch {
-          const errText = await res.text();
-          console.error(`❌ ${platformName} API Error Text:`, errText);
-        }
-        throw new Error(`${platformName} API ${res.status}: ${msg}`);
-      }
-
-      const data = await res.json();
-      console.log(`📊 ${platformName} API Raw Data:`, data);
-
-      // Extract rows from various possible response structures
-      const rows = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data?.data?.items)
-            ? data.data.items
-            : data?.data || data?.rows || data?.campaigns || [];
-
-      console.log(`📈 ${platformName} Extracted Rows Count:`, rows.length);
-      return rows.filter(Boolean);
-    } catch (err) {
-      console.error(`❌ Failed to fetch ${platformName} campaigns:`, err);
-      throw err;
-    }
-  };
-
   // Map raw data to table format
   const mapCampaignData = (rows, startIdx = 0) => {
     return rows.map((r, idx) => {
@@ -367,17 +319,13 @@ function CampaignsTable({ filters = {} }) {
         else platform = "facebook";
       }
 
-      // FIXED: Properly normalize status - handle both ACTIVE and PAUSED/INACTIVE
-      let status = "paused"; // default
+      // Normalize status
+      let status = "paused";
       if (statusRaw === "ACTIVE" || statusRaw === "ENABLED") {
         status = "active";
       } else if (statusRaw === "PAUSED" || statusRaw === "INACTIVE" || statusRaw === "DISABLED") {
         status = "paused";
       }
-
-      console.log(
-        `Campaign "${campaignName}" - Raw Status: "${r.status}" -> Normalized: "${status}"`
-      );
 
       return {
         id: startIdx + idx + 1,
@@ -403,7 +351,86 @@ function CampaignsTable({ filters = {} }) {
     });
   };
 
-  // Main fetch function - handles different platform filter scenarios
+  // Process campaigns data from filters (from toolbar)
+  useEffect(() => {
+    console.log("🔍 ========== FILTERS CHANGED ==========");
+    console.log("Filters received:", filters);
+    console.log("Campaigns data from toolbar:", filters.campaignsData);
+
+    // If campaignsData is provided from toolbar, use it directly
+    if (filters.campaignsData && Array.isArray(filters.campaignsData)) {
+      console.log("✅ Using campaigns data from toolbar:", filters.campaignsData.length);
+      setIsLoading(false);
+      setApiError(null);
+
+      const mappedData = mapCampaignData(filters.campaignsData);
+      setRawData(mappedData);
+      setPage(1);
+
+      // Clear drill-down state
+      setDrillDownCache({
+        dates: new Map(),
+        hours: new Map(),
+        offers: new Map(),
+        landings: new Map()
+      });
+
+      setDrillDownState({
+        expandedCampaigns: new Set(),
+        expandedDates: new Map(),
+        expandedHours: new Map(),
+        expandedOffers: new Map()
+      });
+    }
+  }, [filters.campaignsData]);
+
+  // Fetch data from endpoint (only used when no campaignsData provided)
+  const fetchFromEndpoint = async (endpoint, platformName) => {
+    try {
+      console.log(`🔄 Fetching ${platformName} campaigns from:`, endpoint);
+      const res = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      console.log(`✅ ${platformName} API Response Status:`, res.status);
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const errJson = await res.json();
+          console.error(`❌ ${platformName} API Error JSON:`, errJson);
+          if (errJson && (errJson.error || errJson.message)) {
+            msg = errJson.error || errJson.message;
+          }
+        } catch {
+          const errText = await res.text();
+          console.error(`❌ ${platformName} API Error Text:`, errText);
+        }
+        throw new Error(`${platformName} API ${res.status}: ${msg}`);
+      }
+
+      const data = await res.json();
+      console.log(`📊 ${platformName} API Raw Data:`, data);
+
+      const rows = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.data?.items)
+            ? data.data.items
+            : data?.data || data?.rows || data?.campaigns || [];
+
+      console.log(`📈 ${platformName} Extracted Rows Count:`, rows.length);
+      return rows.filter(Boolean);
+    } catch (err) {
+      console.error(`❌ Failed to fetch ${platformName} campaigns:`, err);
+      throw err;
+    }
+  };
+
   const fetchLiveData = useCallback(async (platformFilters = []) => {
     setIsLoading(true);
     setApiError(null);
@@ -416,7 +443,6 @@ function CampaignsTable({ filters = {} }) {
       let allRows = [];
       let fetchErrors = [];
 
-      // SCENARIO 1: No platform filters → Use DEFAULT /active endpoint (all 5 platforms)
       if (!platformFilters || platformFilters.length === 0) {
         console.log("📡 SCENARIO: No filters - Using DEFAULT endpoint");
         console.log("🌐 Calling:", DEFAULT_ENDPOINT);
@@ -432,13 +458,10 @@ function CampaignsTable({ filters = {} }) {
           fetchErrors.push(`All active campaigns: ${err.message}`);
           console.error("❌ FAILED: Default endpoint error");
         }
-      }
-      // SCENARIO 2: Platform filters selected
-      else {
+      } else {
         console.log("📡 SCENARIO: Platform filters applied");
         console.log("🎯 Selected Platforms:", platformFilters);
 
-        // Check if we need to call /active or specific endpoints
         const needsSnapEndpoint = platformFilters.includes("snap");
         const needsMetaEndpoint = platformFilters.includes("facebook");
         const otherPlatforms = platformFilters.filter((p) => p !== "snap" && p !== "facebook");
@@ -450,7 +473,6 @@ function CampaignsTable({ filters = {} }) {
 
         const fetchPromises = [];
 
-        // Fetch from Snap endpoint if needed
         if (needsSnapEndpoint) {
           console.log("📞 Adding SNAP endpoint to fetch queue");
           fetchPromises.push(
@@ -468,7 +490,6 @@ function CampaignsTable({ filters = {} }) {
           );
         }
 
-        // Fetch from Meta endpoint if needed
         if (needsMetaEndpoint) {
           console.log("📞 Adding META/Facebook endpoint to fetch queue");
           fetchPromises.push(
@@ -486,7 +507,6 @@ function CampaignsTable({ filters = {} }) {
           );
         }
 
-        // For other platforms (newsbreak, tiktok, google), use /active and filter client-side
         if (otherPlatforms.length > 0) {
           console.log("📞 Adding DEFAULT endpoint for other platforms:", otherPlatforms);
           fetchPromises.push(
@@ -497,7 +517,6 @@ function CampaignsTable({ filters = {} }) {
                   DEFAULT_ENDPOINT,
                   "Other Platforms (via /active)"
                 );
-                // Filter to only include the requested platforms
                 return rows.filter((r) => {
                   const platform = String(r.platform || "").toLowerCase();
                   return otherPlatforms.some((p) => {
@@ -529,7 +548,6 @@ function CampaignsTable({ filters = {} }) {
       console.log("  - Total mapped campaigns:", allRows.length);
       console.log("  - Sample data:", allRows.slice(0, 2));
 
-      // Clear drill-down state
       setDrillDownCache({
         dates: new Map(),
         hours: new Map(),
@@ -547,7 +565,6 @@ function CampaignsTable({ filters = {} }) {
       setRawData(allRows);
       setPage(1);
 
-      // Show errors if any
       if (fetchErrors.length > 0) {
         console.warn("⚠️ WARNINGS: Some endpoints had errors:", fetchErrors);
         setApiError(`Warning: Some platforms failed to load: ${fetchErrors.join("; ")}`);
@@ -570,7 +587,13 @@ function CampaignsTable({ filters = {} }) {
 
   const refreshData = () => {
     console.log("🔄 ========== MANUAL REFRESH ==========");
-    console.log("Current filters:", filters.platforms);
+    console.log("Current filters:", filters);
+
+    // If accounts are selected, don't refresh (wait for Apply button)
+    if (filters.accounts && filters.accounts.length > 0) {
+      console.log("⚠️ Accounts selected - skipping refresh. Click Apply to load campaigns.");
+      return;
+    }
 
     setRawData([]);
     setApiError(null);
@@ -589,28 +612,46 @@ function CampaignsTable({ filters = {} }) {
       expandedOffers: new Map()
     });
 
-    // Fetch with current platform filters
     fetchLiveData(filters.platforms || []);
   };
 
-  // Initial load - fetch from /active endpoint (all platforms)
+  // Initial load - only if no campaignsData provided
   useEffect(() => {
     console.log("🎬 ========== INITIAL COMPONENT MOUNT ==========");
+
+    // Don't auto-fetch if campaignsData is provided
+    if (filters.campaignsData && Array.isArray(filters.campaignsData)) {
+      console.log("✅ Initial data provided from toolbar, skipping fetch");
+      return;
+    }
+
     console.log("Loading all active campaigns from /active endpoint");
     fetchLiveData([]);
   }, [fetchLiveData]);
 
-  // Watch for filter changes (when Apply button is clicked from parent)
+  // Watch for platform filter changes (only when no accounts selected)
   useEffect(() => {
+    // Skip if campaignsData is provided (means accounts are selected)
+    if (filters.campaignsData && Array.isArray(filters.campaignsData)) {
+      console.log("✅ Using campaigns data from accounts, skipping platform fetch");
+      return;
+    }
+
     console.log("🔍 ========== FILTER CHANGE DETECTED ==========");
     console.log("New platform filters:", filters.platforms);
     fetchLiveData(filters.platforms || []);
   }, [filters.platforms, fetchLiveData]);
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh every 5 minutes (only if no accounts selected)
   useEffect(() => {
     const intervalId = setInterval(
       () => {
+        // Don't auto-refresh if accounts are selected
+        if (filters.accounts && filters.accounts.length > 0) {
+          console.log("⏰ Skipping auto-refresh - accounts are selected");
+          return;
+        }
+
         console.log("⏰ ========== AUTO-REFRESH (5 min) ==========");
         console.log("Current filters:", filters.platforms);
         fetchLiveData(filters.platforms || []);
@@ -619,7 +660,7 @@ function CampaignsTable({ filters = {} }) {
     );
 
     return () => clearInterval(intervalId);
-  }, [fetchLiveData, filters.platforms]);
+  }, [fetchLiveData, filters.platforms, filters.accounts]);
 
   const sortedColumnOrder = useMemo(() => {
     if (columnSelectionOrder.length === 0) return columnOrder;
@@ -862,7 +903,7 @@ function CampaignsTable({ filters = {} }) {
     console.log("  - Filters:", filters);
 
     // Additional client-side filtering
-    if (filters.platforms && filters.platforms.length > 0) {
+    if (filters.platforms && filters.platforms.length > 0 && !filters.campaignsData) {
       console.log("  - Applying platform filter:", filters.platforms);
       result = result.filter((row) => filters.platforms.includes(row.platform));
       console.log("  - After platform filter:", result.length);
@@ -884,17 +925,7 @@ function CampaignsTable({ filters = {} }) {
 
     if (filters.status && filters.status.length > 0) {
       console.log("  - Applying status filter:", filters.status);
-      console.log(
-        "  - Sample row statuses before filter:",
-        result.slice(0, 5).map((r) => r.status)
-      );
-      result = result.filter((row) => {
-        const included = filters.status.includes(row.status);
-        if (!included) {
-          console.log(`    - Excluding row with status "${row.status}" (title: ${row.title})`);
-        }
-        return included;
-      });
+      result = result.filter((row) => filters.status.includes(row.status));
       console.log("  - After status filter:", result.length);
     }
 
@@ -1486,11 +1517,17 @@ function CampaignsTable({ filters = {} }) {
               Campaign Analytics
             </h2>
 
-            {(filters.platforms?.length > 0 ||
+            {(filters.accounts?.length > 0 ||
+              filters.platforms?.length > 0 ||
               filters.title ||
               filters.tags ||
               filters.status?.length > 0) && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-sm text-gray-600">
+                {filters.accounts?.length > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    Accounts: {filters.accounts.length} selected
+                  </span>
+                )}
                 {filters.platforms?.length > 0 && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Platforms: {filters.platforms.join(", ")}
@@ -1936,7 +1973,9 @@ function CampaignsTable({ filters = {} }) {
                         No campaigns found
                       </p>
                       <p className="text-xs sm:text-sm">
-                        Try adjusting your filters or refresh data.
+                        {filters.accounts?.length > 0
+                          ? "No campaigns for selected accounts"
+                          : "Try adjusting your filters or refresh data"}
                       </p>
                     </div>
                   </td>
@@ -1972,7 +2011,8 @@ function CampaignsTable({ filters = {} }) {
             <div className="text-xs sm:text-sm font-medium text-gray-600">
               <span className="font-bold text-gray-800">{sortedData.length.toLocaleString()}</span>{" "}
               <span className="hidden xs:inline">results</span>
-              {(filters.platforms?.length > 0 ||
+              {(filters.accounts?.length > 0 ||
+                filters.platforms?.length > 0 ||
                 filters.title ||
                 filters.tags ||
                 filters.status?.length > 0) && (
