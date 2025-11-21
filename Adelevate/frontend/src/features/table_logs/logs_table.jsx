@@ -105,7 +105,7 @@ const MetricCard = ({ icon: Icon, label, value, color = "#6366f1" }) => {
 
 export default function ActionLogsDashboard({ onBack }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDateRange, setSelectedDateRange] = useState("Last 7 days"); // Default to Last 7 days
+  const [selectedDateRange, setSelectedDateRange] = useState("Last 7 days");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedStartDate, setSelectedStartDate] = useState(
     new Date(Date.now() - 7 * 24 * 3600 * 1000)
@@ -117,11 +117,12 @@ export default function ActionLogsDashboard({ onBack }) {
   const [filteredLogs, setFilteredLogs] = useState([]);
 
   const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [err, setErr] = useState("");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(25); // Default to 25
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,7 +133,7 @@ export default function ActionLogsDashboard({ onBack }) {
   // Table states
   const [sortColumn, setSortColumn] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
-  const [viewDensity, setViewDensity] = useState("compact"); // Default to compact
+  const [viewDensity, setViewDensity] = useState("compact");
   const [visibleColumns, setVisibleColumns] = useState({
     time: true,
     date: true,
@@ -396,10 +397,12 @@ export default function ActionLogsDashboard({ onBack }) {
 
       setAllLogs(all);
       setLogs(filterByRange(all, presetRange.start, presetRange.end));
+      setInitialLoad(false);
     } catch (e) {
       setErr(e.message || String(e));
       setAllLogs([]);
       setLogs([]);
+      setInitialLoad(false);
     } finally {
       setLoading(false);
     }
@@ -515,7 +518,7 @@ export default function ActionLogsDashboard({ onBack }) {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  Action Logs
+                Logs
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                   Track and monitor all system activities
@@ -615,7 +618,7 @@ export default function ActionLogsDashboard({ onBack }) {
             </div>
           </div>
 
-          {/* Summary Metrics - PREMIUM STYLE (Removed Win Rate) */}
+          {/* Summary Metrics - PREMIUM STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-5">
             <MetricCard
               icon={FileText}
@@ -970,10 +973,10 @@ export default function ActionLogsDashboard({ onBack }) {
         </div>
 
         {/* Table Section with Loading Overlay */}
-        <div className="relative">
-          {/* Table Loading Overlay - Only shows on table area */}
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+        <div className="relative min-h-[400px]">
+          {/* Initial Loading State - Full Page */}
+          {loading && initialLoad && (
+            <div className="absolute inset-0 flex items-center justify-center z-40 bg-white/95 dark:bg-gray-800/95">
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
                   <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600"></div>
@@ -983,9 +986,33 @@ export default function ActionLogsDashboard({ onBack }) {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Loading action logs...
-                </p>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    Loading  logs...
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Please wait while we fetch your data
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Refresh Loading State - Centered in Table */}
+          {loading && !initialLoad && sortedLogs.length > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-40 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-12 w-12 border-3 border-gray-200 dark:border-gray-700 border-t-indigo-600"></div>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      <RefreshCw className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Refreshing data...
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -1356,7 +1383,14 @@ export default function ActionLogsDashboard({ onBack }) {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   Error Loading Data
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{err}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{err}</p>
+                <button
+                  onClick={fetchAllLogsAllTime}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Try Again
+                </button>
               </div>
             </div>
           )}

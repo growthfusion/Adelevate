@@ -9,8 +9,58 @@ import {
   accountExists,
   getAllAccounts,
   updateAccount,
-  deleteAccount,
+  deleteAccount
 } from "@/services/accountsConfig";
+
+// Platform Icon Component with Enhanced Fallback
+const PlatformIcon = ({ platform, className = "w-6 h-6" }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const platformData = {
+    facebook: { icon: fb, name: "Meta", color: "#1877F2", bgColor: "#E7F3FF" },
+    meta: { icon: fb, name: "Meta", color: "#1877F2", bgColor: "#E7F3FF" },
+    newsbreak: { icon: nb, name: "NewsBreak", color: "#FF6B6B", bgColor: "#FFE7E7" },
+    snapchat: { icon: snapchatIcon, name: "Snapchat", color: "#FFFC00", bgColor: "#FFFDE7" },
+    snap: { icon: snapchatIcon, name: "Snapchat", color: "#FFFC00", bgColor: "#FFFDE7" },
+    tiktok: { icon: tiktokIcon, name: "TikTok", color: "#000000", bgColor: "#F0F0F0" },
+    google: { icon: googleIcon, name: "Google", color: "#4285F4", bgColor: "#E8F0FE" },
+    googleads: { icon: googleIcon, name: "Google", color: "#4285F4", bgColor: "#E8F0FE" }
+  };
+
+  const platformLower = (platform || "").toLowerCase().trim();
+  const platformInfo = platformData[platformLower];
+
+  if (!platformInfo || imageError) {
+    return (
+      <div className={`${className} flex items-center justify-center`}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={className}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={platformInfo.icon}
+      alt={platformInfo.name}
+      className={className}
+      onError={() => setImageError(true)}
+      loading="eager"
+    />
+  );
+};
 
 // Edit Modal Component
 function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
@@ -18,10 +68,11 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
     bmName: account?.bmName || "",
     accessToken: account?.accessToken || "",
     accountId: account?.accountId || "",
-    accountLabel: account?.accountLabel || "",
+    accountLabel: account?.accountLabel || ""
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState("");
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     if (account) {
@@ -29,8 +80,9 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
         bmName: account.bmName || "",
         accessToken: account.accessToken || "",
         accountId: account.accountId || "",
-        accountLabel: account.accountLabel || "",
+        accountLabel: account.accountLabel || ""
       });
+      setShowToken(false);
     }
   }, [account]);
 
@@ -62,16 +114,23 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
         <div className="p-4 xs:p-5 md:p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 xs:gap-3">
-              <div className="h-10 w-10 xs:h-12 xs:w-12 bg-white rounded-lg xs:rounded-xl shadow-sm flex items-center justify-center">
-                <img
-                  src={platform?.icon}
-                  alt={platform?.name}
-                  className="w-5 h-5 xs:w-7 xs:h-7"
-                />
+              <div className="h-10 w-10 xs:h-12 xs:w-12 bg-white rounded-lg xs:rounded-xl shadow-sm flex items-center justify-center p-2">
+                {platform?.icon ? (
+                  <img
+                    src={platform.icon}
+                    alt={platform.name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <PlatformIcon platform={account.platform} className="w-full h-full" />
+                )}
               </div>
               <div>
                 <h2 className="text-lg xs:text-xl md:text-2xl font-bold text-gray-900">
-                  Edit {platform?.name} Account
+                  Edit {platform?.name || account.platform || "Account"}
                 </h2>
                 <p className="text-xs xs:text-sm text-gray-500 mt-0.5 hidden xs:block">
                   Update account credentials and details
@@ -130,9 +189,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
               <input
                 type="text"
                 value={formData.bmName}
-                onChange={(e) =>
-                  setFormData({ ...formData, bmName: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, bmName: e.target.value })}
                 className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 required
               />
@@ -143,15 +200,59 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
             <label className="block text-xs xs:text-sm font-semibold text-gray-700">
               Access Token
             </label>
-            <input
-              type="password"
-              value={formData.accessToken}
-              onChange={(e) =>
-                setFormData({ ...formData, accessToken: e.target.value })
-              }
-              className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-mono"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showToken ? "text" : "password"}
+                value={formData.accessToken}
+                onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
+                className="w-full px-3 xs:px-4 py-2.5 xs:py-3 pr-10 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-mono"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-2 xs:right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-md transition-colors"
+                title={showToken ? "Hide token" : "Show token"}
+              >
+                {showToken ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 xs:h-5 xs:w-5 text-gray-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 xs:h-5 xs:w-5 text-gray-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 ss:grid-cols-2 gap-3 xs:gap-4">
@@ -162,9 +263,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
               <input
                 type="text"
                 value={formData.accountId}
-                onChange={(e) =>
-                  setFormData({ ...formData, accountId: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
                 className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 required
               />
@@ -177,9 +276,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
               <input
                 type="text"
                 value={formData.accountLabel}
-                onChange={(e) =>
-                  setFormData({ ...formData, accountLabel: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, accountLabel: e.target.value })}
                 className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 required
               />
@@ -252,13 +349,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms }) {
 }
 
 // Delete Confirmation Modal
-function DeleteConfirmModal({
-  account,
-  isOpen,
-  onClose,
-  onConfirm,
-  platforms,
-}) {
+function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -299,25 +390,31 @@ function DeleteConfirmModal({
             Delete Account?
           </h3>
           <p className="text-xs xs:text-sm text-gray-500 text-center mb-4 xs:mb-6 px-2">
-            Are you sure you want to remove{" "}
-            <strong>{account.accountLabel}</strong>? This action cannot be
-            undone.
+            Are you sure you want to remove <strong>{account.accountLabel}</strong>? This action
+            cannot be undone.
           </p>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg xs:rounded-xl p-3 xs:p-4 mb-4 xs:mb-6">
             <div className="flex items-center gap-2 xs:gap-3">
-              <img
-                src={platform?.icon}
-                alt={platform?.name}
-                className="w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0"
-              />
+              <div className="h-8 w-8 xs:h-10 xs:w-10 bg-white rounded-lg shadow-sm flex items-center justify-center flex-shrink-0 p-1.5">
+                {platform?.icon ? (
+                  <img
+                    src={platform.icon}
+                    alt={platform.name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <PlatformIcon platform={account.platform} className="w-full h-full" />
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm xs:text-base text-gray-900 truncate">
                   {account.accountLabel}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {account.accountId}
-                </p>
+                <p className="text-xs text-gray-500 truncate">{account.accountId}</p>
               </div>
             </div>
           </div>
@@ -398,43 +495,47 @@ function Add_Accounts() {
   const [connectedAccounts, setConnectedAccounts] = useState([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAccessToken, setShowAccessToken] = useState(false);
 
   // Modal states
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
 
+  // Filter state
+  const [platformFilter, setPlatformFilter] = useState("all");
+
   const platforms = [
     {
       name: "Meta",
       icon: fb,
       value: "facebook",
-      description: "Facebook & Instagram Ads",
+      description: "Facebook & Instagram Ads"
     },
     {
       name: "NewsBreak",
       icon: nb,
       value: "newsbreak",
-      description: "NewsBreak Platform",
+      description: "NewsBreak Platform"
     },
     {
       name: "Snapchat",
       icon: snapchatIcon,
       value: "snapchat",
-      description: "Snapchat Ads Manager",
+      description: "Snapchat Ads Manager"
     },
     {
       name: "TikTok",
       icon: tiktokIcon,
       value: "tiktok",
-      description: "TikTok Ads Platform",
+      description: "TikTok Ads Platform"
     },
     {
       name: "Google",
       icon: googleIcon,
       value: "google",
-      description: "Google Ads & Analytics",
-    },
+      description: "Google Ads & Analytics"
+    }
   ];
 
   // Load accounts on mount
@@ -446,6 +547,7 @@ function Add_Accounts() {
     setIsLoadingAccounts(true);
     try {
       const accounts = await getAllAccounts();
+      console.log("Loaded accounts:", accounts);
       setConnectedAccounts(accounts || []);
     } catch (err) {
       console.error("Error loading accounts:", err);
@@ -476,6 +578,7 @@ function Add_Accounts() {
     setAccountLabel("");
     setError("");
     setSuccess("");
+    setShowAccessToken(false);
   };
 
   const handleSubmit = async (e) => {
@@ -490,7 +593,7 @@ function Add_Accounts() {
         ...(selectedPlatform === "facebook" && { bmName }),
         accessToken,
         accountId,
-        accountLabel,
+        accountLabel
       };
 
       // Check if account already exists
@@ -555,40 +658,28 @@ function Add_Accounts() {
   };
 
   const getPlatformById = (value) => {
-    return platforms.find((p) => p.value === value);
+    const platform = platforms.find((p) => p.value === value);
+    return platform || null;
   };
 
-  const getTimeSince = (timestamp) => {
-    if (!timestamp) return "Never";
+  // Filter accounts by platform
+  const filteredAccounts =
+    platformFilter === "all"
+      ? connectedAccounts
+      : connectedAccounts.filter((account) => account.platform === platformFilter);
 
-    const now = new Date();
-    const then = new Date(timestamp);
-    const diffMs = now - then;
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
-
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24)
-      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-  };
+  // Get platform counts
+  const platformCounts = platforms.reduce((acc, platform) => {
+    acc[platform.value] = connectedAccounts.filter(
+      (account) => account.platform === platform.value
+    ).length;
+    return acc;
+  }, {});
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       {/* Main Content */}
-      <div
-        className="
-  pt-[20%] 
-  xs:pt-[20%]
-  sm:pt-6 
-  md:pt-12
-  max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
-"
-      >
+      <div className="pt-[20%] xs:pt-[20%] sm:pt-6 md:pt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <div className="mb-6 xs:mb-8">
           <div className="flex items-center gap-2 xs:gap-3 mb-2 xs:mb-3">
@@ -622,12 +713,8 @@ function Add_Accounts() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xs xs:text-sm font-semibold text-green-900">
-                Success!
-              </h3>
-              <p className="text-xs xs:text-sm text-green-700 mt-1">
-                {success}
-              </p>
+              <h3 className="text-xs xs:text-sm font-semibold text-green-900">Success!</h3>
+              <p className="text-xs xs:text-sm text-green-700 mt-1">{success}</p>
             </div>
           </div>
         )}
@@ -650,9 +737,7 @@ function Add_Accounts() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-xs xs:text-sm font-semibold text-red-900">
-                Error occurred
-              </h3>
+              <h3 className="text-xs xs:text-sm font-semibold text-red-900">Error occurred</h3>
               <p className="text-xs xs:text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
@@ -696,9 +781,7 @@ function Add_Accounts() {
                 <div className="space-y-3">
                   <label className="block text-xs xs:text-sm font-semibold text-gray-700 mb-2 xs:mb-3">
                     Select Platform
-                    <span className="ml-1 text-xs font-normal text-gray-400">
-                      (required)
-                    </span>
+                    <span className="ml-1 text-xs font-normal text-gray-400">(required)</span>
                   </label>
 
                   <div className="grid grid-cols-1 ss:grid-cols-2 lg:grid-cols-2 gap-2 xs:gap-3">
@@ -717,14 +800,17 @@ function Add_Accounts() {
                         >
                           <div className="flex items-start gap-2 xs:gap-3">
                             <div
-                              className={`h-10 w-10 xs:h-12 xs:w-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              className={`h-10 w-10 xs:h-12 xs:w-12 rounded-lg flex items-center justify-center flex-shrink-0 p-2 ${
                                 isSelected ? "bg-white shadow-sm" : "bg-gray-50"
                               }`}
                             >
                               <img
                                 src={platform.icon}
                                 alt={platform.name}
-                                className="w-5 h-5 xs:w-7 xs:h-7"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
                               />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -764,9 +850,7 @@ function Add_Accounts() {
                   <div className="mt-4 xs:mt-6 space-y-2 animate-fadeIn">
                     <label className="block text-xs xs:text-sm font-semibold text-gray-700">
                       Business Manager Name
-                      <span className="ml-1 text-xs font-normal text-gray-400">
-                        (required)
-                      </span>
+                      <span className="ml-1 text-xs font-normal text-gray-400">(required)</span>
                     </label>
                     <input
                       type="text"
@@ -784,41 +868,61 @@ function Add_Accounts() {
                   <div className="mt-4 xs:mt-6 space-y-2 animate-fadeIn">
                     <label className="block text-xs xs:text-sm font-semibold text-gray-700">
                       Access Token
-                      <span className="ml-1 text-xs font-normal text-gray-400">
-                        (required)
-                      </span>
+                      <span className="ml-1 text-xs font-normal text-gray-400">(required)</span>
                     </label>
                     <div className="relative">
                       <input
-                        type="password"
+                        type={showAccessToken ? "text" : "password"}
                         placeholder="Enter your API access token"
                         value={accessToken}
                         onChange={(e) => setAccessToken(e.target.value)}
                         className="w-full px-3 xs:px-4 py-2.5 xs:py-3 pr-10 xs:pr-12 text-sm xs:text-base border border-gray-300 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 font-mono"
                         required
                       />
-                      <div className="absolute right-2 xs:right-3 top-1/2 -translate-y-1/2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 xs:h-5 xs:w-5 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                          />
-                        </svg>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAccessToken(!showAccessToken)}
+                        className="absolute right-2 xs:right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-md transition-colors"
+                        title={showAccessToken ? "Hide token" : "Show token"}
+                      >
+                        {showAccessToken ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 xs:h-5 xs:w-5 text-gray-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4 xs:h-5 xs:w-5 text-gray-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -856,9 +960,7 @@ function Add_Accounts() {
                     <div className="space-y-2">
                       <label className="block text-xs xs:text-sm font-semibold text-gray-700">
                         Account ID
-                        <span className="ml-1 text-xs font-normal text-gray-400">
-                          (required)
-                        </span>
+                        <span className="ml-1 text-xs font-normal text-gray-400">(required)</span>
                       </label>
                       <input
                         type="text"
@@ -874,9 +976,7 @@ function Add_Accounts() {
                     <div className="space-y-2">
                       <label className="block text-xs xs:text-sm font-semibold text-gray-700">
                         Account Label
-                        <span className="ml-1 text-xs font-normal text-gray-400">
-                          (required)
-                        </span>
+                        <span className="ml-1 text-xs font-normal text-gray-400">(required)</span>
                       </label>
                       <input
                         type="text"
@@ -971,12 +1071,54 @@ function Add_Accounts() {
                     Added Accounts
                   </h3>
                   <span className="px-2 xs:px-2.5 py-0.5 xs:py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full">
-                    {connectedAccounts.length}
+                    {filteredAccounts.length}
                   </span>
                 </div>
-                <p className="text-xs xs:text-sm text-gray-500">
-                  Manage your active integrations
-                </p>
+                <p className="text-xs xs:text-sm text-gray-500">Manage your active integrations</p>
+              </div>
+
+              {/* Platform Filter Tabs */}
+              <div className="p-3 xs:p-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="flex gap-1 flex-wrap">
+                  <button
+                    onClick={() => setPlatformFilter("all")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                      platformFilter === "all"
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                    }`}
+                  >
+                    All ({connectedAccounts.length})
+                  </button>
+                  {platforms.map((platform) => (
+                    <button
+                      key={platform.value}
+                      onClick={() => setPlatformFilter(platform.value)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
+                        platformFilter === platform.value
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                      }`}
+                    >
+                      <img
+                        src={platform.icon}
+                        alt={platform.name}
+                        className="w-3.5 h-3.5 object-contain"
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                      <span>{platform.name}</span>
+                      <span
+                        className={`ml-0.5 ${
+                          platformFilter === platform.value ? "text-indigo-200" : "text-gray-400"
+                        }`}
+                      >
+                        ({platformCounts[platform.value] || 0})
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Account List */}
@@ -1003,12 +1145,10 @@ function Add_Accounts() {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    <p className="text-xs xs:text-sm text-gray-500">
-                      Loading accounts...
-                    </p>
+                    <p className="text-xs xs:text-sm text-gray-500">Loading accounts...</p>
                   </div>
-                ) : connectedAccounts.length > 0 ? (
-                  connectedAccounts.map((account) => {
+                ) : filteredAccounts.length > 0 ? (
+                  filteredAccounts.map((account) => {
                     const platform = getPlatformById(account.platform);
                     return (
                       <div
@@ -1016,44 +1156,29 @@ function Add_Accounts() {
                         className="p-3 xs:p-4 bg-gray-50 rounded-lg xs:rounded-xl border border-gray-200 hover:border-gray-300 transition-all hover:shadow-sm"
                       >
                         <div className="flex items-start gap-2 xs:gap-3">
-                          <div className="h-8 w-8 xs:h-10 xs:w-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <img
-                              src={platform?.icon}
-                              alt={platform?.name}
-                              className="w-5 h-5 xs:w-6 xs:h-6"
-                            />
+                          <div className="h-8 w-8 xs:h-10 xs:w-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm p-1.5">
+                            {platform?.icon ? (
+                              <img
+                                src={platform.icon}
+                                alt={platform.name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <PlatformIcon platform={account.platform} className="w-full h-full" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
                               <h4 className="font-semibold text-xs xs:text-sm text-gray-900 truncate">
                                 {account.accountLabel}
                               </h4>
-                              <span className="px-1.5 xs:px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full flex-shrink-0 ml-2">
-                                Active
-                              </span>
                             </div>
                             <p className="text-xs text-gray-500 truncate mb-1.5 xs:mb-2">
                               {account.accountId}
                             </p>
-                            <div className="flex items-center gap-1.5 xs:gap-2 text-xs text-gray-400">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-3 w-3 xs:h-3.5 xs:w-3.5 flex-shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                              <span className="truncate">
-                                Synced {getTimeSince(account.lastSync)}
-                              </span>
-                            </div>
                           </div>
                         </div>
 
@@ -1122,11 +1247,11 @@ function Add_Accounts() {
                       </svg>
                     </div>
                     <p className="text-xs xs:text-sm font-medium text-gray-900 mb-1">
-                      No accounts Added
+                      {platformFilter === "all"
+                        ? "No accounts Added"
+                        : `No ${platforms.find((p) => p.value === platformFilter)?.name} accounts`}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Add your first account to get started
-                    </p>
+                    <p className="text-xs text-gray-500">Add your first account to get started</p>
                   </div>
                 )}
               </div>
@@ -1140,9 +1265,7 @@ function Add_Accounts() {
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${
-                      isRefreshing ? "animate-spin" : ""
-                    }`}
+                    className={`h-3.5 w-3.5 xs:h-4 xs:w-4 ${isRefreshing ? "animate-spin" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

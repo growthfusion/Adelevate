@@ -11,6 +11,7 @@ const BASE_URL = import.meta.env.PROD ? "/api/campaigns" : "http://5.78.123.130:
 // Platform-specific endpoints - only snap and meta have dedicated endpoints
 const PLATFORM_ENDPOINTS = {
   facebook: `${BASE_URL}/meta`,
+  meta: `${BASE_URL}/meta`,
   snap: `${BASE_URL}/snap`,
   newsbreak: `${BASE_URL}/active`,
   tiktok: `${BASE_URL}/active`,
@@ -24,8 +25,10 @@ function PlatformIcon({ platform }) {
   const platformIconsMap = {
     google: googleIcon,
     facebook: fb,
+    meta: fb,
     tiktok: tiktokIcon,
     snap: snapchatIcon,
+    snapchat: snapchatIcon,
     newsbreak: nb
   };
 
@@ -270,10 +273,36 @@ function CampaignsTable({ filters = {} }) {
     }
   };
 
+  // Normalize platform name helper
+  const normalizePlatform = (platformRaw, campaignName = "") => {
+    let platform = String(platformRaw || "")
+      .toLowerCase()
+      .trim();
+
+    // Handle Meta/Facebook naming
+    if (platform === "meta" || platform === "fb" || platform === "facebook") {
+      return "facebook";
+    } else if (platform === "snapchat") {
+      return "snap";
+    } else if (["snap", "newsbreak", "tiktok", "google"].includes(platform)) {
+      return platform;
+    }
+
+    // Fallback: detect from campaign name
+    const name = String(campaignName).toLowerCase();
+    if (name.includes("snap")) return "snap";
+    else if (name.includes("newsbreak")) return "newsbreak";
+    else if (name.includes("tiktok")) return "tiktok";
+    else if (name.includes("google")) return "google";
+    else if (name.includes("meta") || name.includes("facebook") || name.includes("fb"))
+      return "facebook";
+
+    return "facebook"; // default
+  };
+
   // Map raw data to table format
   const mapCampaignData = (rows, startIdx = 0) => {
     return rows.map((r, idx) => {
-      const platformRaw = String(r.platform || "").toLowerCase();
       const statusRaw = String(r.status || "")
         .toUpperCase()
         .trim();
@@ -304,20 +333,8 @@ function CampaignsTable({ filters = {} }) {
         return (parts[parts.length - 1] || "").trim() || "—";
       })();
 
-      // Normalize platform name
-      let platform = platformRaw;
-      if (platform === "meta" || platform === "fb" || platform === "facebook") {
-        platform = "facebook";
-      } else if (platform === "snapchat") {
-        platform = "snap";
-      } else if (!["facebook", "snap", "newsbreak", "tiktok", "google"].includes(platform)) {
-        const name = String(campaignName).toLowerCase();
-        if (name.includes("snap")) platform = "snap";
-        else if (name.includes("newsbreak")) platform = "newsbreak";
-        else if (name.includes("tiktok")) platform = "tiktok";
-        else if (name.includes("google")) platform = "google";
-        else platform = "facebook";
-      }
+      // Normalize platform name consistently
+      const platform = normalizePlatform(r.platform, campaignName);
 
       // Normalize status
       let status = "paused";
@@ -346,7 +363,8 @@ function CampaignsTable({ filters = {} }) {
         lpepc,
         clicks,
         lpViews,
-        lpClicks
+        lpClicks,
+        rawPlatform: r.platform // Keep original for debugging
       };
     });
   };
@@ -364,6 +382,14 @@ function CampaignsTable({ filters = {} }) {
       setApiError(null);
 
       const mappedData = mapCampaignData(filters.campaignsData);
+      console.log(
+        "📊 Mapped data platforms:",
+        mappedData.map((d) => ({
+          title: d.title,
+          platform: d.platform,
+          rawPlatform: d.rawPlatform
+        }))
+      );
       setRawData(mappedData);
       setPage(1);
 
@@ -424,6 +450,7 @@ function CampaignsTable({ filters = {} }) {
             : data?.data || data?.rows || data?.campaigns || [];
 
       console.log(`📈 ${platformName} Extracted Rows Count:`, rows.length);
+      console.log(`📈 ${platformName} Sample row:`, rows[0]);
       return rows.filter(Boolean);
     } catch (err) {
       console.error(`❌ Failed to fetch ${platformName} campaigns:`, err);
@@ -462,9 +489,13 @@ function CampaignsTable({ filters = {} }) {
         console.log("📡 SCENARIO: Platform filters applied");
         console.log("🎯 Selected Platforms:", platformFilters);
 
-        const needsSnapEndpoint = platformFilters.includes("snap");
-        const needsMetaEndpoint = platformFilters.includes("facebook");
-        const otherPlatforms = platformFilters.filter((p) => p !== "snap" && p !== "facebook");
+        const needsSnapEndpoint =
+          platformFilters.includes("snap") || platformFilters.includes("snapchat");
+        const needsMetaEndpoint =
+          platformFilters.includes("facebook") || platformFilters.includes("meta");
+        const otherPlatforms = platformFilters.filter(
+          (p) => p !== "snap" && p !== "snapchat" && p !== "facebook" && p !== "meta"
+        );
 
         console.log("🔍 Platform Analysis:");
         console.log("  - Snap selected:", needsSnapEndpoint);
@@ -498,6 +529,8 @@ function CampaignsTable({ filters = {} }) {
                 const endpoint = PLATFORM_ENDPOINTS.facebook;
                 console.log("🌐 Calling META:", endpoint);
                 const rows = await fetchFromEndpoint(endpoint, "META/Facebook");
+                console.log("📊 META rows received:", rows.length);
+                console.log("📊 META first row platform:", rows[0]?.platform);
                 return rows;
               } catch (err) {
                 fetchErrors.push(`Meta/Facebook: ${err.message}`);
@@ -518,13 +551,11 @@ function CampaignsTable({ filters = {} }) {
                   "Other Platforms (via /active)"
                 );
                 return rows.filter((r) => {
-                  const platform = String(r.platform || "").toLowerCase();
-                  return otherPlatforms.some((p) => {
-                    if (p === "newsbreak") return platform === "newsbreak";
-                    if (p === "tiktok") return platform === "tiktok";
-                    if (p === "google") return platform === "google";
-                    return false;
-                  });
+                  const platform = normalizePlatform(
+                    r.platform,
+                    r.campaign_name || r.campaignName || r.name
+                  );
+                  return otherPlatforms.includes(platform);
                 });
               } catch (err) {
                 fetchErrors.push(`Other platforms: ${err.message}`);
@@ -540,6 +571,10 @@ function CampaignsTable({ filters = {} }) {
 
         console.log("📊 Combined Results:");
         console.log("  - Total rows fetched:", combinedRows.length);
+        console.log(
+          "  - Sample platforms:",
+          combinedRows.slice(0, 5).map((r) => r.platform)
+        );
 
         allRows = mapCampaignData(combinedRows);
       }
@@ -547,6 +582,7 @@ function CampaignsTable({ filters = {} }) {
       console.log("✅ FINAL RESULT:");
       console.log("  - Total mapped campaigns:", allRows.length);
       console.log("  - Sample data:", allRows.slice(0, 2));
+      console.log("  - Platforms in data:", [...new Set(allRows.map((r) => r.platform))]);
 
       setDrillDownCache({
         dates: new Map(),
@@ -901,11 +937,22 @@ function CampaignsTable({ filters = {} }) {
     console.log("🔍 FILTERING DATA:");
     console.log("  - Raw data count:", result.length);
     console.log("  - Filters:", filters);
+    console.log("  - Raw data platforms:", [...new Set(result.map((r) => r.platform))]);
 
-    // Additional client-side filtering
+    // Platform filtering - only apply if NOT using campaignsData
     if (filters.platforms && filters.platforms.length > 0 && !filters.campaignsData) {
       console.log("  - Applying platform filter:", filters.platforms);
-      result = result.filter((row) => filters.platforms.includes(row.platform));
+      const normalizedFilterPlatforms = filters.platforms.map((p) => normalizePlatform(p));
+      console.log("  - Normalized filter platforms:", normalizedFilterPlatforms);
+
+      result = result.filter((row) => {
+        const rowPlatform = normalizePlatform(row.platform);
+        const matches = normalizedFilterPlatforms.includes(rowPlatform);
+        if (!matches) {
+          console.log(`  - Excluding: ${row.title} (platform: ${row.platform} -> ${rowPlatform})`);
+        }
+        return matches;
+      });
       console.log("  - After platform filter:", result.length);
     }
 
@@ -930,6 +977,7 @@ function CampaignsTable({ filters = {} }) {
     }
 
     console.log("  - Final filtered count:", result.length);
+    console.log("  - Final platforms:", [...new Set(result.map((r) => r.platform))]);
 
     return result;
   }, [rawData, filters]);
@@ -1975,7 +2023,9 @@ function CampaignsTable({ filters = {} }) {
                       <p className="text-xs sm:text-sm">
                         {filters.accounts?.length > 0
                           ? "No campaigns for selected accounts"
-                          : "Try adjusting your filters or refresh data"}
+                          : filters.platforms?.length > 0
+                            ? `No campaigns for selected platforms: ${filters.platforms.join(", ")}`
+                            : "Try adjusting your filters or refresh data"}
                       </p>
                     </div>
                   </td>
