@@ -548,6 +548,39 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     setShowTimeZoneMenu(false);
   };
 
+  // ✅ NEW: Fetch all campaigns when no filters are applied
+  const fetchAllCampaigns = async () => {
+    console.log("\n🔄 Fetching ALL campaigns (no account filter)...");
+
+    try {
+      const response = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status");
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const allCampaigns = extractCampaignsFromResponse(data);
+
+      console.log(`✅ Fetched ${allCampaigns.length} total campaigns`);
+
+      // Filter by selected platforms if any
+      if (selectedPlatforms.length > 0) {
+        const filtered = allCampaigns.filter((c) => {
+          const campaignPlatform = normalizePlatformFromDB(c.platform);
+          return selectedPlatforms.includes(campaignPlatform);
+        });
+        console.log(`   Filtered to ${filtered.length} campaigns for selected platforms`);
+        return filtered;
+      }
+
+      return allCampaigns;
+    } catch (error) {
+      console.error("❌ Error fetching all campaigns:", error);
+      throw error;
+    }
+  };
+
   // ✅ IMPROVED: Try multiple strategies to fetch campaigns
   const fetchCampaignsByAccount = async (accountIds, platform) => {
     const platformVariations = PLATFORM_API_NAMES[platform] || [platform];
@@ -657,6 +690,8 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     console.log("\n🚀 ========== APPLY FILTERS ==========");
     console.log("Selected accounts:", accountsToUse);
     console.log("Selected platforms:", selectedPlatforms);
+    console.log("Title filter:", title);
+    console.log("Tags filter:", tags);
 
     setCampaignsLoading(true);
     setCampaignsError(null);
@@ -671,112 +706,145 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
       timeZone
     };
 
-    if (accountsToUse.length > 0) {
+    // ✅ NEW: If no accounts selected, fetch all campaigns
+    if (accountsToUse.length === 0) {
+      console.log("\n📢 No accounts selected - fetching ALL campaigns");
+
       try {
-        const accountsByPlatform = {};
+        const allCampaigns = await fetchAllCampaigns();
 
-        // Map each account to its platform
-        accountsToUse.forEach((accountId) => {
-          let foundPlatform = null;
-
-          for (const [platform, accounts] of Object.entries(adAccounts)) {
-            const found = accounts.find((acc) => acc.id === accountId);
-            if (found) {
-              foundPlatform = platform;
-              if (!accountsByPlatform[platform]) {
-                accountsByPlatform[platform] = [];
-              }
-              accountsByPlatform[platform].push(accountId);
-              break;
-            }
-          }
-
-          if (!foundPlatform) {
-            console.warn(`   ⚠️ Could not find platform for account: ${accountId}`);
-          }
-        });
-
-        console.log("\n📊 Accounts grouped by platform:", accountsByPlatform);
-
-        if (Object.keys(accountsByPlatform).length === 0) {
-          throw new Error(
-            "Could not match selected accounts to platforms. Please refresh and try again."
-          );
-        }
-
-        const allCampaigns = [];
-        const platformResults = {};
-        const failedPlatforms = [];
-
-        // Fetch campaigns for each platform
-        for (const [platform, accountIds] of Object.entries(accountsByPlatform)) {
-          console.log(`\n🔄 Processing ${platform} with ${accountIds.length} account(s)...`);
-
-          const campaigns = await fetchCampaignsByAccount(accountIds, platform);
-
-          platformResults[platform] = {
-            accountCount: accountIds.length,
-            campaignCount: campaigns.length,
-            accountIds: accountIds
-          };
-
-          if (campaigns.length > 0) {
-            allCampaigns.push(...campaigns);
-            console.log(`   ✅ Added ${campaigns.length} campaigns from ${platform}`);
-          } else {
-            failedPlatforms.push({
-              platform,
-              accountCount: accountIds.length,
-              accounts: accountIds
-            });
-            console.log(`   ⚠️ No campaigns found for ${platform}`);
-          }
-        }
-
-        console.log("\n📈 RESULTS SUMMARY:");
-        console.log(`   Total campaigns fetched: ${allCampaigns.length}`);
-        console.log(`   Platform breakdown:`, platformResults);
-
-        // ✅ Show partial results with warning instead of error
         if (allCampaigns.length === 0) {
-          const platformSummary = Object.entries(platformResults)
-            .map(
-              ([plat, info]) =>
-                `${platformDisplayNames[plat]}: ${info.accountCount} account(s), 0 campaigns`
-            )
-            .join("; ");
-
-          const errorMessage = `No campaigns found for any selected accounts.\n\n📊 Checked: ${platformSummary}\n\n💡 Possible reasons:\n• The accounts have no active campaigns\n• Campaigns exist but API returned empty data\n• Date range filters might be too restrictive\n• API endpoint may not support this platform yet`;
-
-          setCampaignsError(errorMessage);
-        } else if (failedPlatforms.length > 0) {
-          // Some platforms succeeded, show warning for failed ones
-          const warningMessage =
-            `⚠️ Partial results: Found ${allCampaigns.length} campaigns, but ${failedPlatforms.length} platform(s) returned no data:\n\n` +
-            failedPlatforms
-              .map(
-                (fp) =>
-                  `• ${platformDisplayNames[fp.platform]}: ${fp.accountCount} account(s) checked, 0 campaigns found`
-              )
-              .join("\n");
-
-          setCampaignsWarning(warningMessage);
-          console.log(`   ✅ Showing partial results: ${allCampaigns.length} campaigns`);
-        } else {
-          console.log(
-            `   ✅ Successfully loaded ${allCampaigns.length} campaigns from all platforms`
+          setCampaignsWarning(
+            "⚠️ No campaigns found. The API returned an empty dataset. This could mean:\n• No campaigns exist in the system\n• All campaigns are filtered out by platform selection\n• The API service may be experiencing issues"
           );
+        } else {
+          console.log(`✅ Successfully loaded ${allCampaigns.length} campaigns (unfiltered)`);
         }
 
         filterData.campaignsData = allCampaigns;
-        filterData.platformResults = platformResults;
+        filterData.isUnfiltered = true; // Flag to indicate this is unfiltered data
       } catch (error) {
-        console.error("\n❌ ERROR in applyFiltersWithAccounts:", error);
-        setCampaignsError(error.message);
+        console.error("\n❌ ERROR fetching all campaigns:", error);
+        setCampaignsError(
+          `Failed to fetch campaigns: ${error.message}\n\nPlease try again or contact support if the issue persists.`
+        );
         filterData.campaignsData = [];
       }
-    } else {
-      console.log("ℹ️ No accounts selected, skipping campaign fetch");
+
+      setCampaignsLoading(false);
+
+      console.log("\n📤 Calling onApplyFilters with:", filterData);
+      console.log("========================================\n");
+
+      if (onApplyFilters) {
+        onApplyFilters(filterData);
+      }
+
+      return;
+    }
+
+    // ✅ EXISTING LOGIC: Fetch campaigns by account
+    try {
+      const accountsByPlatform = {};
+
+      // Map each account to its platform
+      accountsToUse.forEach((accountId) => {
+        let foundPlatform = null;
+
+        for (const [platform, accounts] of Object.entries(adAccounts)) {
+          const found = accounts.find((acc) => acc.id === accountId);
+          if (found) {
+            foundPlatform = platform;
+            if (!accountsByPlatform[platform]) {
+              accountsByPlatform[platform] = [];
+            }
+            accountsByPlatform[platform].push(accountId);
+            break;
+          }
+        }
+
+        if (!foundPlatform) {
+          console.warn(`   ⚠️ Could not find platform for account: ${accountId}`);
+        }
+      });
+
+      console.log("\n📊 Accounts grouped by platform:", accountsByPlatform);
+
+      if (Object.keys(accountsByPlatform).length === 0) {
+        throw new Error(
+          "Could not match selected accounts to platforms. Please refresh and try again."
+        );
+      }
+
+      const allCampaigns = [];
+      const platformResults = {};
+      const failedPlatforms = [];
+
+      // Fetch campaigns for each platform
+      for (const [platform, accountIds] of Object.entries(accountsByPlatform)) {
+        console.log(`\n🔄 Processing ${platform} with ${accountIds.length} account(s)...`);
+
+        const campaigns = await fetchCampaignsByAccount(accountIds, platform);
+
+        platformResults[platform] = {
+          accountCount: accountIds.length,
+          campaignCount: campaigns.length,
+          accountIds: accountIds
+        };
+
+        if (campaigns.length > 0) {
+          allCampaigns.push(...campaigns);
+          console.log(`   ✅ Added ${campaigns.length} campaigns from ${platform}`);
+        } else {
+          failedPlatforms.push({
+            platform,
+            accountCount: accountIds.length,
+            accounts: accountIds
+          });
+          console.log(`   ⚠️ No campaigns found for ${platform}`);
+        }
+      }
+
+      console.log("\n📈 RESULTS SUMMARY:");
+      console.log(`   Total campaigns fetched: ${allCampaigns.length}`);
+      console.log(`   Platform breakdown:`, platformResults);
+
+      // ✅ Show partial results with warning instead of error
+      if (allCampaigns.length === 0) {
+        const platformSummary = Object.entries(platformResults)
+          .map(
+            ([plat, info]) =>
+              `${platformDisplayNames[plat]}: ${info.accountCount} account(s), 0 campaigns`
+          )
+          .join("; ");
+
+        const errorMessage = `No campaigns found for any selected accounts.\n\n📊 Checked: ${platformSummary}\n\n💡 Possible reasons:\n• The accounts have no active campaigns\n• Campaigns exist but API returned empty data\n• Date range filters might be too restrictive\n• API endpoint may not support this platform yet`;
+
+        setCampaignsError(errorMessage);
+      } else if (failedPlatforms.length > 0) {
+        // Some platforms succeeded, show warning for failed ones
+        const warningMessage =
+          `⚠️ Partial results: Found ${allCampaigns.length} campaigns, but ${failedPlatforms.length} platform(s) returned no data:\n\n` +
+          failedPlatforms
+            .map(
+              (fp) =>
+                `• ${platformDisplayNames[fp.platform]}: ${fp.accountCount} account(s) checked, 0 campaigns found`
+            )
+            .join("\n");
+
+        setCampaignsWarning(warningMessage);
+        console.log(`   ✅ Showing partial results: ${allCampaigns.length} campaigns`);
+      } else {
+        console.log(
+          `   ✅ Successfully loaded ${allCampaigns.length} campaigns from all platforms`
+        );
+      }
+
+      filterData.campaignsData = allCampaigns;
+      filterData.platformResults = platformResults;
+    } catch (error) {
+      console.error("\n❌ ERROR in applyFiltersWithAccounts:", error);
+      setCampaignsError(error.message);
       filterData.campaignsData = [];
     }
 
@@ -1007,7 +1075,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                   {selectedAccounts.length}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400 italic">Select...</span>
+                <span className="text-xs text-gray-400 italic">All</span>
               )}
               <svg
                 className={`h-4 w-4 text-gray-400 transition-transform ${showAccountMenu ? "rotate-180" : ""}`}
@@ -1051,7 +1119,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                             Ad Accounts
                           </h3>
                           <p className="text-xs text-gray-600">
-                            Select accounts to filter campaigns
+                            {selectedAccounts.length === 0
+                              ? "No selection = All campaigns"
+                              : "Select accounts to filter"}
                           </p>
                         </div>
                       </div>
@@ -1343,13 +1413,12 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             )}
           </label>
 
-          {/* Autocomplete suggestions dropdown - keeping your existing UI */}
+          {/* Autocomplete suggestions dropdown */}
           {showTitleSuggestions && titleSuggestions.length > 0 && (
             <div
               ref={titleDropdownRef}
               className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border-2 border-blue-300 bg-white shadow-2xl"
             >
-              {/* Your existing suggestions UI */}
               <div className="sticky top-0 z-10 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold text-gray-800">
@@ -1444,11 +1513,41 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
                   />
                 </svg>
-                <span>Apply Filters</span>
+                <span>
+                  {selectedAccounts.length === 0 ? "Load All Campaigns" : "Apply Filters"}
+                </span>
               </>
             )}
           </button>
         </div>
+
+        {/* ✅ INFO MESSAGE (No filters selected) */}
+        {selectedAccounts.length === 0 && !campaignsLoading && !campaignsError && (
+          <div className="mt-4 flex items-start gap-3 rounded-lg border-2 border-blue-300 bg-blue-50 px-4 py-3 shadow-sm">
+            <svg
+              className="mt-0.5 h-6 w-6 flex-shrink-0 text-blue-600"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-1">
+              <div className="text-sm font-bold text-blue-900">ℹ️ No Account Filter</div>
+              <div className="mt-1 text-sm text-blue-800">
+                Clicking "Load All Campaigns" will fetch all campaigns from all platforms
+                {selectedPlatforms.length > 0 &&
+                  ` (filtered by: ${selectedPlatforms
+                    .map((p) => platformDisplayNames[p])
+                    .join(", ")})`}
+                . This may take a moment.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ✅ WARNING MESSAGE (Partial Results) */}
         {campaignsWarning && (
@@ -1523,7 +1622,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               />
             </svg>
             <span className="text-sm font-medium text-blue-900">
-              Fetching campaigns... (Check console for detailed progress)
+              {selectedAccounts.length === 0
+                ? "Fetching all campaigns... (Check console for progress)"
+                : "Fetching campaigns... (Check console for detailed progress)"}
             </span>
           </div>
         )}

@@ -8,12 +8,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  LineChart,
-  Line,
   Area,
-  AreaChart,
+  AreaChart
 } from "recharts";
-import { motion } from "framer-motion";
 
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
@@ -25,75 +22,61 @@ const PLATFORM_CONFIG = {
   "google-ads": {
     name: "Google Ads",
     icon: googleIcon,
-    color: "#34A853", // Green
-    bgColor: "rgba(52, 168, 83, 0.08)",
+    color: "#34A853",
+    bgColor: "rgba(52, 168, 83, 0.08)"
   },
   facebook: {
     name: "Facebook",
     icon: fb,
-    color: "#1877F2", // Blue
-    bgColor: "rgba(24, 119, 242, 0.08)",
+    color: "#1877F2",
+    bgColor: "rgba(24, 119, 242, 0.08)"
   },
   tiktok: {
     name: "TikTok",
     icon: tiktokIcon,
-    color: "#8B5CF6", // Violet
-    bgColor: "rgba(139, 92, 246, 0.08)",
+    color: "#8B5CF6",
+    bgColor: "rgba(139, 92, 246, 0.08)"
   },
   snapchat: {
     name: "Snapchat",
     icon: snapchatIcon,
-    color: "#FFFC00", // Yellow
-    bgColor: "rgba(255, 252, 0, 0.08)",
+    color: "#FFFC00",
+    bgColor: "rgba(255, 252, 0, 0.15)"
   },
   newsbreak: {
     name: "NewsBreak",
     icon: nb,
-    color: "#EF4444", // Red
-    bgColor: "rgba(239, 68, 68, 0.08)",
-  },
+    color: "#EF4444",
+    bgColor: "rgba(239, 68, 68, 0.08)"
+  }
 };
 
-const PlatformComparison = ({ metricsData = [], className = "" }) => {
+const PlatformComparison = ({ platformData = {}, isLoading = false, className = "" }) => {
   const [comparisonData, setComparisonData] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState("revenue");
   const [viewMode, setViewMode] = useState("overview");
 
   useEffect(() => {
-    generateComparisonData();
-  }, [metricsData]);
+    if (Object.keys(platformData).length > 0) {
+      generateComparisonData();
+    }
+  }, [platformData]);
 
   const generateComparisonData = () => {
-    const platforms = [
-      "google-ads",
-      "facebook",
-      "tiktok",
-      "snapchat",
-      "newsbreak",
-    ];
+    const platforms = ["google-ads", "facebook", "tiktok", "snapchat", "newsbreak"];
 
     const processedData = platforms.map((platform) => {
       const config = PLATFORM_CONFIG[platform];
+      const data = platformData[platform] || {};
 
-      const spend =
-        metricsData?.find((m) => m?.title === "Amount Spent")
-          ?.platformBreakdown?.[platform] ||
-        Math.floor(Math.random() * 30000) + 10000;
-      const revenue =
-        metricsData?.find((m) => m?.title === "Revenue")?.platformBreakdown?.[
-          platform
-        ] || Math.floor(Math.random() * 50000) + 20000;
-      const conversions =
-        metricsData?.find((m) => m?.title === "Conversions")
-          ?.platformBreakdown?.[platform] ||
-        Math.floor(Math.random() * 500) + 100;
-      const clicks =
-        metricsData?.find((m) => m?.title === "Clicks")?.platformBreakdown?.[
-          platform
-        ] || Math.floor(Math.random() * 5000) + 1000;
-
-      const roi = spend > 0 ? ((revenue - spend) / spend) * 100 : 0;
-      const cpa = conversions > 0 ? spend / conversions : 0;
+      const spend = data.spend || 0;
+      const revenue = data.revenue || 0;
+      const conversions = data.conversions || 0;
+      const clicks = data.clicks || 0;
+      const profit = data.profit || 0;
+      const roi = data.roi || 0;
+      const cpa = data.cpa || 0;
+      const epc = data.epc || 0;
       const ctr = clicks > 0 ? (conversions / clicks) * 100 : 0;
 
       return {
@@ -106,7 +89,8 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
         clicks,
         cpa,
         ctr,
-        profit: revenue - spend,
+        profit,
+        epc
       };
     });
 
@@ -119,7 +103,7 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
     { value: "profit", label: "Profit", format: "currency" },
     { value: "conversions", label: "Conversions", format: "number" },
     { value: "roi", label: "ROI %", format: "percentage" },
-    { value: "clicks", label: "Clicks", format: "number" },
+    { value: "clicks", label: "Clicks", format: "number" }
   ];
 
   const formatValue = (value, format) => {
@@ -137,7 +121,6 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
 
   const currentMetric = metricOptions.find((m) => m.value === selectedMetric);
 
-  // Custom Tooltip
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -159,20 +142,68 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div
+        className={`bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden ${className}`}
+      >
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-br from-gray-50/50 to-white">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+        </div>
+        <div className="p-6">
+          <div className="h-64 bg-gray-100 rounded-xl animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasData = comparisonData.some((p) => p.revenue > 0 || p.spend > 0 || p.clicks > 0);
+
+  if (!hasData) {
+    return (
+      <div
+        className={`bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden ${className}`}
+      >
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-br from-gray-50/50 to-white">
+          <h3 className="text-xl font-bold text-gray-900">Platform Comparison</h3>
+          <p className="text-sm text-gray-500 mt-1">Analytics across all platforms</p>
+        </div>
+        <div className="p-12 text-center">
+          <div className="text-gray-400 mb-4">
+            <svg
+              className="w-16 h-16 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+          </div>
+          <p className="text-gray-500">No platform data available yet</p>
+        </div>
+      </div>
+    );
+  }
+
+  const activePlatforms = comparisonData.filter(
+    (p) => p.revenue > 0 || p.spend > 0 || p.clicks > 0
+  );
+
   return (
     <div
       className={`bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden ${className}`}
     >
-      {/* Header */}
       <div className="p-6 border-b border-gray-100 bg-gradient-to-br from-gray-50/50 to-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">
-              Platform Comparison
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Analytics across all platforms
-            </p>
+            <h3 className="text-xl font-bold text-gray-900">Platform Comparison</h3>
+            <p className="text-sm text-gray-500 mt-1">Analytics across all platforms</p>
           </div>
 
           <div className="flex gap-2 bg-gray-100/80 p-1 rounded-lg">
@@ -194,14 +225,10 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
       </div>
 
       <div className="p-6">
-        {/* Overview View */}
         {viewMode === "overview" && (
           <div className="space-y-6">
-            {/* Metric Selector */}
             <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl border border-gray-200/50">
-              <span className="text-sm font-semibold text-gray-700">
-                Compare by:
-              </span>
+              <span className="text-sm font-semibold text-gray-700">Compare by:</span>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value)}
@@ -215,10 +242,9 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
               </select>
             </div>
 
-            {/* Main Chart */}
             <div className="bg-gradient-to-br from-gray-50/50 to-white p-6 rounded-xl border border-gray-200/50">
               <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={comparisonData}>
+                <BarChart data={activePlatforms}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="name"
@@ -234,21 +260,12 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                       if (currentMetric.format === "currency") {
                         return `$${(value / 1000).toFixed(0)}k`;
                       }
-                      return value > 1000
-                        ? `${(value / 1000).toFixed(0)}k`
-                        : value;
+                      return value > 1000 ? `${(value / 1000).toFixed(0)}k` : value;
                     }}
                   />
-                  <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{ fill: "rgba(0,0,0,0.05)" }}
-                  />
-                  <Bar
-                    dataKey={selectedMetric}
-                    radius={[8, 8, 0, 0]}
-                    maxBarSize={60}
-                  >
-                    {comparisonData.map((entry, index) => (
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.05)" }} />
+                  <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={60}>
+                    {activePlatforms.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Bar>
@@ -256,12 +273,10 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
               </ResponsiveContainer>
             </div>
 
-            {/* Platform Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {comparisonData.map((platform) => (
-                <motion.div
+              {activePlatforms.map((platform) => (
+                <div
                   key={platform.platform}
-                  whileHover={{ y: -4 }}
                   className="border border-gray-200/60 rounded-xl p-5 hover:shadow-lg hover:border-gray-300/60 transition-all duration-300 bg-white"
                 >
                   <div className="flex items-center gap-2 mb-4">
@@ -269,15 +284,9 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                       className="w-10 h-10 rounded-lg flex items-center justify-center"
                       style={{ backgroundColor: platform.bgColor }}
                     >
-                      <img
-                        src={platform.icon}
-                        alt={platform.name}
-                        className="w-5 h-5"
-                      />
+                      <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
                     </div>
-                    <span className="font-semibold text-sm text-gray-900">
-                      {platform.name}
-                    </span>
+                    <span className="font-semibold text-sm text-gray-900">{platform.name}</span>
                   </div>
 
                   <div className="space-y-3">
@@ -292,28 +301,23 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                       <div>
                         <p className="text-xs text-gray-500 mb-1">ROI</p>
                         <p
-                          className={`text-sm font-bold ${
-                            platform.roi > 0 ? "text-green-600" : "text-red-600"
-                          }`}
+                          className={`text-sm font-bold ${platform.roi > 0 ? "text-green-600" : "text-red-600"}`}
                         >
                           {platform.roi.toFixed(0)}%
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Conv</p>
-                        <p className="text-sm font-bold text-gray-900">
-                          {platform.conversions}
-                        </p>
+                        <p className="text-sm font-bold text-gray-900">{platform.conversions}</p>
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Detailed View */}
         {viewMode === "detailed" && (
           <div className="overflow-x-auto rounded-xl border border-gray-200/60">
             <table className="w-full">
@@ -343,18 +347,13 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                   <th className="p-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     CPA
                   </th>
-                  <th className="p-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    CTR
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white">
-                {comparisonData.map((platform, index) => (
+                {activePlatforms.map((platform, index) => (
                   <tr
                     key={platform.platform}
-                    className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors ${
-                      index === comparisonData.length - 1 ? "border-0" : ""
-                    }`}
+                    className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors`}
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -362,15 +361,9 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                           className="w-9 h-9 rounded-lg flex items-center justify-center"
                           style={{ backgroundColor: platform.bgColor }}
                         >
-                          <img
-                            src={platform.icon}
-                            alt={platform.name}
-                            className="w-5 h-5"
-                          />
+                          <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
                         </div>
-                        <span className="font-semibold text-sm text-gray-900">
-                          {platform.name}
-                        </span>
+                        <span className="font-semibold text-sm text-gray-900">{platform.name}</span>
                       </div>
                     </td>
                     <td className="p-4 text-right text-sm text-gray-700 font-medium">
@@ -380,13 +373,7 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                       {formatValue(platform.revenue, "currency")}
                     </td>
                     <td className="p-4 text-right text-sm font-semibold">
-                      <span
-                        className={
-                          platform.profit > 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
+                      <span className={platform.profit > 0 ? "text-green-600" : "text-red-600"}>
                         {formatValue(platform.profit, "currency")}
                       </span>
                     </td>
@@ -410,9 +397,6 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                     <td className="p-4 text-right text-sm text-gray-700 font-medium">
                       {formatValue(platform.cpa, "currency")}
                     </td>
-                    <td className="p-4 text-right text-sm text-gray-700 font-medium">
-                      {platform.ctr.toFixed(2)}%
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -420,83 +404,58 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
           </div>
         )}
 
-        {/* Compare View */}
         {viewMode === "compare" && (
           <div className="space-y-6">
-            {/* Side by Side Metrics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Revenue Comparison */}
               <div className="bg-gradient-to-br from-gray-50/50 to-white p-6 rounded-xl border border-gray-200/50">
-                <h4 className="font-semibold text-gray-900 mb-5 text-base">
-                  Revenue Comparison
-                </h4>
+                <h4 className="font-semibold text-gray-900 mb-5 text-base">Revenue Comparison</h4>
                 <div className="space-y-4">
-                  {comparisonData
+                  {activePlatforms
                     .sort((a, b) => b.revenue - a.revenue)
-                    .map((platform) => (
-                      <div
-                        key={platform.platform}
-                        className="flex items-center gap-3"
-                      >
-                        <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: platform.bgColor }}
-                        >
-                          <img
-                            src={platform.icon}
-                            alt={platform.name}
-                            className="w-5 h-5"
-                          />
-                        </div>
-                        <span className="text-sm font-semibold w-28 text-gray-900">
-                          {platform.name}
-                        </span>
-                        <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                    .map((platform) => {
+                      const maxRevenue = Math.max(...activePlatforms.map((p) => p.revenue));
+                      return (
+                        <div key={platform.platform} className="flex items-center gap-3">
                           <div
-                            className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                            style={{
-                              width: `${
-                                (platform.revenue /
-                                  Math.max(
-                                    ...comparisonData.map((p) => p.revenue)
-                                  )) *
-                                100
-                              }%`,
-                              backgroundColor: platform.color,
-                            }}
+                            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: platform.bgColor }}
                           >
-                            <span className="text-xs text-white font-bold drop-shadow-sm">
-                              ${(platform.revenue / 1000).toFixed(1)}k
-                            </span>
+                            <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
+                          </div>
+                          <span className="text-sm font-semibold w-28 text-gray-900">
+                            {platform.name}
+                          </span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                            <div
+                              className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+                              style={{
+                                width: `${(platform.revenue / maxRevenue) * 100}%`,
+                                backgroundColor: platform.color
+                              }}
+                            >
+                              <span className="text-xs text-white font-bold drop-shadow-sm">
+                                ${(platform.revenue / 1000).toFixed(1)}k
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
 
-              {/* ROI Comparison */}
               <div className="bg-gradient-to-br from-gray-50/50 to-white p-6 rounded-xl border border-gray-200/50">
-                <h4 className="font-semibold text-gray-900 mb-5 text-base">
-                  ROI Comparison
-                </h4>
+                <h4 className="font-semibold text-gray-900 mb-5 text-base">ROI Comparison</h4>
                 <div className="space-y-4">
-                  {comparisonData
+                  {activePlatforms
                     .sort((a, b) => b.roi - a.roi)
                     .map((platform) => (
-                      <div
-                        key={platform.platform}
-                        className="flex items-center gap-3"
-                      >
+                      <div key={platform.platform} className="flex items-center gap-3">
                         <div
                           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: platform.bgColor }}
                         >
-                          <img
-                            src={platform.icon}
-                            alt={platform.name}
-                            className="w-5 h-5"
-                          />
+                          <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
                         </div>
                         <span className="text-sm font-semibold w-28 text-gray-900">
                           {platform.name}
@@ -505,12 +464,8 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
                           <div
                             className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
                             style={{
-                              width: `${Math.min(
-                                100,
-                                Math.max(0, platform.roi)
-                              )}%`,
-                              backgroundColor:
-                                platform.roi > 0 ? "#10b981" : "#ef4444",
+                              width: `${Math.min(100, Math.max(0, platform.roi))}%`,
+                              backgroundColor: platform.roi > 0 ? "#10b981" : "#ef4444"
                             }}
                           >
                             <span className="text-xs text-white font-bold drop-shadow-sm">
@@ -524,72 +479,12 @@ const PlatformComparison = ({ metricsData = [], className = "" }) => {
               </div>
             </div>
 
-            {/* Performance Matrix */}
-            <div className="bg-gradient-to-br from-gray-50/50 to-white p-6 rounded-xl border border-gray-200/50">
-              <h4 className="font-semibold text-gray-900 mb-6 text-base">
-                Performance Matrix
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {comparisonData.map((platform) => (
-                  <div
-                    key={platform.platform}
-                    className="text-center p-4 rounded-xl border border-gray-200/50 hover:border-gray-300/60 hover:shadow-md transition-all bg-white"
-                  >
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
-                      style={{ backgroundColor: platform.bgColor }}
-                    >
-                      <img
-                        src={platform.icon}
-                        alt={platform.name}
-                        className="w-6 h-6"
-                      />
-                    </div>
-                    <h5 className="font-semibold text-sm mb-3 text-gray-900">
-                      {platform.name}
-                    </h5>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Spend:</span>
-                        <span className="font-semibold text-gray-900">
-                          ${(platform.spend / 1000).toFixed(1)}k
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Revenue:</span>
-                        <span className="font-semibold text-gray-900">
-                          ${(platform.revenue / 1000).toFixed(1)}k
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">ROI:</span>
-                        <span
-                          className={`font-bold ${
-                            platform.roi > 0 ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {platform.roi.toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-500">Conv:</span>
-                        <span className="font-semibold text-gray-900">
-                          {platform.conversions}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Multi-Metric Comparison */}
             <div className="bg-gradient-to-br from-gray-50/50 to-white p-6 rounded-xl border border-gray-200/50">
               <h4 className="font-semibold text-gray-900 mb-5 text-base">
                 Revenue vs Spend Comparison
               </h4>
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={comparisonData}>
+                <AreaChart data={activePlatforms}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis
                     dataKey="name"

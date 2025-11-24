@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  ResponsiveContainer,
-} from "recharts";
+import { LineChart, Line, AreaChart, Area, ResponsiveContainer } from "recharts";
 
 // Import platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
@@ -16,13 +10,29 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 
 import DatePickerToggle from "./DatePicker";
 
+// API endpoints
+const API_ENDPOINTS = {
+  snapchat: "http://5.78.123.130:8080/v1/campaigns/snap",
+  facebook: "http://5.78.123.130:8080/v1/campaigns/meta"
+  // Add other endpoints when available
+  // tiktok: "http://5.78.123.130:8080/v1/campaigns/tiktok",
+  // "google-ads": "http://5.78.123.130:8080/v1/campaigns/google",
+  // newsbreak: "http://5.78.123.130:8080/v1/campaigns/newsbreak",
+};
+
+// Platform mapping (API response uses different names)
+const PLATFORM_API_MAPPING = {
+  snap: "snapchat",
+  meta: "facebook"
+};
+
 // Platform icons mapping
 const platformIcons = {
   "google-ads": googleIcon,
   facebook: fb,
   tiktok: tiktokIcon,
   snapchat: snapchatIcon,
-  newsbreak: nb,
+  newsbreak: nb
 };
 
 // Platform display names
@@ -31,7 +41,7 @@ const platformNames = {
   facebook: "Facebook",
   tiktok: "TikTok",
   snapchat: "Snapchat",
-  newsbreak: "NewsBreak",
+  newsbreak: "NewsBreak"
 };
 
 const MediaBuyerDashboard = () => {
@@ -39,7 +49,7 @@ const MediaBuyerDashboard = () => {
   const [dateRange, setDateRange] = useState("30d");
   const [customDateRange, setCustomDateRange] = useState({
     start: null,
-    end: null,
+    end: null
   });
   const [isLoading, setIsLoading] = useState(true);
   const [metricsData, setMetricsData] = useState({
@@ -50,17 +60,25 @@ const MediaBuyerDashboard = () => {
     clicks: {},
     conversions: {},
     cpa: {},
-    epc: {},
+    epc: {}
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tabletMenuOpen, setTabletMenuOpen] = useState(false);
-  // Track which card is expanded - only one card can be expanded at a time
   const [expandedCard, setExpandedCard] = useState(null);
+  const [error, setError] = useState(null);
+  const [platformData, setPlatformData] = useState({});
 
   // Initialize metrics data
   useEffect(() => {
     fetchData();
-  }, [selectedPlatform, dateRange]);
+  }, [dateRange, customDateRange]);
+
+  // Update metrics when platform selection changes
+  useEffect(() => {
+    if (Object.keys(platformData).length > 0) {
+      calculateMetrics();
+    }
+  }, [selectedPlatform, platformData]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -77,138 +95,274 @@ const MediaBuyerDashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen, tabletMenuOpen]);
 
-  // Function to fetch data when date range or platform changes
-  const fetchData = () => {
+  // Function to fetch data from all platform APIs
+  const fetchData = async () => {
     setIsLoading(true);
-    // Reset expanded card when data changes
+    setError(null);
     setExpandedCard(null);
 
-    // Simulate API call with timeout
-    setTimeout(() => {
-      setMetricsData({
-        amount_spent: {
-          title: "Amount Spent",
-          value: 312587,
-          change: 8.2,
-          changeType: "positive",
-          format: "currency",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 128500,
-            facebook: 98750,
-            tiktok: 45200,
-            snapchat: 26137,
-            newsbreak: 14000,
-          },
-        },
-        revenue: {
-          title: "Revenue",
-          value: 346839,
-          change: 12.5,
-          changeType: "positive",
-          format: "currency",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 142500,
-            facebook: 110250,
-            tiktok: 54300,
-            snapchat: 25789,
-            newsbreak: 14000,
-          },
-        },
-        net: {
-          title: "Net",
-          value: 34251,
-          change: 15.8,
-          changeType: "positive",
-          format: "currency",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 14000,
-            facebook: 11500,
-            tiktok: 9100,
-            snapchat: -348,
-            newsbreak: 0,
-          },
-        },
-        roi: {
-          title: "ROI",
-          value: 10.96,
-          change: 4.2,
-          changeType: "positive",
-          format: "percentage",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 12.5,
-            facebook: 11.65,
-            tiktok: 9.87,
-            snapchat: 8.23,
-            newsbreak: 7.5,
-          },
-        },
-        clicks: {
-          title: "Clicks",
-          value: 210113,
-          change: 5.7,
-          changeType: "positive",
-          format: "number",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 84050,
-            facebook: 63033,
-            tiktok: 35720,
-            snapchat: 18310,
-            newsbreak: 9000,
-          },
-        },
-        conversions: {
-          title: "Conversions",
-          value: 27136,
-          change: 7.3,
-          changeType: "positive",
-          format: "number",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 12500,
-            facebook: 8450,
-            tiktok: 3600,
-            snapchat: 1856,
-            newsbreak: 730,
-          },
-        },
-        cpa: {
-          title: "CPA",
-          value: 11.51,
-          change: 2.1,
-          changeType: "negative", // lower CPA is better
-          format: "currency",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 10.28,
-            facebook: 11.68,
-            tiktok: 12.56,
-            snapchat: 14.08,
-            newsbreak: 19.18,
-          },
-        },
-        epc: {
-          title: "EPC",
-          value: 1.65,
-          change: 3.2,
-          changeType: "positive",
-          format: "currency",
-          sparklineData: generateSparklineData(30),
-          platformBreakdown: {
-            "google-ads": 1.85,
-            facebook: 1.75,
-            tiktok: 1.52,
-            snapchat: 1.41,
-            newsbreak: 1.12,
-          },
-        },
+    try {
+      // Fetch data from all available APIs
+      const apiPromises = Object.entries(API_ENDPOINTS).map(async ([platform, endpoint]) => {
+        try {
+          const response = await fetch(endpoint);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${platform} data`);
+          }
+          const data = await response.json();
+          return {
+            platform: PLATFORM_API_MAPPING[platform] || platform,
+            data: data.items || [],
+            success: true
+          };
+        } catch (err) {
+          console.error(`Error fetching ${platform}:`, err);
+          return {
+            platform: PLATFORM_API_MAPPING[platform] || platform,
+            data: [],
+            success: false
+          };
+        }
       });
+
+      const results = await Promise.all(apiPromises);
+
+      // Aggregate data by platform
+      const aggregatedData = {};
+
+      // Initialize all platforms with 0 values
+      const allPlatforms = ["facebook", "snapchat", "tiktok", "google-ads", "newsbreak"];
+
+      allPlatforms.forEach((platform) => {
+        aggregatedData[platform] = {
+          spend: 0,
+          revenue: 0,
+          profit: 0,
+          roi: 0,
+          clicks: 0,
+          conversions: 0,
+          cpa: 0,
+          epc: 0,
+          impressions: 0
+        };
+      });
+
+      // Process fetched data
+      results.forEach(({ platform, data, success }) => {
+        if (success && data.length > 0) {
+          const platformMetrics = data.reduce(
+            (acc, campaign) => {
+              return {
+                spend: acc.spend + (parseFloat(campaign.spend) || 0),
+                revenue: acc.revenue + (parseFloat(campaign.revenue) || 0),
+                profit: acc.profit + (parseFloat(campaign.profit) || 0),
+                clicks: acc.clicks + (parseInt(campaign.clicks) || 0),
+                conversions: acc.conversions + (parseInt(campaign.conversions) || 0),
+                impressions: acc.impressions + (parseInt(campaign.impressions) || 0)
+              };
+            },
+            {
+              spend: 0,
+              revenue: 0,
+              profit: 0,
+              clicks: 0,
+              conversions: 0,
+              impressions: 0
+            }
+          );
+
+          // Calculate derived metrics
+          const roi =
+            platformMetrics.spend > 0
+              ? parseFloat(((platformMetrics.profit / platformMetrics.spend) * 100).toFixed(2))
+              : 0;
+          const cpa =
+            platformMetrics.conversions > 0
+              ? parseFloat((platformMetrics.spend / platformMetrics.conversions).toFixed(2))
+              : 0;
+          const epc =
+            platformMetrics.clicks > 0
+              ? parseFloat((platformMetrics.revenue / platformMetrics.clicks).toFixed(2))
+              : 0;
+
+          aggregatedData[platform] = {
+            spend: platformMetrics.spend,
+            revenue: platformMetrics.revenue,
+            profit: platformMetrics.profit,
+            roi: roi,
+            clicks: platformMetrics.clicks,
+            conversions: platformMetrics.conversions,
+            cpa: cpa,
+            epc: epc,
+            impressions: platformMetrics.impressions
+          };
+        }
+      });
+
+      setPlatformData(aggregatedData);
       setIsLoading(false);
-    }, 1000);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("Failed to load data. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  // Calculate metrics based on selected platform
+  const calculateMetrics = () => {
+    let dataToUse = {};
+
+    if (selectedPlatform === "all") {
+      // Sum all platform data
+      const totals = Object.values(platformData).reduce(
+        (acc, platform) => ({
+          spend: acc.spend + platform.spend,
+          revenue: acc.revenue + platform.revenue,
+          profit: acc.profit + platform.profit,
+          clicks: acc.clicks + platform.clicks,
+          conversions: acc.conversions + platform.conversions
+        }),
+        { spend: 0, revenue: 0, profit: 0, clicks: 0, conversions: 0 }
+      );
+
+      // Calculate total derived metrics
+      const totalRoi =
+        totals.spend > 0 ? parseFloat(((totals.profit / totals.spend) * 100).toFixed(2)) : 0;
+      const totalCpa =
+        totals.conversions > 0 ? parseFloat((totals.spend / totals.conversions).toFixed(2)) : 0;
+      const totalEpc =
+        totals.clicks > 0 ? parseFloat((totals.revenue / totals.clicks).toFixed(2)) : 0;
+
+      dataToUse = {
+        spend: totals.spend,
+        revenue: totals.revenue,
+        profit: totals.profit,
+        roi: totalRoi,
+        clicks: totals.clicks,
+        conversions: totals.conversions,
+        cpa: totalCpa,
+        epc: totalEpc
+      };
+    } else {
+      // Use specific platform data
+      dataToUse = platformData[selectedPlatform] || {
+        spend: 0,
+        revenue: 0,
+        profit: 0,
+        roi: 0,
+        clicks: 0,
+        conversions: 0,
+        cpa: 0,
+        epc: 0
+      };
+    }
+
+    // Build platform breakdowns (only for "all" view)
+    const platformBreakdowns = {
+      amount_spent: {},
+      revenue: {},
+      net: {},
+      roi: {},
+      clicks: {},
+      conversions: {},
+      cpa: {},
+      epc: {}
+    };
+
+    // Only show platforms with data > 0 in breakdown
+    Object.entries(platformData).forEach(([platform, metrics]) => {
+      if (metrics.spend > 0 || metrics.revenue > 0 || metrics.clicks > 0) {
+        platformBreakdowns.amount_spent[platform] = metrics.spend;
+        platformBreakdowns.revenue[platform] = metrics.revenue;
+        platformBreakdowns.net[platform] = metrics.profit;
+        platformBreakdowns.roi[platform] = metrics.roi;
+        platformBreakdowns.clicks[platform] = metrics.clicks;
+        platformBreakdowns.conversions[platform] = metrics.conversions;
+        platformBreakdowns.cpa[platform] = metrics.cpa;
+        platformBreakdowns.epc[platform] = metrics.epc;
+      }
+    });
+
+    // Calculate mock changes (you'll need historical data for real changes)
+    const mockChange = (value) => {
+      return value > 0 ? parseFloat((Math.random() * 15).toFixed(1)) : 0;
+    };
+
+    // Set metrics data
+    setMetricsData({
+      amount_spent: {
+        title: "Amount Spent",
+        value: dataToUse.spend,
+        change: mockChange(dataToUse.spend),
+        changeType: dataToUse.spend > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, dataToUse.spend, "spend"),
+        platformBreakdown: platformBreakdowns.amount_spent
+      },
+      revenue: {
+        title: "Revenue",
+        value: dataToUse.revenue,
+        change: mockChange(dataToUse.revenue),
+        changeType: dataToUse.revenue > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, dataToUse.revenue, "revenue"),
+        platformBreakdown: platformBreakdowns.revenue
+      },
+      net: {
+        title: "Net",
+        value: dataToUse.profit,
+        change: mockChange(Math.abs(dataToUse.profit)),
+        changeType: dataToUse.profit > 0 ? "positive" : "negative",
+        format: "currency",
+        sparklineData: generateSparklineData(30, dataToUse.profit, "profit"),
+        platformBreakdown: platformBreakdowns.net
+      },
+      roi: {
+        title: "ROI",
+        value: dataToUse.roi,
+        change: mockChange(dataToUse.roi),
+        changeType: dataToUse.roi > 0 ? "positive" : "negative",
+        format: "percentage",
+        sparklineData: generateSparklineData(30, dataToUse.roi, "roi"),
+        platformBreakdown: platformBreakdowns.roi
+      },
+      clicks: {
+        title: "Clicks",
+        value: dataToUse.clicks,
+        change: mockChange(dataToUse.clicks),
+        changeType: dataToUse.clicks > 0 ? "positive" : "neutral",
+        format: "number",
+        sparklineData: generateSparklineData(30, dataToUse.clicks, "clicks"),
+        platformBreakdown: platformBreakdowns.clicks
+      },
+      conversions: {
+        title: "Conversions",
+        value: dataToUse.conversions,
+        change: mockChange(dataToUse.conversions),
+        changeType: dataToUse.conversions > 0 ? "positive" : "neutral",
+        format: "number",
+        sparklineData: generateSparklineData(30, dataToUse.conversions, "conversions"),
+        platformBreakdown: platformBreakdowns.conversions
+      },
+      cpa: {
+        title: "CPA",
+        value: dataToUse.cpa,
+        change: mockChange(dataToUse.cpa),
+        changeType: dataToUse.cpa > 0 ? "negative" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, dataToUse.cpa, "cpa"),
+        platformBreakdown: platformBreakdowns.cpa
+      },
+      epc: {
+        title: "EPC",
+        value: dataToUse.epc,
+        change: mockChange(dataToUse.epc),
+        changeType: dataToUse.epc > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, dataToUse.epc, "epc"),
+        platformBreakdown: platformBreakdowns.epc
+      }
+    });
   };
 
   // Handle date range change
@@ -229,17 +383,14 @@ const MediaBuyerDashboard = () => {
     setSelectedPlatform(platformId);
     setMobileMenuOpen(false);
     setTabletMenuOpen(false);
-    // Reset expanded card when platform changes
     setExpandedCard(null);
   };
 
   // Function to toggle card expansion
   const toggleCardExpansion = (cardKey) => {
     if (expandedCard === cardKey) {
-      // If clicking the already expanded card, collapse it
       setExpandedCard(null);
     } else {
-      // Otherwise, expand this card (and collapse any previously expanded card)
       setExpandedCard(cardKey);
     }
   };
@@ -251,16 +402,33 @@ const MediaBuyerDashboard = () => {
     { id: "facebook", name: "Facebook", icon: fb },
     { id: "tiktok", name: "TikTok", icon: tiktokIcon },
     { id: "snapchat", name: "Snapchat", icon: snapchatIcon },
-    { id: "newsbreak", name: "NewsBreak", icon: nb },
+    { id: "newsbreak", name: "NewsBreak", icon: nb }
   ];
 
   // Get selected platform name and icon
-  const selectedPlatformObj = platformOptions.find(
-    (p) => p.id === selectedPlatform
-  );
+  const selectedPlatformObj = platformOptions.find((p) => p.id === selectedPlatform);
 
   return (
     <div className="p-3 xs:p-4 md:p-6 w-full xs:pt-[25%] ss:pt-[15%] md:pt-[5%] lg:pt-[3%]">
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <p className="text-red-700 text-sm">{error}</p>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main header with filters - Optimized for all device sizes */}
       <div className="mb-4 md:mb-6">
         {/* Mobile Layout (up to 640px) */}
@@ -314,11 +482,7 @@ const MediaBuyerDashboard = () => {
                           }`}
                         >
                           {platform.icon ? (
-                            <img
-                              src={platform.icon}
-                              alt={platform.name}
-                              className="w-5 h-5 mr-3"
-                            />
+                            <img src={platform.icon} alt={platform.name} className="w-5 h-5 mr-3" />
                           ) : (
                             <div className="w-5 h-5 mr-3"></div>
                           )}
@@ -449,11 +613,7 @@ const MediaBuyerDashboard = () => {
                           }`}
                         >
                           {platform.icon ? (
-                            <img
-                              src={platform.icon}
-                              alt={platform.name}
-                              className="w-5 h-5 mr-3"
-                            />
+                            <img src={platform.icon} alt={platform.name} className="w-5 h-5 mr-3" />
                           ) : (
                             <div className="w-5 h-5 mr-3"></div>
                           )}
@@ -575,11 +735,7 @@ const MediaBuyerDashboard = () => {
                         }`}
                       >
                         {platform.icon ? (
-                          <img
-                            src={platform.icon}
-                            alt={platform.name}
-                            className="w-5 h-5 mr-3"
-                          />
+                          <img src={platform.icon} alt={platform.name} className="w-5 h-5 mr-3" />
                         ) : (
                           <div className="w-5 h-5 mr-3"></div>
                         )}
@@ -666,11 +822,7 @@ const MediaBuyerDashboard = () => {
                   }`}
               >
                 {platform.id !== "all" && platform.icon && (
-                  <img
-                    src={platform.icon}
-                    alt={platform.name}
-                    className="w-4 h-4 inline mr-2"
-                  />
+                  <img src={platform.icon} alt={platform.name} className="w-4 h-4 inline mr-2" />
                 )}
                 {platform.name}
               </button>
@@ -728,12 +880,6 @@ const MediaBuyerDashboard = () => {
       </div>
 
       {/* Metrics grid - Responsive across all breakpoints */}
-      {/* Updated grid layout: 
-          - Mobile: 1 column (unchanged)
-          - Tablet: 1 column (changed from 2 columns)
-          - Laptop (1024px): 2 columns (changed from 4 columns)
-          - Large screens: 4 columns (unchanged)
-      */}
       <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-3 xs:gap-4 md:gap-6 w-full">
         {Object.entries(metricsData).map(([key, metric]) => (
           <MetricCard
@@ -769,26 +915,30 @@ const MetricCard = ({
   metricKey,
   isLoading,
   isExpanded,
-  onToggleExpand,
+  onToggleExpand
 }) => {
   const formatValue = (val) => {
+    if (val === null || val === undefined || isNaN(val)) {
+      return format === "currency" ? "$0.00" : "0";
+    }
+
     if (format === "currency") {
-      if (val >= 1000) {
-        return `$${parseFloat(val).toLocaleString(undefined, {
+      if (Math.abs(val) >= 1000) {
+        return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
           minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
+          maximumFractionDigits: 0
         })}`;
       }
-      return `$${parseFloat(val).toLocaleString(undefined, {
+      return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
         minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 2
       })}`;
     } else if (format === "percentage") {
-      return `${val}%`;
+      return `${parseFloat(val).toFixed(2)}%`;
     } else if (format === "decimal") {
       return parseFloat(val).toFixed(2);
     }
-    return val?.toLocaleString();
+    return Math.round(val).toLocaleString();
   };
 
   const getChangeColor = () => {
@@ -804,7 +954,7 @@ const MetricCard = ({
   };
 
   const displayValue =
-    selectedPlatform !== "all" && platformBreakdown[selectedPlatform]
+    selectedPlatform !== "all" && platformBreakdown[selectedPlatform] !== undefined
       ? platformBreakdown[selectedPlatform]
       : value;
 
@@ -877,9 +1027,7 @@ const MetricCard = ({
       onClick={onToggleExpand}
     >
       <div className="flex justify-between items-start mb-1 md:mb-2">
-        <h3 className="text-sm xs:text-base font-medium text-gray-700">
-          {title}
-        </h3>
+        <h3 className="text-sm xs:text-base font-medium text-gray-700">{title}</h3>
         {selectedPlatform !== "all" && (
           <div className="flex items-center">
             <img
@@ -906,28 +1054,11 @@ const MetricCard = ({
 
       <div className="h-16 ss:h-20 md:h-24 mt-auto">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={sparklineData}
-            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-          >
+          <AreaChart data={sparklineData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <defs>
-              <linearGradient
-                id={`colorGraph-${metricKey}`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor={getGraphColor()}
-                  stopOpacity={0.3}
-                />
-                <stop
-                  offset="95%"
-                  stopColor={getGraphColor()}
-                  stopOpacity={0}
-                />
+              <linearGradient id={`colorGraph-${metricKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={getGraphColor()} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={getGraphColor()} stopOpacity={0} />
               </linearGradient>
             </defs>
             <Area
@@ -945,9 +1076,7 @@ const MetricCard = ({
       {isExpanded && selectedPlatform === "all" && hasPlatformData && (
         <div className="mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
           <div className="flex justify-between items-center mb-2 md:mb-3">
-            <h4 className="text-xs md:text-sm font-medium text-gray-700">
-              Platform Breakdown
-            </h4>
+            <h4 className="text-xs md:text-sm font-medium text-gray-700">Platform Breakdown</h4>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-3 w-3 md:h-4 md:w-4 text-gray-400"
@@ -964,12 +1093,11 @@ const MetricCard = ({
             </svg>
           </div>
           <div className="space-y-2 md:space-y-3">
-            {Object.entries(platformBreakdown).map(
-              ([platform, platformValue]) => (
-                <div
-                  key={platform}
-                  className="flex items-center justify-between"
-                >
+            {Object.entries(platformBreakdown)
+              .filter(([platform, platformValue]) => platformValue > 0)
+              .sort((a, b) => b[1] - a[1])
+              .map(([platform, platformValue]) => (
+                <div key={platform} className="flex items-center justify-between">
                   <div className="flex items-center">
                     {platformIcons[platform] && (
                       <img
@@ -978,16 +1106,13 @@ const MetricCard = ({
                         className="w-4 h-4 md:w-5 md:h-5 mr-1.5 md:mr-2"
                       />
                     )}
-                    <span className="text-xs md:text-sm">
-                      {platformNames[platform]}
-                    </span>
+                    <span className="text-xs md:text-sm">{platformNames[platform]}</span>
                   </div>
                   <span className="font-medium text-xs md:text-sm">
                     {formatValue(platformValue)}
                   </span>
                 </div>
-              )
-            )}
+              ))}
           </div>
         </div>
       )}
@@ -995,11 +1120,46 @@ const MetricCard = ({
   );
 };
 
-function generateSparklineData(days) {
-  return Array.from({ length: days }, (_, i) => ({
-    day: i + 1,
-    value: Math.floor(Math.random() * 100) + 50,
-  }));
+// Generate sparkline data based on current value and metric type
+function generateSparklineData(days, currentValue, metricType = "positive") {
+  if (!currentValue || currentValue === 0) {
+    // Return flat line at 0 if no data
+    return Array.from({ length: days }, (_, i) => ({
+      day: i + 1,
+      value: 0
+    }));
+  }
+
+  const data = [];
+  const variance = 0.15; // 15% variance
+  const trendStrength = 0.3; // How much the trend influences the data
+
+  // Add some randomness to make each chart unique
+  const seed = metricType.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const pseudoRandom = (index) => {
+    const x = Math.sin(seed + index) * 10000;
+    return x - Math.floor(x);
+  };
+
+  for (let i = 0; i < days; i++) {
+    // Create a trend that moves toward the current value
+    const progress = i / (days - 1);
+    const randomFactor = (pseudoRandom(i) - 0.5) * variance * 2;
+
+    // Start at 70% of current value, gradually increase to 100%
+    const trendValue = currentValue * (0.7 + progress * trendStrength);
+    const value = Math.max(0, trendValue * (1 + randomFactor));
+
+    data.push({
+      day: i + 1,
+      value: parseFloat(value.toFixed(2))
+    });
+  }
+
+  // Ensure last value is close to current value
+  data[data.length - 1].value = currentValue;
+
+  return data;
 }
 
 export default MediaBuyerDashboard;
