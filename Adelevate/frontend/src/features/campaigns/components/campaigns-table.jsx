@@ -5,8 +5,30 @@ import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Base URL for API
-const BASE_URL = import.meta.env.PROD ? "/api/campaigns" : "http://5.78.123.130:8080/v1/campaigns";
+// Base URL for API - use environment variable or fallback
+const getBaseUrl = () => {
+  // Check for environment variable first (for production)
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
+  
+  if (apiUrl) {
+    // Remove trailing slash and ensure it ends with /v1/campaigns
+    const base = apiUrl.replace(/\/$/, '');
+    return base.endsWith('/v1/campaigns') ? base : `${base}/v1/campaigns`;
+  }
+  
+  if (import.meta.env.PROD) {
+    // In production, use relative path that goes through proxy/backend
+    // IMPORTANT: Your web server (nginx/Apache/Cloudflare) must be configured to proxy
+    // /api/campaigns/* requests to http://65.109.65.93:8080/v1/campaigns/*
+    // This avoids mixed content errors (HTTPS page calling HTTP API)
+    return "/api/campaigns";
+  }
+  
+  // In development, use the direct backend URL
+  return "http://65.109.65.93:8080/v1/campaigns";
+};
+
+const BASE_URL = getBaseUrl();
 
 // Platform-specific endpoints - only snap and meta have dedicated endpoints
 const PLATFORM_ENDPOINTS = {
@@ -424,16 +446,23 @@ function CampaignsTable({ filters = {} }) {
       console.log(`✅ ${platformName} API Response Status:`, res.status);
 
       if (!res.ok) {
+        // Clone the response before reading it to avoid "body stream already read" error
+        const clonedRes = res.clone();
         let msg = `HTTP ${res.status}`;
         try {
-          const errJson = await res.json();
+          const errJson = await clonedRes.json();
           console.error(`❌ ${platformName} API Error JSON:`, errJson);
           if (errJson && (errJson.error || errJson.message)) {
             msg = errJson.error || errJson.message;
           }
         } catch {
-          const errText = await res.text();
-          console.error(`❌ ${platformName} API Error Text:`, errText);
+          try {
+            const errText = await res.text();
+            console.error(`❌ ${platformName} API Error Text:`, errText);
+            msg = errText || msg;
+          } catch (textErr) {
+            console.error(`❌ ${platformName} Failed to read error response:`, textErr);
+          }
         }
         throw new Error(`${platformName} API ${res.status}: ${msg}`);
       }

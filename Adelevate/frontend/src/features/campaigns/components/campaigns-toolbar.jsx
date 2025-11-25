@@ -10,6 +10,29 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 
 import { supabase } from "@/supabaseClient";
 
+// Helper function to get API base URL - avoids mixed content issues in production
+const getApiBaseUrl = () => {
+  // Check for environment variable first (for production)
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
+  
+  if (apiUrl) {
+    // Remove trailing slash and ensure it ends with /v1/campaigns
+    const base = apiUrl.replace(/\/$/, '');
+    return base.endsWith('/v1/campaigns') ? base : `${base}/v1/campaigns`;
+  }
+  
+  if (import.meta.env.PROD) {
+    // In production, use relative path that goes through proxy/backend
+    // IMPORTANT: Your web server (nginx/Apache/Cloudflare) must be configured to proxy
+    // /api/campaigns/* requests to http://65.109.65.93:8080/v1/campaigns/*
+    // This avoids mixed content errors (HTTPS page calling HTTP API)
+    return "/api/campaigns";
+  }
+  
+  // In development, use the direct backend URL
+  return "http://65.109.65.93:8080/v1/campaigns";
+};
+
 const PLATFORM_OPTIONS = [
   { value: "meta", label: "Meta", icon: fb },
   { value: "snap", label: "Snap", icon: snapchatIcon },
@@ -181,7 +204,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
 
         console.log("📡 Fetching ad accounts from API...");
 
-        const response = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status");
+        const apiBase = getApiBaseUrl();
+        const endpoint = `${apiBase}/all-with-status`;
+        const response = await fetch(endpoint);
 
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
@@ -281,6 +306,10 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   const [tags, setTags] = useState(initialFilters.tags || "");
   const [showTagsMenu, setShowTagsMenu] = useState(false);
 
+  // Status filter - default to active
+  const [status, setStatus] = useState(initialFilters.status || ["active"]);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+
   const [dateRange, setDateRange] = useState(() => {
     if (initialFilters.dateRange) return initialFilters.dateRange;
     const today = startOfDay(new Date());
@@ -315,7 +344,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         title: searchQuery.trim()
       };
 
-      const response = await fetch("http://5.78.123.130:8080/v1/campaigns/details", {
+      const apiBase = getApiBaseUrl();
+      const endpoint = `${apiBase}/details`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -548,12 +579,35 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     setShowTimeZoneMenu(false);
   };
 
-  // ✅ NEW: Fetch all campaigns when no filters are applied
+  const selectStatus = (statusValue) => {
+    if (statusValue === "all") {
+      setStatus([]); // Empty array means "all"
+    } else {
+      setStatus([statusValue]);
+    }
+    setShowStatusMenu(false);
+  };
+
+  // ✅ UPDATED: Fetch all campaigns using different endpoints based on status
+  // - Active (default): /active endpoint (today's metrics)
+  // - Paused or All: base /v1/campaigns endpoint (all campaigns with status)
   const fetchAllCampaigns = async () => {
-    console.log("\n🔄 Fetching ALL campaigns (no account filter)...");
+    // Empty array or no status means "all"
+    const currentStatus = status && status.length > 0 ? status[0] : "all";
+    const useActiveEndpoint = currentStatus === "active";
+    
+    console.log(`\n🔄 Fetching ALL campaigns (no account filter)...`);
+    console.log(`   Status: ${currentStatus}`);
+    console.log(`   Using endpoint: ${useActiveEndpoint ? "/active (today's data)" : "base /v1/campaigns (all campaigns)"}`);
 
     try {
-      const response = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status");
+      const apiBase = getApiBaseUrl();
+      // Use /active for Active status, base endpoint for Paused or All
+      const endpoint = useActiveEndpoint 
+        ? `${apiBase}/active` 
+        : apiBase; // Base endpoint without /active
+      
+      const response = await fetch(endpoint);
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -562,19 +616,35 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
       const data = await response.json();
       const allCampaigns = extractCampaignsFromResponse(data);
 
-      console.log(`✅ Fetched ${allCampaigns.length} total campaigns`);
+      console.log(`✅ Fetched ${allCampaigns.length} total campaigns from ${useActiveEndpoint ? "/active" : "base"} endpoint`);
 
       // Filter by selected platforms if any
+      let filtered = allCampaigns;
       if (selectedPlatforms.length > 0) {
-        const filtered = allCampaigns.filter((c) => {
+        filtered = allCampaigns.filter((c) => {
           const campaignPlatform = normalizePlatformFromDB(c.platform);
           return selectedPlatforms.includes(campaignPlatform);
         });
         console.log(`   Filtered to ${filtered.length} campaigns for selected platforms`);
-        return filtered;
       }
 
-      return allCampaigns;
+      // Filter by status
+      if (status && status.length > 0 && currentStatus !== "all") {
+        const statusFiltered = filtered.filter((c) => {
+          const campaignStatus = String(c.status || "").toLowerCase();
+          const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
+          return status.includes(normalizedStatus);
+        });
+        console.log(`   Filtered to ${statusFiltered.length} campaigns for status: ${status.join(", ")}`);
+        return statusFiltered;
+      }
+
+      // If "all" is selected, return all campaigns without status filtering
+      if (currentStatus === "all") {
+        console.log(`   Returning all ${filtered.length} campaigns (status: all)`);
+      }
+
+      return filtered;
     } catch (error) {
       console.error("❌ Error fetching all campaigns:", error);
       throw error;
@@ -598,7 +668,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
           platform: platformName
         };
 
-        const response = await fetch("http://5.78.123.130:8080/v1/campaigns/by-account", {
+        const apiBase = getApiBaseUrl();
+        const endpoint = `${apiBase}/by-account`;
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody)
@@ -627,7 +699,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         platform: platform
       };
 
-      const response = await fetch("http://5.78.123.130:8080/v1/campaigns/details", {
+      const apiBase = getApiBaseUrl();
+      const endpoint = `${apiBase}/details`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody)
@@ -653,22 +727,42 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
       console.error(`   ⚠️ /details endpoint failed:`, error.message);
     }
 
-    // Strategy 3: Fetch all campaigns and filter client-side
+    // Strategy 3: Fetch all campaigns and filter client-side (endpoint depends on status)
     try {
+      // Empty array or no status means "all"
+      const currentStatus = status && status.length > 0 ? status[0] : "all";
+      const useActiveEndpoint = currentStatus === "active";
+      
       console.log(`   📤 Strategy 3: Fetching all campaigns and filtering client-side`);
+      console.log(`      Status: ${currentStatus}, Using: ${useActiveEndpoint ? "/active" : "base"} endpoint`);
 
-      const response = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status");
+      const apiBase = getApiBaseUrl();
+      // Use /active for Active status, base endpoint for Paused or All
+      const endpoint = useActiveEndpoint 
+        ? `${apiBase}/active` 
+        : apiBase; // Base endpoint without /active
+      
+      const response = await fetch(endpoint);
 
       if (response.ok) {
         const data = await response.json();
         const allCampaigns = extractCampaignsFromResponse(data);
 
         // Filter by platform and account IDs
-        const filtered = allCampaigns.filter((c) => {
+        let filtered = allCampaigns.filter((c) => {
           const campaignPlatform = normalizePlatformFromDB(c.platform);
           const campaignAccountId = c.adAccountId || c.ad_account_id || c.accountId;
           return campaignPlatform === platform && accountIds.includes(campaignAccountId);
         });
+
+        // Apply status filter if not "all"
+        if (currentStatus !== "all" && status && status.length > 0) {
+          filtered = filtered.filter((c) => {
+            const campaignStatus = String(c.status || "").toLowerCase();
+            const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
+            return status.includes(normalizedStatus);
+          });
+        }
 
         if (filtered.length > 0) {
           console.log(
@@ -692,6 +786,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     console.log("Selected platforms:", selectedPlatforms);
     console.log("Title filter:", title);
     console.log("Tags filter:", tags);
+    console.log("Status filter:", status);
 
     setCampaignsLoading(true);
     setCampaignsError(null);
@@ -702,6 +797,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
       accounts: accountsToUse,
       title,
       tags,
+      status,
       dateRange,
       timeZone
     };
@@ -784,7 +880,18 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
       for (const [platform, accountIds] of Object.entries(accountsByPlatform)) {
         console.log(`\n🔄 Processing ${platform} with ${accountIds.length} account(s)...`);
 
-        const campaigns = await fetchCampaignsByAccount(accountIds, platform);
+        let campaigns = await fetchCampaignsByAccount(accountIds, platform);
+
+         // Filter by status if status filter is set (skip if "all" is selected)
+         const currentStatus = status && status.length > 0 ? status[0] : "active";
+         if (currentStatus !== "all" && status && status.length > 0) {
+           campaigns = campaigns.filter((c) => {
+             const campaignStatus = String(c.status || "").toLowerCase();
+             const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
+             return status.includes(normalizedStatus);
+           });
+           console.log(`   Filtered to ${campaigns.length} campaigns for status: ${status.join(", ")}`);
+         }
 
         platformResults[platform] = {
           accountCount: accountIds.length,
@@ -870,6 +977,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     setSelectedAccounts([]);
     setTitle("");
     setTags("");
+    setStatus(["active"]); // Reset to active by default
     setDateRange({ startDate: today, endDate: today, key: "today" });
     setTimeZone("America/Los_Angeles");
     setCampaignsError(null);
@@ -883,6 +991,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         accounts: [],
         title: "",
         tags: "",
+        status: ["active"],
         dateRange: { startDate: today, endDate: today, key: "today" },
         timeZone: "America/Los_Angeles",
         campaignsData: []
@@ -897,9 +1006,9 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   return (
     <section aria-label="Filters" className="rounded-lg border border-gray-200 bg-white shadow-sm">
       <div className="p-4 lg:p-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-6 2xl:gap-4">
           {/* Date Picker */}
-          <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+          <div className="sm:col-span-2 lg:col-span-1 xl:col-span-1">
             <DatePickerToggle
               initialSelection={dateRange}
               onChange={(newRange) => setDateRange(newRange)}
@@ -911,7 +1020,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             <button
               type="button"
               onClick={() => setShowTimeZoneMenu(!showTimeZoneMenu)}
-              className="flex h-full w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <span className="text-gray-600 font-medium">Timezone</span>
               <span className="truncate text-xs font-semibold text-blue-600 max-w-[120px]">
@@ -969,7 +1078,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 }
               }}
               disabled={!accessLoaded || platforms.length === 0}
-              className={`flex h-full w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
+              className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
                 !accessLoaded || platforms.length === 0
                   ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
                   : "border-gray-300 bg-white hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -1038,12 +1147,12 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
           </div>
 
           {/* Account selector */}
-          <div className="relative sm:col-span-2 lg:col-span-1">
+          <div className="relative">
             <button
               type="button"
               onClick={() => setShowAccountMenu(!showAccountMenu)}
               disabled={accountsLoading}
-              className={`flex h-full w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
+              className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
                 accountsLoading
                   ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
                   : "border-gray-300 bg-white hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -1273,12 +1382,105 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             )}
           </div>
 
+          {/* Status Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <span className="text-gray-600 font-medium">Status</span>
+              {status && status.length > 0 ? (
+                <span
+                  className={`truncate rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    status[0] === "active"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : status[0] === "paused"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {status[0] === "active" ? "Active" : status[0] === "paused" ? "Paused" : "All"}
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400 italic">All</span>
+              )}
+              <svg
+                className={`h-4 w-4 text-gray-400 transition-transform ${showStatusMenu ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            {showStatusMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowStatusMenu(false)} />
+                <div className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg bg-white shadow-2xl ring-1 ring-black ring-opacity-5 sm:right-auto sm:w-56">
+                  <div className="p-2">
+                    <div className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                      Select Status
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => selectStatus("active")}
+                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                        status.includes("active")
+                          ? "bg-emerald-500 font-semibold text-white shadow-sm"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
+                        Active
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStatus("paused")}
+                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                        status.includes("paused")
+                          ? "bg-amber-500 font-semibold text-white shadow-sm"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-600"></span>
+                        Paused
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectStatus("all")}
+                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
+                        !status || status.length === 0
+                          ? "bg-blue-500 font-semibold text-white shadow-sm"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2 w-2 rounded-full bg-blue-600"></span>
+                        All
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Tags Dropdown */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowTagsMenu(!showTagsMenu)}
-              className="flex h-full w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               <span className="text-gray-600 font-medium">Tags</span>
               {tags ? (

@@ -435,7 +435,7 @@ export default function EditRuleFormPause() {
         setLoadingCatalog(true);
         setCatalogError("");
 
-        const res = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status", {
+        const res = await fetch("http://65.109.65.93:8080/v1/campaigns/all-with-status", {
           cache: "no-store"
         });
         const payload = await res.json();

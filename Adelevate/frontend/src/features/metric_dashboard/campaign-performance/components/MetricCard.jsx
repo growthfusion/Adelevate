@@ -10,15 +10,43 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 
 import DatePickerToggle from "./DatePicker";
 
-// API endpoints
-const API_ENDPOINTS = {
-  snapchat: "http://5.78.123.130:8080/v1/campaigns/snap",
-  facebook: "http://5.78.123.130:8080/v1/campaigns/meta"
-  // Add other endpoints when available
-  // tiktok: "http://5.78.123.130:8080/v1/campaigns/tiktok",
-  // "google-ads": "http://5.78.123.130:8080/v1/campaigns/google",
-  // newsbreak: "http://5.78.123.130:8080/v1/campaigns/newsbreak",
+// Helper function to get API base URL - avoids mixed content issues in production
+const getApiBaseUrl = () => {
+  // Check for environment variable first (for production)
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
+  
+  if (apiUrl) {
+    // Remove trailing slash and ensure it ends with /v1/campaigns
+    const base = apiUrl.replace(/\/$/, '');
+    return base.endsWith('/v1/campaigns') ? base : `${base}/v1/campaigns`;
+  }
+  
+  if (import.meta.env.PROD) {
+    // In production, use relative path that goes through proxy/backend
+    // IMPORTANT: Your web server (nginx/Apache/Cloudflare) must be configured to proxy
+    // /api/campaigns/* requests to http://65.109.65.93:8080/v1/campaigns/*
+    // This avoids mixed content errors (HTTPS page calling HTTP API)
+    return "/api/campaigns";
+  }
+  
+  // In development, use the direct backend URL
+  return "http://65.109.65.93:8080/v1/campaigns";
 };
+
+// API endpoints
+const getApiEndpoints = () => {
+  const base = getApiBaseUrl();
+  return {
+    snapchat: `${base}/snap`,
+    facebook: `${base}/meta`
+    // Add other endpoints when available
+    // tiktok: `${base}/tiktok`,
+    // "google-ads": `${base}/google`,
+    // newsbreak: `${base}/newsbreak`,
+  };
+};
+
+const API_ENDPOINTS = getApiEndpoints();
 
 // Platform mapping (API response uses different names)
 const PLATFORM_API_MAPPING = {
@@ -28,20 +56,20 @@ const PLATFORM_API_MAPPING = {
 
 // Platform icons mapping
 const platformIcons = {
-  "google-ads": googleIcon,
-  facebook: fb,
-  tiktok: tiktokIcon,
-  snapchat: snapchatIcon,
-  newsbreak: nb
+    facebook: fb,
+    snapchat: snapchatIcon,
+    "google-ads": googleIcon,
+    tiktok: tiktokIcon,
+    newsbreak: nb
 };
 
 // Platform display names
 const platformNames = {
-  "google-ads": "Google",
-  facebook: "Facebook",
-  tiktok: "TikTok",
-  snapchat: "Snapchat",
-  newsbreak: "NewsBreak"
+    facebook: "Facebook",
+    snapchat: "Snapchat",
+    "google-ads": "Google",
+    tiktok: "TikTok",
+    newsbreak: "NewsBreak"
 };
 
 const MediaBuyerDashboard = () => {
@@ -397,12 +425,12 @@ const MediaBuyerDashboard = () => {
 
   // Platform options
   const platformOptions = [
-    { id: "all", name: "All Platforms", icon: null },
-    { id: "google-ads", name: "Google", icon: googleIcon },
-    { id: "facebook", name: "Facebook", icon: fb },
-    { id: "tiktok", name: "TikTok", icon: tiktokIcon },
-    { id: "snapchat", name: "Snapchat", icon: snapchatIcon },
-    { id: "newsbreak", name: "NewsBreak", icon: nb }
+      { id: "all", name: "All Platforms", icon: null },
+      { id: "facebook", name: "Facebook", icon: fb },
+      { id: "snapchat", name: "Snapchat", icon: snapchatIcon },
+      { id: "google-ads", name: "Google", icon: googleIcon },
+      { id: "tiktok", name: "TikTok", icon: tiktokIcon },
+      { id: "newsbreak", name: "NewsBreak", icon: nb }
   ];
 
   // Get selected platform name and icon

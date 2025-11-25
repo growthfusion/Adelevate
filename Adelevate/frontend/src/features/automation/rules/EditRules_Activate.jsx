@@ -29,6 +29,16 @@ import { db } from "@/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { addConfig } from "@/services/config.js";
 
+// Helper function to get API base URL - avoids mixed content issues in production
+const getApiBaseUrl = () => {
+  if (import.meta.env.PROD) {
+    // In production, use relative path that goes through proxy/backend
+    return "/api/campaigns";
+  }
+  // In development, use the direct backend URL
+  return "http://65.109.65.93:8080/v1/campaigns";
+};
+
 // Supabase to fetch my role & platform access
 import { supabase } from "@/supabaseClient";
 
@@ -427,7 +437,9 @@ export default function EditRuleFormActivate() {
         setLoadingCatalog(true);
         setCatalogError("");
 
-        const res = await fetch("http://5.78.123.130:8080/v1/campaigns/all-with-status", {
+        const apiBase = getApiBaseUrl();
+        const endpoint = `${apiBase}/all-with-status`;
+        const res = await fetch(endpoint, {
           cache: "no-store"
         });
         const payload = await res.json();
