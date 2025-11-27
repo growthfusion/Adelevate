@@ -82,21 +82,48 @@ const getApiBaseUrl = () => {
   return "http://65.109.65.93:8080/v1/campaigns";
 };
 
-// API endpoints
-const getApiEndpoints = () => {
-  const base = getApiBaseUrl();
-  return {
-    snapchat: `${base}/snap`,
-    facebook: `${base}/meta`
-  };
+// Helper to normalize platform names from API response
+const normalizePlatformFromDB = (platformRaw) => {
+  if (!platformRaw) return "";
+  const platform = String(platformRaw).toLowerCase().trim();
+
+  // Handle Meta/Facebook naming
+  if (platform === "meta" || platform === "fb" || platform === "facebook") {
+    return "facebook";
+  } else if (platform === "snapchat") {
+    return "snapchat";
+  } else if (["snap", "newsbreak", "tiktok", "google"].includes(platform)) {
+    return platform === "snap" ? "snapchat" : platform === "google" ? "google-ads" : platform;
+  }
+
+  return platform;
 };
 
-const API_ENDPOINTS = getApiEndpoints();
+// Helper to extract campaigns from various API response formats
+const extractCampaignsFromResponse = (data) => {
+  let campaigns = [];
 
-// Platform mapping
-const PLATFORM_API_MAPPING = {
-  snap: "snapchat",
-  meta: "facebook"
+  if (Array.isArray(data)) {
+    campaigns = data;
+  } else if (data?.data && Array.isArray(data.data)) {
+    campaigns = data.data;
+  } else if (data?.campaigns && Array.isArray(data.campaigns)) {
+    campaigns = data.campaigns;
+  } else if (data?.results && Array.isArray(data.results)) {
+    campaigns = data.results;
+  } else if (data?.items && Array.isArray(data.items)) {
+    campaigns = data.items;
+  } else if (typeof data === "object") {
+    // Search all object keys for an array
+    for (const key of Object.keys(data)) {
+      if (Array.isArray(data[key]) && data[key].length > 0) {
+        campaigns = data[key];
+        break;
+      }
+    }
+  }
+
+  return campaigns;
 };
 
 // Platform icons mapping
@@ -208,36 +235,32 @@ const MediaBuyerDashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileMenuOpen, tabletMenuOpen]);
 
-  // Function to fetch data from all platform APIs
+  // Function to fetch data from API - using same endpoint as Campaign section
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
     setExpandedCard(null);
 
     try {
-      const apiPromises = Object.entries(API_ENDPOINTS).map(async ([platform, endpoint]) => {
-        try {
-          const response = await fetch(endpoint);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ${platform} data`);
-          }
-          const data = await response.json();
-          return {
-            platform: PLATFORM_API_MAPPING[platform] || platform,
-            data: data.items || [],
-            success: true
-          };
-        } catch (err) {
-          console.error(`Error fetching ${platform}:`, err);
-          return {
-            platform: PLATFORM_API_MAPPING[platform] || platform,
-            data: [],
-            success: false
-          };
-        }
+      const apiBase = getApiBaseUrl();
+      // Use /active endpoint to get all campaigns (active and paused) for today
+      // This matches the Campaign section's default behavior
+      const endpoint = `${apiBase}/active`;
+
+      console.log(`📊 Metric Dashboard: Fetching campaigns from ${endpoint}`);
+
+      const response = await fetch(endpoint, {
+        cache: "no-store"
       });
 
-      const results = await Promise.all(apiPromises);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch campaigns: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const allCampaigns = extractCampaignsFromResponse(data);
+
+      console.log(`✅ Metric Dashboard: Fetched ${allCampaigns.length} campaigns`);
 
       const aggregatedData = {};
       const allPlatforms = ["facebook", "snapchat", "tiktok", "google-ads", "newsbreak"];
@@ -256,60 +279,61 @@ const MediaBuyerDashboard = () => {
         };
       });
 
-      results.forEach(({ platform, data, success }) => {
-        if (success && data.length > 0) {
-          const platformMetrics = data.reduce(
-            (acc, campaign) => {
-              return {
-                spend: acc.spend + (parseFloat(campaign.spend) || 0),
-                revenue: acc.revenue + (parseFloat(campaign.revenue) || 0),
-                profit: acc.profit + (parseFloat(campaign.profit) || 0),
-                clicks: acc.clicks + (parseInt(campaign.clicks) || 0),
-                conversions: acc.conversions + (parseInt(campaign.conversions) || 0),
-                impressions: acc.impressions + (parseInt(campaign.impressions) || 0)
-              };
-            },
-            {
-              spend: 0,
-              revenue: 0,
-              profit: 0,
-              clicks: 0,
-              conversions: 0,
-              impressions: 0
-            }
-          );
+      // Process campaigns and group by platform
+      allCampaigns.forEach((campaign) => {
+        const platform = normalizePlatformFromDB(campaign.platform);
 
-          const roi =
-            platformMetrics.spend > 0
-              ? parseFloat(((platformMetrics.profit / platformMetrics.spend) * 100).toFixed(2))
-              : 0;
-          const cpa =
-            platformMetrics.conversions > 0
-              ? parseFloat((platformMetrics.spend / platformMetrics.conversions).toFixed(2))
-              : 0;
-          const epc =
-            platformMetrics.clicks > 0
-              ? parseFloat((platformMetrics.revenue / platformMetrics.clicks).toFixed(2))
-              : 0;
-
-          aggregatedData[platform] = {
-            spend: platformMetrics.spend,
-            revenue: platformMetrics.revenue,
-            profit: platformMetrics.profit,
-            roi: roi,
-            clicks: platformMetrics.clicks,
-            conversions: platformMetrics.conversions,
-            cpa: cpa,
-            epc: epc,
-            impressions: platformMetrics.impressions
-          };
+        // Skip if platform is not recognized
+        if (!allPlatforms.includes(platform)) {
+          return;
         }
+
+        // Extract metrics from campaign (handle different field names)
+        const spend = parseFloat(campaign.spend || campaign.cost || 0);
+        const revenue = parseFloat(campaign.revenue || 0);
+        const profit = parseFloat(
+          campaign.profit !== undefined && campaign.profit !== null
+            ? campaign.profit
+            : revenue - spend
+        );
+        const clicks = parseInt(campaign.clicks || 0);
+        const conversions = parseInt(campaign.conversions || campaign.purchases || 0);
+        const impressions = parseInt(campaign.impressions || 0);
+
+        // Accumulate metrics by platform
+        aggregatedData[platform].spend += spend;
+        aggregatedData[platform].revenue += revenue;
+        aggregatedData[platform].profit += profit;
+        aggregatedData[platform].clicks += clicks;
+        aggregatedData[platform].conversions += conversions;
+        aggregatedData[platform].impressions += impressions;
       });
 
+      // Calculate derived metrics for each platform
+      allPlatforms.forEach((platform) => {
+        const metrics = aggregatedData[platform];
+
+        // Calculate ROI: (Profit / Cost) * 100
+        metrics.roi = metrics.spend > 0
+          ? parseFloat(((metrics.profit / metrics.spend) * 100).toFixed(2))
+          : 0;
+
+        // Calculate CPA: Cost / Conversions
+        metrics.cpa = metrics.conversions > 0
+          ? parseFloat((metrics.spend / metrics.conversions).toFixed(2))
+          : 0;
+
+        // Calculate EPC: Revenue / Clicks
+        metrics.epc = metrics.clicks > 0
+          ? parseFloat((metrics.revenue / metrics.clicks).toFixed(2))
+          : 0;
+      });
+
+      console.log(`📈 Metric Dashboard: Aggregated data by platform:`, aggregatedData);
       setPlatformData(aggregatedData);
       setIsLoading(false);
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error("❌ Error fetching data:", err);
       setError("Failed to load data. Please try again.");
       setIsLoading(false);
     }
@@ -320,6 +344,7 @@ const MediaBuyerDashboard = () => {
     let dataToUse = {};
 
     if (selectedPlatform === "all") {
+      // Sum all platform data
       const totals = Object.values(platformData).reduce(
         (acc, platform) => ({
           spend: acc.spend + platform.spend,
@@ -331,6 +356,7 @@ const MediaBuyerDashboard = () => {
         { spend: 0, revenue: 0, profit: 0, clicks: 0, conversions: 0 }
       );
 
+      // Calculate total derived metrics
       const totalRoi =
         totals.spend > 0 ? parseFloat(((totals.profit / totals.spend) * 100).toFixed(2)) : 0;
       const totalCpa =
@@ -349,6 +375,7 @@ const MediaBuyerDashboard = () => {
         epc: totalEpc
       };
     } else {
+      // Use specific platform data
       dataToUse = platformData[selectedPlatform] || {
         spend: 0,
         revenue: 0,
@@ -361,6 +388,7 @@ const MediaBuyerDashboard = () => {
       };
     }
 
+    // Build platform breakdowns (only for "all" view)
     const platformBreakdowns = {
       amount_spent: {},
       revenue: {},
@@ -372,6 +400,7 @@ const MediaBuyerDashboard = () => {
       epc: {}
     };
 
+    // Only show platforms with data > 0 in breakdown
     Object.entries(platformData).forEach(([platform, metrics]) => {
       if (metrics.spend > 0 || metrics.revenue > 0 || metrics.clicks > 0) {
         platformBreakdowns.amount_spent[platform] = metrics.spend;
@@ -385,10 +414,12 @@ const MediaBuyerDashboard = () => {
       }
     });
 
+    // Calculate mock changes (you'll need historical data for real changes)
     const mockChange = (value) => {
       return value > 0 ? parseFloat((Math.random() * 15).toFixed(1)) : 0;
     };
 
+    // Set metrics data
     setMetricsData({
       amount_spent: {
         title: "Amount Spent",
@@ -465,6 +496,7 @@ const MediaBuyerDashboard = () => {
     });
   };
 
+  // Handle date range change
   const handleDateRangeChange = (range, customRange = null) => {
     setDateRange(range);
     if (customRange) {
@@ -472,10 +504,12 @@ const MediaBuyerDashboard = () => {
     }
   };
 
+  // Handle refresh button
   const handleRefresh = () => {
     fetchData();
   };
 
+  // Handle platform change from dropdown
   const handlePlatformChange = (platformId) => {
     setSelectedPlatform(platformId);
     setMobileMenuOpen(false);
@@ -483,6 +517,7 @@ const MediaBuyerDashboard = () => {
     setExpandedCard(null);
   };
 
+  // Function to toggle card expansion
   const toggleCardExpansion = (cardKey) => {
     if (expandedCard === cardKey) {
       setExpandedCard(null);
@@ -491,6 +526,7 @@ const MediaBuyerDashboard = () => {
     }
   };
 
+  // Platform options
   const platformOptions = [
     { id: "all", name: "All Platforms", icon: null },
     { id: "facebook", name: "Facebook", icon: fb },
@@ -500,6 +536,7 @@ const MediaBuyerDashboard = () => {
     { id: "newsbreak", name: "NewsBreak", icon: nb }
   ];
 
+  // Get selected platform name and icon
   const selectedPlatformObj = platformOptions.find((p) => p.id === selectedPlatform);
 
   // Premium Button Component
@@ -981,6 +1018,7 @@ const MediaBuyerDashboard = () => {
 
         {/* Large Screen Layout (1536px and above) */}
         <div className="hidden xl:flex items-center justify-between">
+          {/* Date Picker */}
           <div className="flex-shrink-0 w-auto">
             <DatePickerToggle
               selectedRange={dateRange}
@@ -1041,6 +1079,7 @@ const MediaBuyerDashboard = () => {
           <div className="flex-shrink-0">
             <PremiumButton
               onClick={handleRefresh}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
               disabled={isLoading}
               className="flex items-center px-5 py-2.5"
             >
@@ -1245,7 +1284,7 @@ const MetricCard = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-2 md:mb-3 relative z-10">
         <div className="flex items-center">
-         
+
           <h3
             className="text-sm xs:text-base font-medium tracking-wide"
             style={{ color: theme.textSecondary }}
@@ -1290,7 +1329,7 @@ const MetricCard = ({
           {getChangeIcon()}
           {Math.abs(change)}%
         </span>
-       
+
       </div>
 
       {/* Chart */}
@@ -1420,6 +1459,7 @@ const MetricCard = ({
 // Generate sparkline data
 function generateSparklineData(days, currentValue, metricType = "positive") {
   if (!currentValue || currentValue === 0) {
+    // Return flat line at 0 if no data
     return Array.from({ length: days }, (_, i) => ({
       day: i + 1,
       value: 0
@@ -1430,6 +1470,7 @@ function generateSparklineData(days, currentValue, metricType = "positive") {
   const variance = 0.15;
   const trendStrength = 0.3;
 
+  // Add some randomness to make each chart unique
   const seed = metricType.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const pseudoRandom = (index) => {
     const x = Math.sin(seed + index) * 10000;
@@ -1437,8 +1478,11 @@ function generateSparklineData(days, currentValue, metricType = "positive") {
   };
 
   for (let i = 0; i < days; i++) {
+    // Create a trend that moves toward the current value
     const progress = i / (days - 1);
     const randomFactor = (pseudoRandom(i) - 0.5) * variance * 2;
+
+    // Start at 70% of current value, gradually increase to 100%
     const trendValue = currentValue * (0.7 + progress * trendStrength);
     const value = Math.max(0, trendValue * (1 + randomFactor));
 
@@ -1448,6 +1492,7 @@ function generateSparklineData(days, currentValue, metricType = "positive") {
     });
   }
 
+  // Ensure last value is close to current value
   data[data.length - 1].value = currentValue;
 
   return data;

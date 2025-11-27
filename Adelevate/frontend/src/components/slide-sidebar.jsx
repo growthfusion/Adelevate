@@ -12,6 +12,7 @@ import {
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
 import { MdDataSaverOn } from "react-icons/md";
+import { MdOutlineDataSaverOff } from "react-icons/md";
 import { IoPersonAddOutline } from "react-icons/io5";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -487,7 +488,7 @@ const SlideSidebar = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Use theme from context
   const { theme, isDarkMode, toggleTheme } = useTheme();
 
@@ -620,21 +621,28 @@ const SlideSidebar = () => {
       path: "/campaigns",
       icon: HiOutlineSpeakerphone,
       label: "Campaigns",
-      badge: null
+      badge: null,
     },
     {
       type: "single",
       path: "/addAccount",
       icon: IoPersonAddOutline,
-      label: "Integration",
-      badge: null
+      label: "Integration ",
+      badge: null,
     },
     {
       type: "single",
-      path: "/authorization",
-      icon: KeyRound,
-      label: "Authorization",
-      badge: null
+          path: "/authorization",
+          icon: KeyRound,
+          label: "Authorization",
+      badge: null,
+    },
+    {
+      type: "single",
+      path: "/log",
+      icon: MdOutlineDataSaverOff,
+      label: "Logs",
+      badge: null,
     },
     {
       type: "single",

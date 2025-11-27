@@ -31,7 +31,29 @@ import { addConfig } from "@/services/config.js";
 // Supabase to fetch my role & platform access
 import { supabase } from "@/supabaseClient";
 
+// Import ad accounts service
+import { getAllAccounts } from "@/services/accountsConfig";
+
 /* ---------------- helpers ---------------- */
+
+// Helper function to get API base URL - avoids mixed content issues in production
+const getApiBaseUrl = () => {
+  // Check for environment variable first (for production)
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
+  
+  if (apiUrl) {
+    // Remove trailing slash and ensure it ends with /v1/campaigns
+    const base = apiUrl.replace(/\/$/, '');
+    return base.endsWith('/v1/campaigns') ? base : `${base}/v1/campaigns`;
+  }
+  
+  if (import.meta.env.PROD) {
+    return "/api/campaigns";
+  }
+  
+  // In development, use the direct backend URL
+  return "http://65.109.65.93:8080/v1/campaigns";
+};
 
 const PLATFORM_OPTIONS = [
   { value: "meta", label: "Meta", icon: metaIcon },
@@ -45,6 +67,52 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 const BULK_ACTIVE = "All_Active_Campaigns";
 const BULK_PAUSED = "All_Pause_Campaigns";
+
+// Helper functions for ad accounts
+const normalizePlatformFromDB = (p) => {
+  if (!p) return "";
+  const v = String(p).toLowerCase();
+  if (v === "facebook") return "meta";
+  if (v === "snapchat") return "snap";
+  return v;
+};
+
+const extractCampaignsFromResponse = (data) => {
+  let campaigns = [];
+  if (Array.isArray(data)) {
+    campaigns = data;
+  } else if (data?.data && Array.isArray(data.data)) {
+    campaigns = data.data;
+  } else if (data?.campaigns && Array.isArray(data.campaigns)) {
+    campaigns = data.campaigns;
+  } else if (data?.results && Array.isArray(data.results)) {
+    campaigns = data.results;
+  } else if (typeof data === "object") {
+    for (const key of Object.keys(data)) {
+      if (Array.isArray(data[key]) && data[key].length > 0) {
+        campaigns = data[key];
+        break;
+      }
+    }
+  }
+  return campaigns;
+};
+
+const platformIconsMap = {
+  meta: metaIcon,
+  snap: snapchatIcon,
+  tiktok: tiktokIcon,
+  google: googleIcon,
+  newsbreak: nbIcon
+};
+
+const platformDisplayNames = {
+  meta: "Meta",
+  snap: "Snap",
+  tiktok: "TikTok",
+  google: "Google",
+  newsbreak: "NewsBreak"
+};
 
 function parseIncomingCondition(raw, index) {
   const base = {
@@ -215,6 +283,20 @@ export default function EditRuleFormPause() {
 
   const [showTrafficDropdown, setShowTrafficDropdown] = useState(false);
 
+  // Ad Accounts state
+  const [adAccounts, setAdAccounts] = useState({});
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountsError, setAccountsError] = useState(null);
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    meta: true,
+    snap: true,
+    tiktok: true,
+    google: true,
+    newsbreak: true
+  });
+
   const [showLookBack, setShowLookBack] = useState(false);
   const [lookBackPeriod, setLookBackPeriod] = useState("7_days");
   const [selectedDay, setSelectedDay] = useState(null);
@@ -232,9 +314,20 @@ export default function EditRuleFormPause() {
   ]);
 
   // Helper function to format dates for display
-  const formatDateForDisplay = (dateString) => {
+  const formatDateForDisplay = (dateString, includeTime = false) => {
     if (!dateString) return "";
     const date = new Date(dateString);
+    if (includeTime) {
+      const options = { 
+        month: "short", 
+        day: "numeric", 
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      };
+      return date.toLocaleString("en-US", options);
+    }
     const options = { month: "short", day: "numeric", year: "numeric" };
     return date.toLocaleDateString("en-US", options);
   };
@@ -248,6 +341,20 @@ export default function EditRuleFormPause() {
     return diffDays + 1; // Include both start and end days
   };
 
+  // Calculate hours between two dates
+  const calculateHoursBetween = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+    return diffHours;
+  };
+
+  // Check if lookback period is hourly
+  const isHourlyPeriod = (period) => {
+    return period && period.includes("_hour");
+  };
+
   // Set default dates for the last 7 days
   const today = new Date();
   const sevenDaysAgo = new Date();
@@ -255,6 +362,8 @@ export default function EditRuleFormPause() {
 
   const [startDate, setStartDate] = useState(sevenDaysAgo.toISOString().split("T")[0]);
   const [endDate, setEndDate] = useState(today.toISOString().split("T")[0]);
+  const [startDateTime, setStartDateTime] = useState(null); // For hourly periods
+  const [endDateTime, setEndDateTime] = useState(null); // For hourly periods
   const [activeLookBack, setActiveLookBack] = useState("Last 7 days");
   // Calendar days generation
   const getDaysInMonth = (year, month) => {
@@ -427,6 +536,108 @@ export default function EditRuleFormPause() {
     return PLATFORM_OPTIONS.filter((p) => set.has(p.value));
   }, [accessLoaded, allowedPlatforms]);
 
+  // Fetch ad accounts from Firestore (like Integration section)
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchAdAccounts = async () => {
+      try {
+        setAccountsLoading(true);
+        setAccountsError(null);
+
+        console.log("📡 Fetching ad accounts from Firestore...");
+
+        const allAccounts = await getAllAccounts();
+        console.log("📦 Ad accounts from Firestore:", allAccounts);
+
+        // Group accounts by platform
+        const accountsByPlatform = {};
+
+        allAccounts.forEach((account) => {
+          // Normalize platform name
+          const platform = normalizePlatformFromDB(account.platform);
+          if (!platform || !account.accountId) return;
+
+          if (!accountsByPlatform[platform]) {
+            accountsByPlatform[platform] = [];
+          }
+
+          // Check for duplicates
+          const exists = accountsByPlatform[platform].some(
+            (acc) => acc.id === account.accountId
+          );
+
+          if (!exists) {
+            accountsByPlatform[platform].push({
+              id: account.accountId,
+              name: account.accountLabel || account.accountId,
+              platform: platform
+            });
+          }
+        });
+
+        // Sort each platform's accounts by name
+        Object.keys(accountsByPlatform).forEach((platform) => {
+          accountsByPlatform[platform].sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+        });
+
+        console.log("✅ Formatted ad accounts by platform:", accountsByPlatform);
+
+        if (mounted) {
+          setAdAccounts(accountsByPlatform);
+          setAccountsLoading(false);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching ad accounts:", error);
+        if (mounted) {
+          setAccountsError(error.message);
+          setAccountsLoading(false);
+        }
+      }
+    };
+
+    fetchAdAccounts();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Toggle account selection - store with platform and accountId
+  const toggleAccount = (accountId, platform, accountName) => {
+    setSelectedAccounts((prev) => {
+      // Check if account already exists (handle both old string format and new object format)
+      const exists = prev.some((acc) => {
+        if (typeof acc === "string") {
+          return acc === accountId;
+        }
+        return acc.accountId === accountId && acc.platform === platform;
+      });
+      
+      if (exists) {
+        // Remove the account
+        return prev.filter((acc) => {
+          if (typeof acc === "string") {
+            return acc !== accountId;
+          }
+          return !(acc.accountId === accountId && acc.platform === platform);
+        });
+      } else {
+        // Add the account with platform and accountId
+        return [...prev, { platform, accountId, accountLabel: accountName || accountId }];
+      }
+    });
+  };
+
+  // Toggle platform section
+  const toggleSection = (platform) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [platform]: !prev[platform]
+    }));
+  };
+
   useEffect(() => {
     if (!accessLoaded) return;
     let isMounted = true;
@@ -435,7 +646,8 @@ export default function EditRuleFormPause() {
         setLoadingCatalog(true);
         setCatalogError("");
 
-        const res = await fetch("http://65.109.65.93:8080/v1/campaigns/all-with-status", {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/all-with-status`, {
           cache: "no-store"
         });
         const payload = await res.json();
@@ -694,6 +906,20 @@ export default function EditRuleFormPause() {
       }
 
       setCampaigns(d.campaigns || []);
+      // Normalize selectedAccounts - convert old string format to new object format
+      const normalizedAccounts = (d.selectedAccounts || []).map((acc) => {
+        if (typeof acc === "object" && acc.platform && acc.accountId) {
+          return acc; // Already in correct format
+        }
+        // Legacy format: string accountId, use rule's platform
+        const platform = normalizePlatformFromDB(Array.isArray(d.platform) ? d.platform[0] : d.platform);
+        return {
+          platform: platform || "meta",
+          accountId: typeof acc === "string" ? acc : String(acc),
+          accountLabel: typeof acc === "string" ? acc : String(acc),
+        };
+      });
+      setSelectedAccounts(normalizedAccounts);
       const raw = Array.isArray(d.condition) ? d.condition : [];
       const rows =
         raw.length > 0
@@ -711,9 +937,32 @@ export default function EditRuleFormPause() {
         (d.lookback.period || d.lookback.start || d.lookback.end || d.lookback.display);
       setEnableLookback(Boolean(hasLookback));
 
-      if (d.lookback?.start) setStartDate(d.lookback.start);
-      if (d.lookback?.end) setEndDate(d.lookback.end);
-      if (d.lookback?.period) setLookBackPeriod(d.lookback.period);
+      if (d.lookback?.start) {
+        setStartDate(d.lookback.start);
+        // If it's a full ISO string (includes time), also set startDateTime
+        if (d.lookback.start.includes("T")) {
+          setStartDateTime(d.lookback.start);
+        }
+      }
+      if (d.lookback?.end) {
+        setEndDate(d.lookback.end);
+        // If it's a full ISO string (includes time), also set endDateTime
+        if (d.lookback.end.includes("T")) {
+          setEndDateTime(d.lookback.end);
+        }
+      }
+      if (d.lookback?.period) {
+        setLookBackPeriod(d.lookback.period);
+        // If it's an hourly period, ensure dateTime values are set
+        if (isHourlyPeriod(d.lookback.period)) {
+          if (d.lookback.start && d.lookback.start.includes("T")) {
+            setStartDateTime(d.lookback.start);
+          }
+          if (d.lookback.end && d.lookback.end.includes("T")) {
+            setEndDateTime(d.lookback.end);
+          }
+        }
+      }
       if (d.lookback?.display) setActiveLookBack(d.lookback.display);
 
       if (d.schedule) {
@@ -925,7 +1174,8 @@ export default function EditRuleFormPause() {
       lookback: lookbackPayload, // === ADDED ===
 
       campaigns: campaignsToPersist,
-      conditions: serializedConditions
+      conditions: serializedConditions,
+      selectedAccounts: selectedAccounts
     };
 
     try {
@@ -1308,7 +1558,28 @@ export default function EditRuleFormPause() {
                               let start = new Date();
                               let displayText = "";
 
-                              if (value === "today") {
+                              // Handle hourly periods
+                              if (value === "1_hour") {
+                                start = new Date(today);
+                                start.setHours(start.getHours() - 1);
+                                displayText = "Last 1 hour";
+                              } else if (value === "3_hours") {
+                                start = new Date(today);
+                                start.setHours(start.getHours() - 3);
+                                displayText = "Last 3 hours";
+                              } else if (value === "6_hours") {
+                                start = new Date(today);
+                                start.setHours(start.getHours() - 6);
+                                displayText = "Last 6 hours";
+                              } else if (value === "12_hours") {
+                                start = new Date(today);
+                                start.setHours(start.getHours() - 12);
+                                displayText = "Last 12 hours";
+                              } else if (value === "24_hours") {
+                                start = new Date(today);
+                                start.setHours(start.getHours() - 24);
+                                displayText = "Last 24 hours";
+                              } else if (value === "today") {
                                 start = today;
                                 displayText = "Today";
                               } else if (value === "yesterday") {
@@ -1352,16 +1623,30 @@ export default function EditRuleFormPause() {
                                 displayText = "Custom range";
                               }
 
-                              if (
+                              // For hourly periods, set date/time to current time
+                              if (isHourlyPeriod(value)) {
+                                setStartDateTime(start.toISOString());
+                                setEndDateTime(today.toISOString());
+                                setStartDate(start.toISOString().split("T")[0]);
+                                setEndDate(today.toISOString().split("T")[0]);
+                                setActiveLookBack(displayText);
+                              } else if (
                                 value !== "yesterday" &&
                                 value !== "last_month" &&
-                                value !== "last_year"
+                                value !== "last_year" &&
+                                !isHourlyPeriod(value)
                               ) {
                                 setEndDate(today.toISOString().split("T")[0]);
+                                setStartDateTime(null);
+                                setEndDateTime(null);
                               }
 
                               if (value !== "custom") {
-                                setStartDate(start.toISOString().split("T")[0]);
+                                if (!isHourlyPeriod(value)) {
+                                  setStartDate(start.toISOString().split("T")[0]);
+                                  setStartDateTime(null);
+                                  setEndDateTime(null);
+                                }
                                 setActiveLookBack(displayText);
                               }
 
@@ -1369,11 +1654,14 @@ export default function EditRuleFormPause() {
                               const updatedConditions = conditions.map((condition) => ({
                                 ...condition,
                                 lookBackPeriod: value,
-                                lookBackStart: start.toISOString().split("T")[0],
-                                lookBackEnd:
-                                  value !== "yesterday" &&
-                                  value !== "last_month" &&
-                                  value !== "last_year"
+                                lookBackStart: isHourlyPeriod(value) 
+                                  ? start.toISOString() 
+                                  : start.toISOString().split("T")[0],
+                                lookBackEnd: isHourlyPeriod(value)
+                                  ? today.toISOString()
+                                  : value !== "yesterday" &&
+                                    value !== "last_month" &&
+                                    value !== "last_year"
                                     ? today.toISOString().split("T")[0]
                                     : value === "yesterday"
                                       ? start.toISOString().split("T")[0]
@@ -1392,28 +1680,46 @@ export default function EditRuleFormPause() {
                               <SelectValue placeholder="Select period" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="today">Today</SelectItem>
-                              <SelectItem value="yesterday">Yesterday</SelectItem>
-                              <SelectItem value="1_days">Last 1 days</SelectItem>
-
-                              <SelectItem value="7_days">Last 7 days</SelectItem>
-                              <SelectItem value="14_days">Last 14 days</SelectItem>
-                              <SelectItem value="30_days">Last 30 days</SelectItem>
-                              <SelectItem value="90_days">Last 90 days</SelectItem>
-                              <SelectItem value="this_month">This month</SelectItem>
-                              <SelectItem value="last_month">Last month</SelectItem>
-                              <SelectItem value="this_year">This year</SelectItem>
-                              <SelectItem value="last_year">Last year</SelectItem>
+                              <SelectGroup>
+                                <SelectLabel>Hourly</SelectLabel>
+                                <SelectItem value="1_hour">Last 1 hour</SelectItem>
+                                <SelectItem value="3_hours">Last 3 hours</SelectItem>
+                                <SelectItem value="6_hours">Last 6 hours</SelectItem>
+                                <SelectItem value="12_hours">Last 12 hours</SelectItem>
+                                <SelectItem value="24_hours">Last 24 hours</SelectItem>
+                              </SelectGroup>
+                              <SelectSeparator />
+                              <SelectGroup>
+                                <SelectLabel>Daily</SelectLabel>
+                                <SelectItem value="today">Today</SelectItem>
+                                <SelectItem value="yesterday">Yesterday</SelectItem>
+                                <SelectItem value="1_days">Last 1 day</SelectItem>
+                                <SelectItem value="7_days">Last 7 days</SelectItem>
+                                <SelectItem value="14_days">Last 14 days</SelectItem>
+                                <SelectItem value="30_days">Last 30 days</SelectItem>
+                                <SelectItem value="90_days">Last 90 days</SelectItem>
+                              </SelectGroup>
+                              <SelectSeparator />
+                              <SelectGroup>
+                                <SelectLabel>Monthly & Yearly</SelectLabel>
+                                <SelectItem value="this_month">This month</SelectItem>
+                                <SelectItem value="last_month">Last month</SelectItem>
+                                <SelectItem value="this_year">This year</SelectItem>
+                                <SelectItem value="last_year">Last year</SelectItem>
+                              </SelectGroup>
+                              <SelectSeparator />
                               <SelectItem value="custom">Custom date range</SelectItem>
                             </SelectContent>
                           </Select>
-                          {/* Display selected date range with day count */}
+                          {/* Display selected date range with day/hour count */}
                           <div className="flex flex-col mb-3 bg-blue-50 p-3 rounded-md border border-blue-100">
                             <div className="flex justify-between items-center mb-2">
                               <div className="flex flex-col">
                                 <span className="text-xs text-blue-600 font-medium">From</span>
                                 <span className="text-sm text-blue-800 font-medium">
-                                  {formatDateForDisplay(startDate)}
+                                  {isHourlyPeriod(lookBackPeriod) && startDateTime
+                                    ? formatDateForDisplay(startDateTime, true)
+                                    : formatDateForDisplay(startDate)}
                                 </span>
                               </div>
 
@@ -1424,14 +1730,31 @@ export default function EditRuleFormPause() {
                               <div className="flex flex-col text-right">
                                 <span className="text-xs text-blue-600 font-medium">To</span>
                                 <span className="text-sm text-blue-800 font-medium">
-                                  {formatDateForDisplay(endDate)}
+                                  {isHourlyPeriod(lookBackPeriod) && endDateTime
+                                    ? formatDateForDisplay(endDateTime, true)
+                                    : formatDateForDisplay(endDate)}
                                 </span>
                               </div>
                             </div>
                             <div className="flex items-center justify-end">
                               <div className="text-xs px-2 py-0.5 bg-white rounded border border-blue-200 text-blue-700 font-medium">
-                                {calculateDaysBetween(startDate, endDate)} day
-                                {calculateDaysBetween(startDate, endDate) !== 1 ? "s" : ""}
+                                {isHourlyPeriod(lookBackPeriod) ? (
+                                  <>
+                                    {(() => {
+                                      const hours = lookBackPeriod === "1_hour" ? 1 :
+                                                   lookBackPeriod === "3_hours" ? 3 :
+                                                   lookBackPeriod === "6_hours" ? 6 :
+                                                   lookBackPeriod === "12_hours" ? 12 :
+                                                   lookBackPeriod === "24_hours" ? 24 : 0;
+                                      return `${hours} hour${hours !== 1 ? "s" : ""}`;
+                                    })()}
+                                  </>
+                                ) : (
+                                  <>
+                                    {calculateDaysBetween(startDate, endDate)} day
+                                    {calculateDaysBetween(startDate, endDate) !== 1 ? "s" : ""}
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1510,15 +1833,24 @@ export default function EditRuleFormPause() {
                                 const updatedConditions = conditions.map((condition) => ({
                                   ...condition,
                                   lookBackPeriod: lookBackPeriod,
-                                  lookBackStart: startDate,
-                                  lookBackEnd: endDate
+                                  lookBackStart: isHourlyPeriod(lookBackPeriod) && startDateTime
+                                    ? startDateTime
+                                    : startDate,
+                                  lookBackEnd: isHourlyPeriod(lookBackPeriod) && endDateTime
+                                    ? endDateTime
+                                    : endDate
                                 }));
                                 setConditions(updatedConditions);
 
                                 // For custom range, update the display text
                                 if (lookBackPeriod === "custom") {
-                                  const dayCount = calculateDaysBetween(startDate, endDate);
-                                  setActiveLookBack(`Custom range`);
+                                  if (isHourlyPeriod(lookBackPeriod)) {
+                                    const hourCount = calculateHoursBetween(startDate, endDate);
+                                    setActiveLookBack(`Custom range (${hourCount} hour${hourCount !== 1 ? "s" : ""})`);
+                                  } else {
+                                    const dayCount = calculateDaysBetween(startDate, endDate);
+                                    setActiveLookBack(`Custom range (${dayCount} day${dayCount !== 1 ? "s" : ""})`);
+                                  }
                                 }
 
                                 setShowLookBack(false);
@@ -1705,44 +2037,229 @@ export default function EditRuleFormPause() {
                       </div>
                     )}
                   </div>
-                  {/* =================== Add Traffic =================== */}
+                  {/* =================== Ad Accounts =================== */}
                   <div className="relative">
                     <Button
                       variant="outline"
                       size="sm"
                       className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 h-auto transition-colors ${
                         selectedPlatform
-                          ? showTrafficDropdown
+                          ? showAccountMenu
                             ? "text-blue-600 border-blue-400 bg-blue-50"
                             : "text-gray-600 bg-transparent"
                           : "text-gray-400 bg-gray-50 cursor-not-allowed"
                       }`}
                       onClick={() => {
                         if (selectedPlatform) {
-                          setShowTrafficDropdown((prev) => !prev);
+                          setShowAccountMenu((prev) => !prev);
                           setShowCampaignDropdown(false); // close the other dropdown
                         }
                       }}
-                      disabled={!selectedPlatform}
+                      disabled={!selectedPlatform || accountsLoading}
                     >
-                      <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                      Add Traffic
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                        />
+                      </svg>
+                      Ad Accounts
+                      {selectedAccounts.length > 0 && (
+                        <span className="ml-1.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-bold text-white">
+                          {selectedAccounts.length}
+                        </span>
+                      )}
                     </Button>
-                    {showTrafficDropdown && (
-                      <div className="absolute z-50 mt-1 w-72 rounded-md shadow-md ring-1 ring-gray-200 bg-gray-50">
-                        <div className="px-3 py-2 border-t border-gray-100 flex justify-between">
-                          <span className="text-sm text-gray-600">Found:</span>
-                          <button className="text-sm px-3 py-1 rounded-md text-blue-600 hover:bg-gray-100">
-                            Add
-                          </button>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto">
-                          {/* You can use a separate traffic options list here */}
-                          <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                            Traffic options go here
+                    {showAccountMenu && !accountsLoading && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setShowAccountMenu(false)} />
+                        <div className="absolute z-50 mt-1 w-96 lg:w-[32rem] xl:w-[40rem] max-h-[70vh] overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-10">
+                          <div className="sticky top-0 z-10 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 sm:px-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-blue-500 p-2 shadow-sm">
+                                  <svg
+                                    className="h-5 w-5 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                    />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <h3 className="text-base font-bold text-gray-900 sm:text-lg">
+                                    Ad Accounts
+                                  </h3>
+                                  <p className="text-xs text-gray-600">
+                                    {selectedAccounts.length === 0
+                                      ? "No selection = All campaigns"
+                                      : "Select accounts to filter"}
+                                  </p>
+                                </div>
+                              </div>
+                              {selectedAccounts.length > 0 && (
+                                <span className="rounded-full bg-green-500 px-3 py-1.5 text-sm font-bold text-white shadow-sm">
+                                  {selectedAccounts.length} selected
+                                </span>
+                              )}
+                            </div>
                           </div>
+
+                          {accountsError && (
+                            <div className="mx-4 mt-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 sm:mx-6">
+                              <div className="flex items-start gap-2">
+                                <svg
+                                  className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                <div className="text-sm text-red-800">
+                                  <span className="font-semibold">Error:</span> {accountsError}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {Object.keys(adAccounts).length === 0 && !accountsError && (
+                            <div className="px-4 py-12 text-center sm:px-6">
+                              <svg
+                                className="mx-auto h-16 w-16 text-gray-300"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                                />
+                              </svg>
+                              <p className="mt-4 text-base font-medium text-gray-900">
+                                No ad accounts available
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Check your platform access permissions
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="max-h-[calc(70vh-140px)] overflow-y-auto">
+                            <div className="space-y-3 p-4 sm:p-6">
+                              {Object.entries(adAccounts)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([platform, accounts]) => (
+                                  <div
+                                    key={platform}
+                                    className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleSection(platform)}
+                                      className="flex w-full items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 transition-all hover:from-gray-100 hover:to-gray-200"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <img
+                                          src={platformIconsMap[platform]}
+                                          alt={`${platform} icon`}
+                                          className="h-6 w-6"
+                                        />
+                                        <span className="text-sm font-bold uppercase tracking-wide text-gray-800 sm:text-base">
+                                          {platformDisplayNames[platform] || platform}
+                                        </span>
+                                        <span className="rounded-full bg-blue-500 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+                                          {accounts.length}
+                                        </span>
+                                      </div>
+                                      <svg
+                                        className={`h-5 w-5 text-gray-600 transition-transform duration-200 ${
+                                          expandedSections[platform] ? "rotate-180" : ""
+                                        }`}
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 9l-7 7-7-7"
+                                        />
+                                      </svg>
+                                    </button>
+
+                                    {expandedSections[platform] && (
+                                      <div className="divide-y divide-gray-100 bg-white">
+                                        {accounts.map((account) => (
+                                          <label
+                                            key={account.id}
+                                            className="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-all hover:bg-blue-50 sm:px-5"
+                                          >
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedAccounts.some((acc) => {
+                                                  if (typeof acc === "string") {
+                                                    return acc === account.id;
+                                                  }
+                                                  return acc.accountId === account.id && acc.platform === platform;
+                                                })}
+                                                onChange={() => toggleAccount(account.id, platform, account.name)}
+                                                className="mt-1 h-5 w-5 flex-shrink-0 rounded border-gray-300 text-blue-600 shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                                              />
+                                            <div className="min-w-0 flex-1">
+                                              <div className="break-words text-sm font-semibold text-gray-900 group-hover:text-blue-700 sm:text-base">
+                                                {account.name}
+                                              </div>
+                                              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                                <code
+                                                  className="break-all rounded-md bg-gray-100 px-2 py-1 text-xs font-mono text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-800 sm:text-sm"
+                                                  title={`Full ID: ${account.id}`}
+                                                >
+                                                  {account.id}
+                                                </code>
+                                              </div>
+                                            </div>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+
+                          {selectedAccounts.length > 0 && (
+                            <div className="sticky bottom-0 border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedAccounts([])}
+                                className="w-full rounded-lg border-2 border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition-all hover:border-red-400 hover:bg-red-100 hover:shadow-md"
+                              >
+                                Clear all ({selectedAccounts.length})
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>

@@ -33,7 +33,48 @@ import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-const API_BASE = "";
+// ClickHouse Configuration
+const CH_HOST = "65.109.65.93";
+const CH_PORT = 8123;
+const CH_USER = "adelevate_user";
+const CH_PASS = "Growthfusion@9012";
+const CH_DB = "default";
+const CH_SECURE = false;
+
+// ClickHouse Query Helper
+async function queryClickHouse(sqlQuery) {
+  const protocol = CH_SECURE ? "https" : "http";
+  const url = `${protocol}://${CH_HOST}:${CH_PORT}/?database=${CH_DB}&default_format=JSONEachRow`;
+  
+  const auth = btoa(`${CH_USER}:${CH_PASS}`);
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Basic ${auth}`,
+      "Content-Type": "text/plain",
+    },
+    body: sqlQuery,
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ClickHouse error: ${response.status} - ${errorText}`);
+  }
+
+  const text = await response.text();
+  if (!text.trim()) {
+    return [];
+  }
+
+  // Parse JSONEachRow format (one JSON object per line)
+  return text
+    .trim()
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line));
+}
 
 // Platform icon mapping
 const platformIcons = {
@@ -105,12 +146,12 @@ const MetricCard = ({ icon: Icon, label, value, color = "#6366f1" }) => {
 
 export default function ActionLogsDashboard({ onBack }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDateRange, setSelectedDateRange] = useState("Last 7 days");
+  const [selectedDateRange, setSelectedDateRange] = useState("Today");
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedStartDate, setSelectedStartDate] = useState(
-    new Date(Date.now() - 7 * 24 * 3600 * 1000)
-  );
-  const [selectedEndDate, setSelectedEndDate] = useState(new Date());
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const [selectedStartDate, setSelectedStartDate] = useState(startOfToday);
+  const [selectedEndDate, setSelectedEndDate] = useState(now);
 
   const [allLogs, setAllLogs] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -337,20 +378,41 @@ export default function ActionLogsDashboard({ onBack }) {
 
     let tsMs = typeof r.ts_ms === "number" ? r.ts_ms : null;
     if (tsMs == null) {
-      const rawTs = r.event_ts ?? r.ts ?? r._raw?.event_ts ?? null;
+      const rawTs = r.event_ts ?? r.ts ?? r.timestamp ?? r.created_at ?? r._raw?.event_ts ?? null;
       if (rawTs) {
-        const isoGuess =
-          typeof rawTs === "string" && rawTs.includes(" UTC")
-            ? rawTs.replace(" ", "T").replace(" UTC", "Z")
-            : rawTs;
-        const parsed = Date.parse(isoGuess);
-        tsMs = Number.isNaN(parsed) ? null : parsed;
+        if (typeof rawTs === "number") {
+          // Handle Unix timestamp (seconds or milliseconds)
+          tsMs = rawTs > 1e12 ? rawTs : rawTs * 1000; // If less than 1e12, assume seconds
+        } else if (typeof rawTs === "string") {
+          // Handle string timestamps
+          const isoGuess =
+            rawTs.includes(" UTC")
+              ? rawTs.replace(" ", "T").replace(" UTC", "Z")
+              : rawTs.includes("T")
+                ? rawTs
+                : rawTs.replace(" ", "T");
+          const parsed = Date.parse(isoGuess);
+          tsMs = Number.isNaN(parsed) ? null : parsed;
+        }
+      }
+    }
+
+    // Format time and date from timestamp if not present
+    let time = r.time ?? "";
+    let date = r.date ?? "";
+    if (tsMs && (!time || !date)) {
+      const dt = new Date(tsMs);
+      if (!time) {
+        time = dt.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+      if (!date) {
+        date = dt.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" });
       }
     }
 
     return {
-      time: r.time ?? "",
-      date: r.date ?? "",
+      time: time,
+      date: date,
       platform: r.platform ?? "",
       account_id: r.account_id ?? r.ad_account_id ?? r.account ?? "",
       account_name: r.account_name ?? r.ad_account_name ?? r.accountname ?? "",
@@ -370,30 +432,30 @@ export default function ActionLogsDashboard({ onBack }) {
     setErr("");
     setLoading(true);
     try {
-      const PAGE_SIZE = 1000;
-      let offset = 0;
       const all = [];
-      const startAll = new Date(0);
-      const endAll = new Date();
 
-      while (true) {
-        const params = new URLSearchParams({
-          start: startAll.toISOString(),
-          end: endAll.toISOString(),
-          limit: String(PAGE_SIZE),
-          offset: String(offset)
-        });
-        const res = await fetch(`${API_BASE}/api/bigquery?${params.toString()}`, {
-          cache: "no-store"
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || `API ${res.status}`);
+      // Query both ClickHouse tables and combine results
+      const queries = [
+        `SELECT * FROM meta_paused_campaigns_log ORDER BY event_ts DESC`,
+        `SELECT * FROM paused_campaigns_log ORDER BY event_ts DESC`
+      ];
 
-        const rows = Array.isArray(json.rows) ? json.rows : [];
+      // Execute queries in parallel
+      const results = await Promise.all(
+        queries.map((query) => queryClickHouse(query))
+      );
+
+      // Combine results from both tables
+      results.forEach((rows) => {
         all.push(...rows.map(normalizeRow));
-        if (rows.length < PAGE_SIZE) break;
-        offset += PAGE_SIZE;
-      }
+      });
+
+      // Sort by timestamp (most recent first)
+      all.sort((a, b) => {
+        const aTs = a._ts || 0;
+        const bTs = b._ts || 0;
+        return bTs - aTs;
+      });
 
       setAllLogs(all);
       setLogs(filterByRange(all, presetRange.start, presetRange.end));
@@ -417,7 +479,7 @@ export default function ActionLogsDashboard({ onBack }) {
   useEffect(() => {
     setSelectedStartDate(presetRange.start);
     setSelectedEndDate(presetRange.end);
-  }, [presetRange.start, presetRange.end]);
+  }, [selectedDateRange]);
 
   useEffect(() => {
     fetchAllLogsAllTime();
@@ -466,7 +528,7 @@ export default function ActionLogsDashboard({ onBack }) {
     setSelectedPlatform("all");
     setSelectedAccount("all");
     setProfitFilter("all");
-    setSelectedDateRange("Last 7 days");
+    setSelectedDateRange("Today");
   };
 
   const showToastMessage = (message) => {
@@ -904,7 +966,10 @@ export default function ActionLogsDashboard({ onBack }) {
                           {dateRangeOptions.map((option) => (
                             <button
                               key={option}
-                              onClick={() => setSelectedDateRange(option)}
+                              onClick={() => {
+                                setSelectedDateRange(option);
+                                setShowDatePicker(false);
+                              }}
                               className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-all ${
                                 selectedDateRange === option
                                   ? "bg-indigo-600 text-white font-medium shadow-sm"

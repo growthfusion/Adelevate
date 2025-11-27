@@ -17,10 +17,6 @@ const getBaseUrl = () => {
   }
   
   if (import.meta.env.PROD) {
-    // In production, use relative path that goes through proxy/backend
-    // IMPORTANT: Your web server (nginx/Apache/Cloudflare) must be configured to proxy
-    // /api/campaigns/* requests to http://65.109.65.93:8080/v1/campaigns/*
-    // This avoids mixed content errors (HTTPS page calling HTTP API)
     return "/api/campaigns";
   }
   

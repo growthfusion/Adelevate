@@ -63,6 +63,41 @@ function normalizeLogic(val, index) {
     return s === "OR" ? "OR" : "AND";
 }
 
+/**
+ * Normalize selectedAccounts to ensure consistent format
+ * Handles both old format (strings) and new format (objects with platform, accountId, accountLabel)
+ * @param {Array} accounts - Array of account strings or objects
+ * @returns {Array} - Normalized array of account objects
+ */
+function normalizeSelectedAccounts(accounts) {
+    if (!Array.isArray(accounts)) return [];
+    
+    return accounts.map((acc) => {
+        // If already in correct format (object with platform and accountId), return as is
+        if (typeof acc === "object" && acc !== null && acc.platform && acc.accountId) {
+            return {
+                platform: String(acc.platform).toLowerCase(),
+                accountId: String(acc.accountId),
+                accountLabel: String(acc.accountLabel || acc.accountId),
+            };
+        }
+        
+        // Legacy format: string accountId
+        // Note: We can't determine platform from just the ID, so we'll preserve it as-is
+        // The UI will handle normalization when loading
+        if (typeof acc === "string") {
+            return {
+                platform: "meta", // Default fallback, UI will correct this
+                accountId: acc,
+                accountLabel: acc,
+            };
+        }
+        
+        // Invalid format, skip
+        return null;
+    }).filter(Boolean); // Remove null entries
+}
+
 /* ------------------------ collection resolver ------------------------ */
 
 function getCollectionName(platform, type) {
@@ -137,6 +172,7 @@ export function fromFirestoreDoc(docSnap) {
         actionTarget: d.actionTarget ?? null,
         minBudget: d.minBudget ?? null,
         maxBudget: d.maxBudget ?? null,
+        selectedAccounts: d.selectedAccounts || [],
     };
 }
 
@@ -176,6 +212,8 @@ export function toFirestoreDoc(ui, id) {
             frequency: ui.frequency || "",
             campaigns: (ui.campaigns || []).map(String),
             condition: normalizedCondition,
+            // Normalize selectedAccounts to ensure proper format
+            selectedAccounts: normalizeSelectedAccounts(ui.selectedAccounts || []),
 
             // Explicitly null out unrelated fields so downstream code won't assume them
             schedule: null,
@@ -225,6 +263,8 @@ export function toFirestoreDoc(ui, id) {
 
         campaigns: (ui.campaigns || []).map(String),
         condition: normalizedCondition,
+        // Normalize selectedAccounts to ensure proper format
+        selectedAccounts: normalizeSelectedAccounts(ui.selectedAccounts || []),
     };
 
     // Optional action fields

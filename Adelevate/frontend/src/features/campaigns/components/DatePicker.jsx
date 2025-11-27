@@ -20,8 +20,8 @@ import {
 } from "date-fns";
 
 const styles = {
-  wrapper: `relative p-4 font-sans`,
-  button: `flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none`,
+  wrapper: `relative font-sans`,
+  button: `flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-700`,
   datepickerContainer: `fixed inset-0 z-50 flex items-center justify-center md:block md:absolute md:inset-auto md:top-full md:left-0 md:mt-2`,
   overlay: `fixed inset-0 bg-black bg-opacity-30 md:hidden`,
   datepickerContent: `bg-white rounded-lg shadow-lg max-w-[calc(100vw-32px)] md:max-w-none overflow-hidden max-h-[90vh] md:max-h-[600px] overflow-y-auto z-50 border border-gray-200`,

@@ -306,8 +306,8 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   const [tags, setTags] = useState(initialFilters.tags || "");
   const [showTagsMenu, setShowTagsMenu] = useState(false);
 
-  // Status filter - default to active
-  const [status, setStatus] = useState(initialFilters.status || ["active"]);
+  // Status filter - default to both active and paused for today's campaigns
+  const [status, setStatus] = useState(initialFilters.status || ["active", "paused"]);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   const [dateRange, setDateRange] = useState(() => {
@@ -589,25 +589,32 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   };
 
   // ✅ UPDATED: Fetch all campaigns using different endpoints based on status
-  // - Active (default): /active endpoint (today's metrics)
-  // - Paused or All: base /v1/campaigns endpoint (all campaigns with status)
+  // - Active, Paused, or Both (active+paused): /active endpoint
+  // - All (no status filter): base /v1/campaigns endpoint
   const fetchAllCampaigns = async () => {
     // Empty array or no status means "all"
-    const currentStatus = status && status.length > 0 ? status[0] : "all";
-    const useActiveEndpoint = currentStatus === "active";
+    const hasStatusFilter = status && status.length > 0;
+    const statusArray = hasStatusFilter ? status : [];
+    const isActiveOnly = statusArray.length === 1 && statusArray[0] === "active";
+    const isPausedOnly = statusArray.length === 1 && statusArray[0] === "paused";
+    const isBothStatuses = statusArray.length === 2 && statusArray.includes("active") && statusArray.includes("paused");
+    const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter (active, paused, or both)
     
     console.log(`\n🔄 Fetching ALL campaigns (no account filter)...`);
-    console.log(`   Status: ${currentStatus}`);
-    console.log(`   Using endpoint: ${useActiveEndpoint ? "/active (today's data)" : "base /v1/campaigns (all campaigns)"}`);
+    console.log(`   Status filter: ${hasStatusFilter ? statusArray.join(", ") : "all"}`);
+    console.log(`   Using endpoint: ${useActiveEndpoint ? "/active (active and paused campaigns)" : "base /v1/campaigns (all campaigns)"}`);
 
     try {
       const apiBase = getApiBaseUrl();
-      // Use /active for Active status, base endpoint for Paused or All
+      // Use /active endpoint for Active, Paused, or Both statuses
+      // Use base endpoint only for "All" (no status filter)
       const endpoint = useActiveEndpoint 
         ? `${apiBase}/active` 
-        : apiBase; // Base endpoint without /active
+        : apiBase; // Base endpoint for "All" status
       
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        cache: "no-store"
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -628,19 +635,19 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         console.log(`   Filtered to ${filtered.length} campaigns for selected platforms`);
       }
 
-      // Filter by status
-      if (status && status.length > 0 && currentStatus !== "all") {
+      // Filter by status when using /active endpoint (it returns both active and paused, so filter client-side)
+      if (hasStatusFilter && useActiveEndpoint) {
         const statusFiltered = filtered.filter((c) => {
           const campaignStatus = String(c.status || "").toLowerCase();
           const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-          return status.includes(normalizedStatus);
+          return statusArray.includes(normalizedStatus);
         });
-        console.log(`   Filtered to ${statusFiltered.length} campaigns for status: ${status.join(", ")}`);
+        console.log(`   Filtered to ${statusFiltered.length} campaigns for status: ${statusArray.join(", ")}`);
         return statusFiltered;
       }
 
-      // If "all" is selected, return all campaigns without status filtering
-      if (currentStatus === "all") {
+      // If "all" is selected (no status filter), return all campaigns from base endpoint
+      if (!hasStatusFilter) {
         console.log(`   Returning all ${filtered.length} campaigns (status: all)`);
       }
 
@@ -729,20 +736,24 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
 
     // Strategy 3: Fetch all campaigns and filter client-side (endpoint depends on status)
     try {
-      // Empty array or no status means "all"
-      const currentStatus = status && status.length > 0 ? status[0] : "all";
-      const useActiveEndpoint = currentStatus === "active";
+      // Check status filter to determine endpoint
+      const hasStatusFilter = status && status.length > 0;
+      const statusArray = hasStatusFilter ? status : [];
+      const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter
       
       console.log(`   📤 Strategy 3: Fetching all campaigns and filtering client-side`);
-      console.log(`      Status: ${currentStatus}, Using: ${useActiveEndpoint ? "/active" : "base"} endpoint`);
+      console.log(`      Status: ${hasStatusFilter ? statusArray.join(", ") : "all"}, Using: ${useActiveEndpoint ? "/active" : "base"} endpoint`);
 
       const apiBase = getApiBaseUrl();
-      // Use /active for Active status, base endpoint for Paused or All
+      // Use /active endpoint for Active, Paused, or Both statuses
+      // Use base endpoint only for "All" (no status filter)
       const endpoint = useActiveEndpoint 
         ? `${apiBase}/active` 
-        : apiBase; // Base endpoint without /active
+        : apiBase; // Base endpoint for "All" status
       
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        cache: "no-store"
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -755,12 +766,12 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
           return campaignPlatform === platform && accountIds.includes(campaignAccountId);
         });
 
-        // Apply status filter if not "all"
-        if (currentStatus !== "all" && status && status.length > 0) {
+        // Apply status filter when using /active endpoint (it returns both active and paused, so filter client-side)
+        if (hasStatusFilter && useActiveEndpoint) {
           filtered = filtered.filter((c) => {
             const campaignStatus = String(c.status || "").toLowerCase();
             const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-            return status.includes(normalizedStatus);
+            return statusArray.includes(normalizedStatus);
           });
         }
 
@@ -882,15 +893,19 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
 
         let campaigns = await fetchCampaignsByAccount(accountIds, platform);
 
-         // Filter by status if status filter is set (skip if "all" is selected)
-         const currentStatus = status && status.length > 0 ? status[0] : "active";
-         if (currentStatus !== "all" && status && status.length > 0) {
+         // Filter by status if status filter is set
+         const hasStatusFilter = status && status.length > 0;
+         const statusArray = hasStatusFilter ? status : [];
+         const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter
+         
+         // Apply status filter when using /active endpoint (it returns both active and paused, so filter client-side)
+         if (hasStatusFilter && useActiveEndpoint) {
            campaigns = campaigns.filter((c) => {
              const campaignStatus = String(c.status || "").toLowerCase();
              const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-             return status.includes(normalizedStatus);
+             return statusArray.includes(normalizedStatus);
            });
-           console.log(`   Filtered to ${campaigns.length} campaigns for status: ${status.join(", ")}`);
+           console.log(`   Filtered to ${campaigns.length} campaigns for status: ${statusArray.join(", ")}`);
          }
 
         platformResults[platform] = {
@@ -977,7 +992,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     setSelectedAccounts([]);
     setTitle("");
     setTags("");
-    setStatus(["active"]); // Reset to active by default
+    setStatus(["active", "paused"]); // Reset to both active and paused by default
     setDateRange({ startDate: today, endDate: today, key: "today" });
     setTimeZone("America/Los_Angeles");
     setCampaignsError(null);
@@ -991,7 +1006,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         accounts: [],
         title: "",
         tags: "",
-        status: ["active"],
+        status: ["active", "paused"],
         dateRange: { startDate: today, endDate: today, key: "today" },
         timeZone: "America/Los_Angeles",
         campaignsData: []
@@ -1393,14 +1408,22 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               {status && status.length > 0 ? (
                 <span
                   className={`truncate rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                    status[0] === "active"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : status[0] === "paused"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-blue-100 text-blue-700"
+                    status.length === 2 && status.includes("active") && status.includes("paused")
+                      ? "bg-blue-100 text-blue-700"
+                      : status[0] === "active"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : status[0] === "paused"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
                   }`}
                 >
-                  {status[0] === "active" ? "Active" : status[0] === "paused" ? "Paused" : "All"}
+                  {status.length === 2 && status.includes("active") && status.includes("paused")
+                    ? "Active & Paused"
+                    : status[0] === "active"
+                      ? "Active"
+                      : status[0] === "paused"
+                        ? "Paused"
+                        : "All"}
                 </span>
               ) : (
                 <span className="text-xs text-gray-400 italic">All</span>
@@ -1429,11 +1452,32 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     </div>
                     <button
                       type="button"
-                      onClick={() => selectStatus("active")}
+                      onClick={() => {
+                        // Toggle active status
+                        if (status.includes("active")) {
+                          // If both are selected, remove active to leave only paused
+                          if (status.includes("paused")) {
+                            setStatus(["paused"]);
+                          } else {
+                            // If only active, clear to show all
+                            setStatus([]);
+                          }
+                        } else {
+                          // Add active
+                          if (status.includes("paused")) {
+                            setStatus(["active", "paused"]);
+                          } else {
+                            setStatus(["active"]);
+                          }
+                        }
+                        setShowStatusMenu(false);
+                      }}
                       className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                        status.includes("active")
+                        status.includes("active") && !status.includes("paused")
                           ? "bg-emerald-500 font-semibold text-white shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
+                          : status.includes("active")
+                            ? "bg-emerald-200 font-medium text-emerald-900 shadow-sm"
+                            : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1443,11 +1487,32 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     </button>
                     <button
                       type="button"
-                      onClick={() => selectStatus("paused")}
+                      onClick={() => {
+                        // Toggle paused status
+                        if (status.includes("paused")) {
+                          // If both are selected, remove paused to leave only active
+                          if (status.includes("active")) {
+                            setStatus(["active"]);
+                          } else {
+                            // If only paused, clear to show all
+                            setStatus([]);
+                          }
+                        } else {
+                          // Add paused
+                          if (status.includes("active")) {
+                            setStatus(["active", "paused"]);
+                          } else {
+                            setStatus(["paused"]);
+                          }
+                        }
+                        setShowStatusMenu(false);
+                      }}
                       className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                        status.includes("paused")
+                        status.includes("paused") && !status.includes("active")
                           ? "bg-amber-500 font-semibold text-white shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
+                          : status.includes("paused")
+                            ? "bg-amber-200 font-medium text-amber-900 shadow-sm"
+                            : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-2">
