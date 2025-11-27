@@ -1,7 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import React from "react";
 
+// Import ThemeProvider
+import { ThemeProvider } from "@/context/ThemeContext";
+
+// Components
 import SlideSidebar from "./components/slide-sidebar";
+import PrivateRoute from "@/components/PrivateRoute.jsx";
+import AnimatedLoginPage from "./components/login";
+
+// Pages
 import Page from "./features/dashboard/Page";
 import RulesDashboard from "./features/automation/rules/Rules";
 import LogsDashboard from "./features/table_logs/logs_table";
@@ -15,12 +23,12 @@ import CampaignPerformanceHub from "./features/metric_dashboard/campaign-perform
 import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
 import Add_Acounts from "./features/addAccount/page";
 import LanderPage from "./features/lander/page";
-
-import { supabase } from "@/supabaseClient";
-import PrivateRoute from "@/components/PrivateRoute.jsx";
 import AuthCallback from "@/pages/AuthCallback.jsx";
-import AnimatedLoginPage from "./components/login";
 
+// Supabase
+import { supabase } from "@/supabaseClient";
+
+// Auth Event Logger Component
 function AuthEventLogger() {
   React.useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -31,44 +39,178 @@ function AuthEventLogger() {
   return null;
 }
 
+// Protected Layout Component (includes sidebar)
+function ProtectedLayout({ children }) {
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <SlideSidebar />
+      <main className="flex-1 overflow-auto">{children}</main>
+    </div>
+  );
+}
+
 function App() {
   return (
-    <BrowserRouter>
-      <AuthEventLogger />
-      <Routes>
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route
-          path="/*"
-          element={
-            <PrivateRoute>
-              <div className="flex h-screen">
-                <SlideSidebar />
-                <main className="flex-1 overflow-auto">
-                  <Routes>
-                    <Route path="logout" element={<Page />} />
-                    <Route path="rules" element={<RulesDashboard />} />
-                    <Route path="editActivate" element={<EditRuleFormActivate />} />
-                    <Route path="editBudget" element={<EditRuleFormBudget />} />
-                    <Route path="editPause" element={<EditRuleFormPause />} />
-                    <Route path="editExclusion" element={<EditRuleFormExclusion />} />
-                    <Route path="log" element={<LogsDashboard />} />
-                    <Route path="actionlog" element={<ActionLogsDashboard />} />
-                    <Route path="campaigns" element={<Campaigns />} />
-                    <Route path="dashboard" element={<CampaignPerformanceHub />} />
-                    <Route path="authorization" element={<AuthorizationPage />} />
-                    <Route path="lander" element={<LanderPage />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthEventLogger />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<AnimatedLoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-                    <Route path="addAccount" element={<Add_Acounts />} />
-                  </Routes>
-                </main>
-              </div>
-            </PrivateRoute>
-          }
-        />
-        <Route path="login" element={<AnimatedLoginPage />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <CampaignPerformanceHub />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/logout"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <Page />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/rules"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <RulesDashboard />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/editActivate"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <EditRuleFormActivate />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/editBudget"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <EditRuleFormBudget />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/editPause"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <EditRuleFormPause />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/editExclusion"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <EditRuleFormExclusion />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/log"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <LogsDashboard />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/actionlog"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <ActionLogsDashboard />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/campaigns"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <Campaigns />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/authorization"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <AuthorizationPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/addAccount"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <Add_Acounts />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/lander"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <LanderPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          {/* Root redirect */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Catch all - redirect to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

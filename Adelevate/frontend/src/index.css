@@ -28,8 +28,45 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    --radius: 0.5rem;
+    
+    /* Sidebar Light Theme */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Additional Custom Variables - Light */
+    --sidebar-card: 0 0% 100%;
+    --sidebar-card-hover: 210 40% 96.1%;
+    --sidebar-active: 210 40% 96.1%;
+    --sidebar-muted: 215.4 16.3% 46.9%;
+    --sidebar-icon: 215.4 16.3% 46.9%;
+    --sidebar-text-primary: 222.2 84% 4.9%;
+    --sidebar-text-secondary: 222.2 47.4% 11.2%;
+    --sidebar-text-muted: 215.4 16.3% 46.9%;
+    
+    /* Accent Color - Teal/Cyan */
+    --sidebar-accent-color: 174 100% 41%;
+    --sidebar-accent-light: 174 100% 41% / 0.1;
+    --sidebar-accent-glow: 174 100% 41% / 0.2;
+    
+    /* Status Colors */
+    --sidebar-success: 142 76% 36%;
+    --sidebar-warning: 38 92% 50%;
+    --sidebar-error: 0 84% 60%;
+    --sidebar-error-bg: 0 86% 97%;
+    --sidebar-error-border: 0 93% 94%;
+    
+    /* Shadows */
+    --sidebar-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+    --sidebar-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
   }
+  
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -54,7 +91,43 @@
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
+    
+    /* Sidebar Dark Theme */
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Additional Custom Variables - Dark */
+    --sidebar-card: 240 6% 6%;
+    --sidebar-card-hover: 240 5% 10%;
+    --sidebar-active: 240 4% 14%;
+    --sidebar-muted: 240 5% 26%;
+    --sidebar-icon: 240 5% 65%;
+    --sidebar-text-primary: 0 0% 100%;
+    --sidebar-text-secondary: 240 5% 91%;
+    --sidebar-text-muted: 240 5% 55%;
+    
+    /* Accent Color - Teal/Cyan */
+    --sidebar-accent-color: 172 100% 41%;
+    --sidebar-accent-light: 172 100% 41% / 0.15;
+    --sidebar-accent-glow: 172 100% 41% / 0.1;
+    
+    /* Status Colors */
+    --sidebar-success: 142 71% 45%;
+    --sidebar-warning: 38 92% 50%;
+    --sidebar-error: 0 84% 60%;
+    --sidebar-error-bg: 0 62% 6%;
+    --sidebar-error-border: 0 62% 12%;
+    
+    /* Shadows */
+    --sidebar-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+    --sidebar-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
   }
 }
 
@@ -65,4 +138,71 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: hsl(var(--sidebar-background));
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-border));
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--sidebar-muted));
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+/* Noise texture overlay */
+.noise-texture {
+  position: relative;
+}
+
+.noise-texture::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.02;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }

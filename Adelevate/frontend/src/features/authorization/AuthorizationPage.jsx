@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/supabaseClient";
+import { useTheme } from "@/context/ThemeContext";
 
 // Import platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
@@ -10,6 +11,242 @@ import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
+// ============================================
+// PREMIUM CLEAN THEME
+// ============================================
+const createTheme = (isDarkMode) => {
+  if (isDarkMode) {
+    return {
+      // Backgrounds
+      bgMain: "#09090B",
+      bgCard: "#111113",
+      bgCardHover: "#16161A",
+      bgElevated: "#1A1A1E",
+      bgMuted: "#18181B",
+      bgInput: "#111113",
+      bgInputFocus: "#16161A",
+      bgButton: "#1F1F23",
+      bgButtonHover: "#27272A",
+      bgDropdown: "#111113",
+      bgTable: "#0D0D0F",
+      bgTableHeader: "#111113",
+      bgTableRow: "#0F0F11",
+      bgTableRowAlt: "#111113",
+      bgTableRowHover: "#18181B",
+      bgOverlay: "rgba(0, 0, 0, 0.85)",
+
+      // Borders
+      border: "#27272A",
+      borderLight: "#202024",
+      borderMedium: "#2E2E33",
+      borderFocus: "#3F3F46",
+
+      // Text
+      textPrimary: "#FAFAFA",
+      textSecondary: "#A1A1AA",
+      textTertiary: "#71717A",
+      textMuted: "#52525B",
+
+      // Accent
+      accent: "#6366F1",
+      accentHover: "#7C7FF2",
+      accentMuted: "#4F46E5",
+      accentBg: "rgba(99, 102, 241, 0.12)",
+      accentBorder: "rgba(99, 102, 241, 0.2)",
+
+      // Status
+      success: "#22C55E",
+      successBg: "rgba(34, 197, 94, 0.12)",
+      successBorder: "rgba(34, 197, 94, 0.2)",
+      successText: "#4ADE80",
+
+      warning: "#F59E0B",
+      warningBg: "rgba(245, 158, 11, 0.12)",
+      warningBorder: "rgba(245, 158, 11, 0.2)",
+      warningText: "#FBBF24",
+
+      error: "#EF4444",
+      errorBg: "rgba(239, 68, 68, 0.12)",
+      errorBorder: "rgba(239, 68, 68, 0.2)",
+      errorText: "#F87171",
+
+      // Roles
+      roles: {
+        SuperAdmin: {
+          bg: "rgba(99, 102, 241, 0.12)",
+          border: "rgba(99, 102, 241, 0.2)",
+          text: "#A5B4FC"
+        },
+        admin: {
+          bg: "rgba(34, 197, 94, 0.12)",
+          border: "rgba(34, 197, 94, 0.2)",
+          text: "#86EFAC"
+        },
+        editor: {
+          bg: "rgba(245, 158, 11, 0.12)",
+          border: "rgba(245, 158, 11, 0.2)",
+          text: "#FCD34D"
+        },
+        user: {
+          bg: "rgba(113, 113, 122, 0.12)",
+          border: "rgba(113, 113, 122, 0.2)",
+          text: "#A1A1AA"
+        }
+      },
+
+      // Platforms
+      platforms: {
+        meta: {
+          bg: "rgba(59, 130, 246, 0.12)",
+          border: "rgba(59, 130, 246, 0.2)",
+          text: "#93C5FD"
+        },
+        snap: {
+          bg: "rgba(250, 204, 21, 0.12)",
+          border: "rgba(250, 204, 21, 0.2)",
+          text: "#FDE047"
+        },
+        tiktok: {
+          bg: "rgba(168, 85, 247, 0.12)",
+          border: "rgba(168, 85, 247, 0.2)",
+          text: "#D8B4FE"
+        },
+        google: {
+          bg: "rgba(34, 197, 94, 0.12)",
+          border: "rgba(34, 197, 94, 0.2)",
+          text: "#86EFAC"
+        },
+        newsbreak: {
+          bg: "rgba(251, 113, 133, 0.12)",
+          border: "rgba(251, 113, 133, 0.2)",
+          text: "#FDA4AF"
+        }
+      },
+
+      // Shadows
+      shadow: "0 1px 3px rgba(0, 0, 0, 0.4)",
+      shadowMd: "0 4px 12px rgba(0, 0, 0, 0.35)",
+      shadowLg: "0 10px 30px rgba(0, 0, 0, 0.45)",
+      shadowXl: "0 20px 50px rgba(0, 0, 0, 0.5)"
+    };
+  } else {
+    return {
+      // Light Theme
+      bgMain: "#F9FAFB",
+      bgCard: "#FFFFFF",
+      bgCardHover: "#F3F4F6",
+      bgElevated: "#FFFFFF",
+      bgMuted: "#F3F4F6",
+      bgInput: "#FFFFFF",
+      bgInputFocus: "#FFFFFF",
+      bgButton: "#F3F4F6",
+      bgButtonHover: "#E5E7EB",
+      bgDropdown: "#FFFFFF",
+      bgTable: "#FFFFFF",
+      bgTableHeader: "#F9FAFB",
+      bgTableRow: "#FFFFFF",
+      bgTableRowAlt: "#F9FAFB",
+      bgTableRowHover: "#F3F4F6",
+      bgOverlay: "rgba(0, 0, 0, 0.5)",
+
+      // Borders
+      border: "#E5E7EB",
+      borderLight: "#F3F4F6",
+      borderMedium: "#D1D5DB",
+      borderFocus: "#9CA3AF",
+
+      // Text
+      textPrimary: "#111827",
+      textSecondary: "#4B5563",
+      textTertiary: "#6B7280",
+      textMuted: "#9CA3AF",
+
+      // Accent
+      accent: "#6366F1",
+      accentHover: "#4F46E5",
+      accentMuted: "#4F46E5",
+      accentBg: "rgba(99, 102, 241, 0.08)",
+      accentBorder: "rgba(99, 102, 241, 0.2)",
+
+      // Status
+      success: "#059669",
+      successBg: "#ECFDF5",
+      successBorder: "#A7F3D0",
+      successText: "#059669",
+
+      warning: "#D97706",
+      warningBg: "#FFFBEB",
+      warningBorder: "#FDE68A",
+      warningText: "#D97706",
+
+      error: "#DC2626",
+      errorBg: "#FEF2F2",
+      errorBorder: "#FECACA",
+      errorText: "#DC2626",
+
+      // Roles
+      roles: {
+        SuperAdmin: {
+          bg: "#EEF2FF",
+          border: "#C7D2FE",
+          text: "#4338CA"
+        },
+        admin: {
+          bg: "#ECFDF5",
+          border: "#A7F3D0",
+          text: "#047857"
+        },
+        editor: {
+          bg: "#FFFBEB",
+          border: "#FDE68A",
+          text: "#B45309"
+        },
+        user: {
+          bg: "#F3F4F6",
+          border: "#D1D5DB",
+          text: "#4B5563"
+        }
+      },
+
+      // Platforms
+      platforms: {
+        meta: {
+          bg: "#EFF6FF",
+          border: "#BFDBFE",
+          text: "#1D4ED8"
+        },
+        snap: {
+          bg: "#FEFCE8",
+          border: "#FDE68A",
+          text: "#A16207"
+        },
+        tiktok: {
+          bg: "#FAF5FF",
+          border: "#E9D5FF",
+          text: "#7C3AED"
+        },
+        google: {
+          bg: "#ECFDF5",
+          border: "#A7F3D0",
+          text: "#047857"
+        },
+        newsbreak: {
+          bg: "#FFF1F2",
+          border: "#FECDD3",
+          text: "#BE123C"
+        }
+      },
+
+      // Shadows
+      shadow: "0 1px 3px rgba(0, 0, 0, 0.08)",
+      shadowMd: "0 4px 12px rgba(0, 0, 0, 0.1)",
+      shadowLg: "0 10px 30px rgba(0, 0, 0, 0.12)",
+      shadowXl: "0 20px 50px rgba(0, 0, 0, 0.15)"
+    };
+  }
+};
+
+// Constants
 const ROLES = ["SuperAdmin", "admin", "editor", "user"];
 const PLATFORM_KEYS = ["meta", "snap", "newsbreak", "google", "tiktok"];
 const PLATFORM_LABEL = {
@@ -17,147 +254,81 @@ const PLATFORM_LABEL = {
   snap: "Snap",
   newsbreak: "NewsBreak",
   google: "Google",
-  tiktok: "TikTok",
+  tiktok: "TikTok"
 };
-
-// Platform icon mapping
 const PLATFORM_ICON = {
   meta: fb,
   snap: snapchatIcon,
   newsbreak: nb,
   google: googleIcon,
-  tiktok: tiktokIcon,
+  tiktok: tiktokIcon
 };
 
-// Modern platform color mapping - softer, more premium
-const PLATFORM_COLOR = {
-  meta: "bg-blue-50 text-blue-700 border-blue-100/50",
-  snap: "bg-amber-50 text-amber-700 border-amber-100/50",
-  newsbreak: "bg-rose-50 text-rose-700 border-rose-100/50",
-  google: "bg-emerald-50 text-emerald-700 border-emerald-100/50",
-  tiktok: "bg-purple-50 text-purple-700 border-purple-100/50",
-};
-
-// Microsoft Outlook Color Palette (Authentic Colors)
-const MICROSOFT_AVATAR_COLORS = [
-  { bg: "#0078D4", text: "#FFFFFF" }, // Microsoft Blue
-  { bg: "#8764B8", text: "#FFFFFF" }, // Purple
-  { bg: "#00B7C3", text: "#FFFFFF" }, // Teal
-  { bg: "#008272", text: "#FFFFFF" }, // Dark Teal
-  { bg: "#498205", text: "#FFFFFF" }, // Green
-  { bg: "#C239B3", text: "#FFFFFF" }, // Magenta
-  { bg: "#E3008C", text: "#FFFFFF" }, // Pink
-  { bg: "#E81123", text: "#FFFFFF" }, // Red
-  { bg: "#FF8C00", text: "#FFFFFF" }, // Orange
-  { bg: "#107C10", text: "#FFFFFF" }, // Dark Green
-  { bg: "#004E8C", text: "#FFFFFF" }, // Dark Blue
-  { bg: "#744DA9", text: "#FFFFFF" }, // Deep Purple
-  { bg: "#018574", text: "#FFFFFF" }, // Sea Green
-  { bg: "#E74856", text: "#FFFFFF" }, // Coral
-  { bg: "#0099BC", text: "#FFFFFF" }, // Cyan
-  { bg: "#7719AA", text: "#FFFFFF" }, // Violet
+// Avatar Colors
+const AVATAR_COLORS = [
+  "#6366F1",
+  "#8B5CF6",
+  "#EC4899",
+  "#F43F5E",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#A855F7",
+  "#D946EF"
 ];
 
-// Function to get consistent color based on email
-function getAvatarColorFromEmail(email) {
-  if (!email) return MICROSOFT_AVATAR_COLORS[0];
-
-  // Generate hash from email
+function getAvatarColor(email) {
+  if (!email) return AVATAR_COLORS[0];
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);
-    hash = hash & hash; // Convert to 32bit integer
   }
-
-  const index = Math.abs(hash) % MICROSOFT_AVATAR_COLORS.length;
-  return MICROSOFT_AVATAR_COLORS[index];
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// Function to get initials from email
-function getInitialsFromEmail(email) {
+function getInitials(email) {
   if (!email) return "?";
-
   const username = email.split("@")[0];
-
-  // Split by common separators
   const parts = username.split(/[._-]/);
-
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-
-  if (username.length >= 2) {
-    return (username[0] + username[1]).toUpperCase();
-  }
-
-  return username[0].toUpperCase();
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return username.slice(0, 2).toUpperCase();
 }
 
-// Microsoft Outlook-Style Avatar Component
-function MicrosoftAvatar({ email, size = "md", showIcon = false }) {
-  const color = getAvatarColorFromEmail(email);
-  const initials = getInitialsFromEmail(email);
+// ============================================
+// COMPONENTS
+// ============================================
+
+// Avatar
+function Avatar({ email, size = "md" }) {
+  const color = getAvatarColor(email);
+  const initials = getInitials(email);
 
   const sizes = {
     sm: "h-8 w-8 text-xs",
-    md: "h-11 w-11 text-sm",
-    lg: "h-12 w-12 text-base",
-    xl: "h-16 w-16 text-xl",
+    md: "h-10 w-10 text-sm",
+    lg: "h-12 w-12 text-base"
   };
 
   return (
     <div
-      className={`${sizes[size]} flex-shrink-0 rounded-full flex items-center justify-center font-semibold shadow-md relative`}
-      style={{
-        backgroundColor: color.bg,
-        color: color.text,
-      }}
+      className={`${sizes[size]} rounded-lg flex items-center justify-center font-semibold text-white flex-shrink-0 select-none`}
+      style={{ backgroundColor: color }}
     >
-      {showIcon ? (
-        // Email icon (Outlook style)
-        <svg
-          className="w-1/2 h-1/2"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-          <path
-            d="M22 6l-10 7L2 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      ) : (
-        // Initials
-        <span className="select-none">{initials}</span>
-      )}
-
-      {/* Online/Active indicator (optional) */}
+      {initials}
     </div>
   );
 }
 
-// Modern role color mapping
-const ROLE_CONFIG = {
-  SuperAdmin: {
-    color: "bg-indigo-50 text-indigo-700 border-indigo-200/50",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+// Role Badge
+function RoleBadge({ role, theme }) {
+  const config = theme.roles[role] || theme.roles.user;
+
+  const icons = {
+    SuperAdmin: (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
         <path
           fillRule="evenodd"
           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -165,92 +336,71 @@ const ROLE_CONFIG = {
         />
       </svg>
     ),
-  },
-  admin: {
-    color: "bg-emerald-50 text-emerald-700 border-emerald-200/50",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+    admin: (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
       </svg>
     ),
-  },
-  editor: {
-    color: "bg-amber-50 text-amber-700 border-amber-200/50",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+    editor: (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
       </svg>
     ),
-  },
-  user: {
-    color: "bg-slate-50 text-slate-600 border-slate-200/50",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
+    user: (
+      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
         <path
           fillRule="evenodd"
           d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
           clipRule="evenodd"
         />
       </svg>
-    ),
-  },
-};
-
-// Modern Role Badge Component
-function RoleBadge({ role }) {
-  const config = ROLE_CONFIG[role] || ROLE_CONFIG.user;
+    )
+  };
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${config.color} shadow-sm`}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+      style={{
+        backgroundColor: config.bg,
+        color: config.text,
+        border: `1px solid ${config.border}`
+      }}
     >
-      {config.icon}
+      {icons[role] || icons.user}
       <span>{role}</span>
     </span>
   );
 }
 
-// Modern Platform Pill Component
-function Pill({ platform }) {
-  const colorCls =
-    PLATFORM_COLOR[platform] ||
-    "bg-slate-50 text-slate-600 border-slate-200/50";
+// Platform Pill
+function PlatformPill({ platform, theme }) {
+  const config = theme.platforms[platform] || {
+    bg: theme.bgMuted,
+    border: theme.border,
+    text: theme.textSecondary
+  };
+
   return (
     <span
-      className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-lg border ${colorCls} shadow-sm`}
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium"
+      style={{
+        backgroundColor: config.bg,
+        color: config.text,
+        border: `1px solid ${config.border}`
+      }}
     >
-      <img
-        src={PLATFORM_ICON[platform]}
-        alt=""
-        className="w-3.5 h-3.5 mr-1.5"
-      />
-      <span className="truncate">{PLATFORM_LABEL[platform] || platform}</span>
+      <img src={PLATFORM_ICON[platform]} alt="" className="w-3.5 h-3.5" />
+      <span>{PLATFORM_LABEL[platform]}</span>
     </span>
   );
 }
 
-// FIXED: Portal-based dropdown with proper mobile positioning
-function SimpleDropdown({ isOpen, onClose, trigger, content }) {
+// Dropdown Portal
+function Dropdown({ isOpen, onClose, trigger, children, theme }) {
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
-  const [menuStyle, setMenuStyle] = useState({});
+  const [style, setStyle] = useState({});
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -267,73 +417,52 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("touchstart", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isOpen, onClose]);
 
-  // Position dropdown
   useEffect(() => {
     if (!isOpen || !triggerRef.current) return;
 
     const updatePosition = () => {
-      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const isMobile = vw < 640;
 
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-
-      const isMobile = viewportWidth < 768;
-      const spaceBelow = viewportHeight - triggerRect.bottom;
-      const spaceAbove = triggerRect.top;
-
-      let style = {
-        position: "fixed",
-        zIndex: 9999,
-      };
+      let newStyle = { position: "fixed", zIndex: 9999 };
 
       if (isMobile) {
-        const padding = 16;
-        style.left = `${padding}px`;
-        style.right = `${padding}px`;
-        style.width = `calc(100vw - ${padding * 2}px)`;
-        style.maxHeight = `${Math.min(300, viewportHeight * 0.5)}px`;
-
-        if (spaceBelow > 250 || spaceBelow > spaceAbove) {
-          style.top = `${triggerRect.bottom + 8}px`;
+        newStyle.left = "16px";
+        newStyle.right = "16px";
+        newStyle.maxHeight = "300px";
+        if (vh - rect.bottom > 220) {
+          newStyle.top = `${rect.bottom + 8}px`;
         } else {
-          style.bottom = `${viewportHeight - triggerRect.top + 8}px`;
+          newStyle.bottom = `${vh - rect.top + 8}px`;
         }
       } else {
-        style.left = `${triggerRect.left}px`;
-        style.width = `${Math.max(triggerRect.width, 240)}px`;
-        style.maxHeight = "400px";
-
-        if (spaceBelow > 300 || spaceBelow > spaceAbove) {
-          style.top = `${triggerRect.bottom + 8}px`;
+        newStyle.left = `${rect.left}px`;
+        newStyle.width = `${Math.max(rect.width, 240)}px`;
+        newStyle.maxHeight = "340px";
+        if (vh - rect.bottom > 280) {
+          newStyle.top = `${rect.bottom + 8}px`;
         } else {
-          style.bottom = `${viewportHeight - triggerRect.top + 8}px`;
+          newStyle.bottom = `${vh - rect.top + 8}px`;
         }
       }
 
-      setMenuStyle(style);
+      setStyle(newStyle);
     };
 
     updatePosition();
-
-    const handleScroll = () => {
-      if (isOpen) {
-        updatePosition();
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("resize", updatePosition);
 
     return () => {
-      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
   }, [isOpen]);
@@ -343,15 +472,19 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
       <div ref={triggerRef} className="w-full">
         {trigger}
       </div>
-
       {isOpen &&
         createPortal(
           <div
             ref={menuRef}
-            style={menuStyle}
-            className="bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 overflow-hidden"
+            style={{
+              ...style,
+              backgroundColor: theme.bgDropdown,
+              border: `1px solid ${theme.border}`,
+              boxShadow: theme.shadowLg
+            }}
+            className="rounded-xl overflow-hidden"
           >
-            {content}
+            {children}
           </div>,
           document.body
         )}
@@ -359,8 +492,8 @@ function SimpleDropdown({ isOpen, onClose, trigger, content }) {
   );
 }
 
-/** Modern Platform Selector Dropdown */
-function PlatformDropdown({ value = [], onToggle, disabled }) {
+// Platform Dropdown
+function PlatformDropdown({ value = [], onToggle, disabled, theme, isDarkMode }) {
   const [open, setOpen] = useState(false);
   const selected = value.map((v) => String(v).toLowerCase());
 
@@ -369,12 +502,17 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
       type="button"
       disabled={disabled}
       onClick={() => setOpen(!open)}
-      className="w-full rounded-xl border border-gray-200 dark:border-gray-600 px-3 py-2.5 bg-white dark:bg-gray-800 text-left disabled:opacity-50 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300"
+      className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium flex items-center justify-between transition-all disabled:opacity-50"
+      style={{
+        backgroundColor: theme.bgInput,
+        border: `1px solid ${theme.border}`,
+        color: theme.textSecondary
+      }}
     >
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 text-gray-400 flex-shrink-0"
+          className="h-4 w-4 flex-shrink-0"
+          style={{ color: theme.textMuted }}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -388,16 +526,13 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
         </svg>
         <span className="truncate">
           {selected.length
-            ? `${selected.length} platform${
-                selected.length > 1 ? "s" : ""
-              } selected`
+            ? `${selected.length} platform${selected.length > 1 ? "s" : ""} selected`
             : "Select platforms"}
         </span>
       </div>
       <svg
-        className={`ml-2 h-5 w-5 shrink-0 transition-transform text-gray-400 ${
-          open ? "rotate-180" : ""
-        }`}
+        className={`h-4 w-4 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+        style={{ color: theme.textMuted }}
         viewBox="0 0 20 20"
         fill="currentColor"
       >
@@ -410,100 +545,145 @@ function PlatformDropdown({ value = [], onToggle, disabled }) {
     </button>
   );
 
-  const content = (
-    <div className="py-2">
-      <div className="px-3 py-2 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Select Platforms
-        </p>
-      </div>
-      <div className="max-h-60 overflow-y-auto py-1">
-        {PLATFORM_KEYS.map((key) => {
-          const checked = selected.includes(key);
-          const colorCls = checked ? PLATFORM_COLOR[key] || "" : "";
-          return (
-            <label
-              key={key}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium transition-all ${
-                checked
-                  ? colorCls
-                  : "hover:bg-gray-50 dark:hover:bg-gray-700/30"
-              }`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onToggle(key);
-              }}
-            >
-              <div className="flex items-center justify-center">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  checked={checked}
-                  onChange={() => {}}
-                  disabled={disabled}
-                />
-              </div>
-              <div className="flex items-center gap-2.5 flex-1">
+  return (
+    <Dropdown isOpen={open} onClose={() => setOpen(false)} trigger={trigger} theme={theme}>
+      <div className="py-1">
+        <div className="px-3 py-2" style={{ borderBottom: `1px solid ${theme.borderLight}` }}>
+          <span
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: theme.textMuted }}
+          >
+            Select Platforms
+          </span>
+        </div>
+
+        <div className="py-1 max-h-[220px] overflow-y-auto">
+          {PLATFORM_KEYS.map((key) => {
+            const checked = selected.includes(key);
+            const config = theme.platforms[key];
+
+            return (
+              <button
+                key={key}
+                type="button"
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors text-left"
+                style={{
+                  backgroundColor: checked ? config.bg : "transparent",
+                  color: checked ? config.text : theme.textSecondary
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggle(key);
+                }}
+              >
+                <div
+                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{
+                    backgroundColor: checked ? theme.accent : "transparent",
+                    border: `2px solid ${checked ? theme.accent : theme.borderMedium}`
+                  }}
+                >
+                  {checked && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
                 <img src={PLATFORM_ICON[key]} alt="" className="w-5 h-5" />
                 <span>{PLATFORM_LABEL[key]}</span>
-              </div>
-            </label>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="flex justify-between items-center border-t border-gray-100 px-3 py-2 mt-1 bg-gray-50">
-        <span className="text-xs text-gray-500">
-          {selected.length} selected
-        </span>
-        <button
-          type="button"
-          className="text-xs font-medium rounded-lg bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 transition-colors shadow-sm"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpen(false);
+        <div
+          className="px-3 py-2 flex items-center justify-between"
+          style={{
+            borderTop: `1px solid ${theme.borderLight}`,
+            backgroundColor: isDarkMode ? theme.bgElevated : theme.bgMuted
           }}
         >
-          Done
-        </button>
+          <span className="text-xs" style={{ color: theme.textMuted }}>
+            {selected.length} selected
+          </span>
+          <button
+            type="button"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-colors"
+            style={{ backgroundColor: theme.accent }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          >
+            Done
+          </button>
+        </div>
       </div>
-    </div>
-  );
-
-  return (
-    <SimpleDropdown
-      isOpen={open}
-      onClose={() => setOpen(false)}
-      trigger={trigger}
-      content={content}
-    />
+    </Dropdown>
   );
 }
 
-// Modern Role Selector with icons
-function RoleSelector({ value, onChange, disabled }) {
+// Role Dropdown
+function RoleDropdown({ value, onChange, disabled, theme, isDarkMode }) {
   const [open, setOpen] = useState(false);
-
   const currentRole = ROLES.includes(value) ? value : "user";
-  const config = ROLE_CONFIG[currentRole];
+  const config = theme.roles[currentRole];
+
+  const icons = {
+    SuperAdmin: (
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path
+          fillRule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clipRule="evenodd"
+        />
+      </svg>
+    ),
+    admin: (
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+      </svg>
+    ),
+    editor: (
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+      </svg>
+    ),
+    user: (
+      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        <path
+          fillRule="evenodd"
+          d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+          clipRule="evenodd"
+        />
+      </svg>
+    )
+  };
 
   const trigger = (
     <button
       type="button"
       disabled={disabled}
       onClick={() => setOpen(!open)}
-      className={`w-full rounded-xl border px-3 py-2.5 text-left disabled:opacity-50 flex items-center justify-between shadow-sm transition-all text-sm font-semibold ${config.color}`}
+      className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold flex items-center justify-between transition-all disabled:opacity-50"
+      style={{
+        backgroundColor: config.bg,
+        border: `1px solid ${config.border}`,
+        color: config.text
+      }}
     >
       <div className="flex items-center gap-2">
-        {config.icon}
+        {icons[currentRole]}
         <span>{currentRole}</span>
       </div>
       <svg
-        className={`ml-2 h-5 w-5 shrink-0 transition-transform ${
-          open ? "rotate-180" : ""
-        }`}
+        className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
         viewBox="0 0 20 20"
         fill="currentColor"
       >
@@ -516,121 +696,100 @@ function RoleSelector({ value, onChange, disabled }) {
     </button>
   );
 
-  const content = (
-    <div className="py-2">
-      <div className="px-3 py-2 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Change Role
-        </p>
-      </div>
-      <div className="py-1">
-        {ROLES.map((role) => {
-          const roleConfig = ROLE_CONFIG[role];
-          return (
-            <button
-              key={role}
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onChange(role);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-all text-sm font-medium ${
-                role === currentRole
-                  ? roleConfig.color
-                  : "hover:bg-gray-50 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-300"
-              }`}
-            >
-              {roleConfig.icon}
-              <span>{role}</span>
-              {role === currentRole && (
-                <svg
-                  className="ml-auto h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
-    <SimpleDropdown
-      isOpen={open}
-      onClose={() => setOpen(false)}
-      trigger={trigger}
-      content={content}
-    />
+    <Dropdown isOpen={open} onClose={() => setOpen(false)} trigger={trigger} theme={theme}>
+      <div className="py-1">
+        <div className="px-3 py-2" style={{ borderBottom: `1px solid ${theme.borderLight}` }}>
+          <span
+            className="text-xs font-semibold uppercase tracking-wider"
+            style={{ color: theme.textMuted }}
+          >
+            Change Role
+          </span>
+        </div>
+
+        <div className="py-1">
+          {ROLES.map((role) => {
+            const rConfig = theme.roles[role];
+            const isActive = role === currentRole;
+
+            return (
+              <button
+                key={role}
+                type="button"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium transition-colors text-left"
+                style={{
+                  backgroundColor: isActive ? rConfig.bg : "transparent",
+                  color: isActive ? rConfig.text : theme.textSecondary
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onChange(role);
+                  setOpen(false);
+                }}
+              >
+                {icons[role]}
+                <span className="flex-1">{role}</span>
+                {isActive && (
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Dropdown>
   );
 }
 
-// Mobile User Card Component - Premium Style with Microsoft Avatars
-function UserCard({
-  user,
-  updatingId,
-  handleTogglePlatform,
-  handleChangeRole,
-}) {
+// Mobile User Card
+function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole, theme, isDarkMode }) {
   const { id, email, role, platforms = [] } = user;
   const selectedPlatforms = platforms.map((v) => String(v).toLowerCase());
-  const rowDisabled = updatingId === id;
+  const isUpdating = updatingId === id;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 mb-4 ">
-      {/* Card header - user info with Microsoft Avatar */}
-      <div className="px-4 py-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center">
-          <MicrosoftAvatar email={email} size="lg" />
-          <div className="flex-1 min-w-0 ml-3">
-            <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {email?.split("@")[0] || "—"}
-            </div>
-            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3 w-3 mr-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-              <span className="truncate">{email || "—"}</span>
-            </div>
+    <div
+      className="rounded-xl overflow-hidden mb-4"
+      style={{
+        backgroundColor: theme.bgCard,
+        border: `1px solid ${theme.border}`
+      }}
+    >
+      {/* Header */}
+      <div
+        className="px-4 py-4 flex items-center gap-3"
+        style={{ borderBottom: `1px solid ${theme.borderLight}` }}
+      >
+        <Avatar email={email} size="lg" />
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold truncate" style={{ color: theme.textPrimary }}>
+            {email?.split("@")[0] || "—"}
           </div>
-          <RoleBadge role={role} />
+          <div className="text-sm truncate" style={{ color: theme.textMuted }}>
+            {email}
+          </div>
         </div>
+        <RoleBadge role={role} theme={theme} />
       </div>
 
-      {/* Card body */}
-      <div className="p-4 ">
-        {/* Platform section */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
+      {/* Body */}
+      <div className="p-4 space-y-5">
+        {/* Platforms */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span
+              className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+              style={{ color: theme.textMuted }}
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -639,15 +798,10 @@ function UserCard({
                 />
               </svg>
               Platforms
-            </h4>
-            {rowDisabled && (
-              <div className="flex items-center text-xs text-indigo-600 dark:text-indigo-400">
-                <svg
-                  className="animate-spin h-3.5 w-3.5 mr-1"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
+            </span>
+            {isUpdating && (
+              <span className="text-xs flex items-center gap-1" style={{ color: theme.accent }}>
+                <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -655,58 +809,60 @@ function UserCard({
                     r="10"
                     stroke="currentColor"
                     strokeWidth="4"
-                  ></circle>
+                  />
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
-                Saving...
-              </div>
+                Saving
+              </span>
             )}
           </div>
+
           <div className="flex flex-wrap gap-2 mb-3">
             {selectedPlatforms.length ? (
-              selectedPlatforms.map((p) => <Pill key={p} platform={p} />)
+              selectedPlatforms.map((p) => <PlatformPill key={p} platform={p} theme={theme} />)
             ) : (
-              <span className="text-sm text-gray-400 dark:text-gray-500 italic">
+              <span className="text-sm italic" style={{ color: theme.textMuted }}>
                 No platforms assigned
               </span>
             )}
           </div>
+
           <PlatformDropdown
             value={platforms}
-            disabled={rowDisabled}
+            disabled={isUpdating}
             onToggle={(key) => handleTogglePlatform(id, key)}
+            theme={theme}
+            isDarkMode={isDarkMode}
           />
         </div>
 
-        {/* Role section */}
+        {/* Role */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-              Role
-            </h4>
-          </div>
-          <RoleSelector
+          <span
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 mb-3"
+            style={{ color: theme.textMuted }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+            Role
+          </span>
+
+          <RoleDropdown
             value={role}
             onChange={(newRole) => handleChangeRole(id, newRole)}
-            disabled={rowDisabled}
+            disabled={isUpdating}
+            theme={theme}
+            isDarkMode={isDarkMode}
           />
         </div>
       </div>
@@ -714,7 +870,13 @@ function UserCard({
   );
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
 export default function AuthorizationPage() {
+  const { isDarkMode } = useTheme();
+  const theme = createTheme(isDarkMode);
+
   const [session, setSession] = useState(null);
   const [myRole, setMyRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -728,11 +890,12 @@ export default function AuthorizationPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
 
+  // Auth
   useEffect(() => {
     let mounted = true;
     (async () => {
       const {
-        data: { session },
+        data: { session }
       } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(session);
@@ -765,19 +928,17 @@ export default function AuthorizationPage() {
     };
   }, []);
 
+  // Fetch users
   async function fetchUsers({ page, search }) {
     setError("");
     setSearchLoading(true);
 
     try {
-      const { data: list, error: rpcErr } = await supabase.rpc(
-        "list_users_with_roles",
-        {
-          search: search?.trim() ? search : null,
-          page_size: pageSize,
-          page,
-        }
-      );
+      const { data: list, error: rpcErr } = await supabase.rpc("list_users_with_roles", {
+        search: search?.trim() || null,
+        page_size: pageSize,
+        page
+      });
 
       if (rpcErr) {
         setError(rpcErr.message);
@@ -786,18 +947,12 @@ export default function AuthorizationPage() {
         return;
       }
 
-      const norm = (arr) =>
-        Array.from(new Set((arr || []).map((v) => String(v).toLowerCase())));
-      setRows(
-        (list || []).map((u) => ({ ...u, platforms: norm(u.platforms) }))
-      );
+      const norm = (arr) => Array.from(new Set((arr || []).map((v) => String(v).toLowerCase())));
+      setRows((list || []).map((u) => ({ ...u, platforms: norm(u.platforms) })));
 
-      const { data: countVal, error: cntErr } = await supabase.rpc(
-        "count_users",
-        {
-          search: search?.trim() ? search : null,
-        }
-      );
+      const { data: countVal, error: cntErr } = await supabase.rpc("count_users", {
+        search: search?.trim() || null
+      });
 
       if (cntErr) {
         setError(cntErr.message);
@@ -839,20 +994,18 @@ export default function AuthorizationPage() {
         const target = rows.find((r) => r.id === userId);
         if (target?.role === "SuperAdmin") {
           setUpdatingId(null);
-          setError("You can't remove the last SuperAdmin.");
+          setError("Cannot remove the last SuperAdmin.");
           return;
         }
       }
     }
 
     const prev = rows.slice();
-    setRows((rs) =>
-      rs.map((r) => (r.id === userId ? { ...r, role: nextRole } : r))
-    );
+    setRows((rs) => rs.map((r) => (r.id === userId ? { ...r, role: nextRole } : r)));
 
     const { error: rpcErr } = await supabase.rpc("set_user_role", {
       target_id: userId,
-      new_role: nextRole,
+      new_role: nextRole
     });
 
     setUpdatingId(null);
@@ -877,22 +1030,18 @@ export default function AuthorizationPage() {
     setUpdatingId(userId);
     const prev = rows.slice();
     const row = rows.find((r) => r.id === userId);
-    const current = new Set(
-      (row?.platforms || []).map((v) => String(v).toLowerCase())
-    );
+    const current = new Set((row?.platforms || []).map((v) => String(v).toLowerCase()));
 
     if (current.has(key)) current.delete(key);
     else current.add(key);
 
     const nextArr = Array.from(current);
 
-    setRows((rs) =>
-      rs.map((r) => (r.id === userId ? { ...r, platforms: nextArr } : r))
-    );
+    setRows((rs) => rs.map((r) => (r.id === userId ? { ...r, platforms: nextArr } : r)));
 
     const { error: rpcErr } = await supabase.rpc("set_user_platforms", {
       target_id: userId,
-      new_platforms: nextArr,
+      new_platforms: nextArr
     });
 
     setUpdatingId(null);
@@ -902,130 +1051,164 @@ export default function AuthorizationPage() {
     }
   }
 
-  const pageCount = useMemo(
-    () => Math.max(1, Math.ceil(total / pageSize)),
-    [total]
-  );
+  const pageCount = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
+  // Loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 grid place-items-center ">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: theme.bgMain }}
+      >
         <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="h-8 w-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-indigo-600 dark:text-indigo-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-              </div>
-            </div>
+          <div
+            className="h-12 w-12 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: theme.accentBg }}
+          >
+            <svg
+              className="animate-spin h-6 w-6"
+              style={{ color: theme.accent }}
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
           </div>
-          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-            Loading user data...
+          <span className="text-sm font-medium" style={{ color: theme.textMuted }}>
+            Loading...
           </span>
         </div>
       </div>
     );
   }
 
+  // Not signed in
   if (!session?.user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 grid place-items-center p-4">
-        <div className="p-8 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl bg-white dark:bg-gray-800 max-w-md mx-auto">
-          <div className="h-16 w-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: theme.bgMain }}
+      >
+        <div
+          className="p-8 rounded-2xl max-w-sm w-full text-center"
+          style={{
+            backgroundColor: theme.bgCard,
+            border: `1px solid ${theme.border}`,
+            boxShadow: theme.shadowLg
+          }}
+        >
+          <div
+            className="h-14 w-14 rounded-xl flex items-center justify-center mx-auto mb-5"
+            style={{ backgroundColor: theme.accentBg }}
+          >
             <svg
-              className="w-8 h-8 text-indigo-600 dark:text-indigo-400"
-              xmlns="http://www.w3.org/2000/svg"
+              className="w-7 h-7"
+              style={{ color: theme.accent }}
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={1.5}
               stroke="currentColor"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold mb-3 text-center text-gray-900 dark:text-white">
+          <h2 className="text-xl font-bold mb-2" style={{ color: theme.textPrimary }}>
             Sign in required
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-            Please sign in to manage user roles and platform access.
+          </h2>
+          <p className="text-sm mb-6" style={{ color: theme.textMuted }}>
+            Please sign in to access authorization settings.
           </p>
-          <div className="flex justify-center">
-            <button
-              onClick={() => (window.location.href = "/login")}
-              className="rounded-xl px-6 py-3 bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-sm transition-all hover:shadow-md active:scale-95"
-            >
-              Go to Login
-            </button>
-          </div>
+          <button
+            onClick={() => (window.location.href = "/login")}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-colors"
+            style={{ backgroundColor: theme.accent }}
+          >
+            Sign In
+          </button>
         </div>
       </div>
     );
   }
 
+  // Not authorized
   if (myRole !== "SuperAdmin") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 grid place-items-center p-4">
-        <div className="p-8 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 max-w-md mx-auto shadow-xl">
-          <div className="h-16 w-16 bg-rose-100 dark:bg-rose-900/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundColor: theme.bgMain }}
+      >
+        <div
+          className="p-8 rounded-2xl max-w-sm w-full text-center"
+          style={{
+            backgroundColor: theme.errorBg,
+            border: `1px solid ${theme.errorBorder}`,
+            boxShadow: theme.shadowLg
+          }}
+        >
+          <div
+            className="h-14 w-14 rounded-xl flex items-center justify-center mx-auto mb-5"
+            style={{ backgroundColor: theme.error }}
+          >
             <svg
-              className="w-8 h-8 text-rose-600 dark:text-rose-400"
-              xmlns="http://www.w3.org/2000/svg"
+              className="w-7 h-7 text-white"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={1.5}
               stroke="currentColor"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                strokeWidth={2}
                 d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold mb-3 text-center text-rose-900 dark:text-rose-100">
-            Not authorized
-          </h1>
-          <p className="text-center text-rose-700 dark:text-rose-300 mb-2">
-            Only a <strong>SuperAdmin</strong> can view and change user roles.
+          <h2 className="text-xl font-bold mb-2" style={{ color: theme.errorText }}>
+            Access Denied
+          </h2>
+          <p className="text-sm mb-2" style={{ color: theme.textSecondary }}>
+            Only <strong>SuperAdmin</strong> can access this page.
           </p>
-          <p className="text-center text-sm text-rose-600 dark:text-rose-400">
-            Your current role: <strong>{myRole}</strong>
+          <p className="text-xs" style={{ color: theme.textMuted }}>
+            Your role: <strong style={{ color: theme.textPrimary }}>{myRole}</strong>
           </p>
         </div>
       </div>
     );
   }
 
+  // Main
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      {/* FULL WIDTH CONTAINER */}
-      <div className="w-full h-full">
+    <div className="min-h-screen transition-colors" style={{ backgroundColor: theme.bgMain }}>
+      <div className="w-full">
         <div className="p-4 sm:p-6 lg:p-8">
-          {/* Modern Header */}
-          <header className="mb-6">
+          {/* Header */}
+          <header className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl flex items-center justify-center">
+              <div className="flex items-center gap-4">
+                <div
+                  className="h-12 w-12 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: theme.accentBg }}
+                >
                   <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-indigo-600 dark:text-indigo-400"
+                    className="h-6 w-6"
+                    style={{ color: theme.accent }}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -1039,20 +1222,29 @@ export default function AuthorizationPage() {
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    Authorization Management
+                  <h1 className="text-2xl font-bold" style={{ color: theme.textPrimary }}>
+                    Authorization
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-sm" style={{ color: theme.textMuted }}>
                     Manage user roles and platform access
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                <MicrosoftAvatar email={session.user.email} size="sm" />
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                style={{
+                  backgroundColor: theme.bgCard,
+                  border: `1px solid ${theme.border}`
+                }}
+              >
+                <Avatar email={session.user.email} size="sm" />
                 <div className="flex flex-col gap-1">
-                  <RoleBadge role={myRole || "user"} />
-                  <span className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[180px]">
+                  <RoleBadge role={myRole} theme={theme} />
+                  <span
+                    className="text-xs truncate max-w-[180px]"
+                    style={{ color: theme.textMuted }}
+                  >
                     {session.user.email}
                   </span>
                 </div>
@@ -1060,122 +1252,116 @@ export default function AuthorizationPage() {
             </div>
           </header>
 
-          {/* Search Section */}
-          <div className="mb-6">
-            <form onSubmit={handleSearch} className="flex gap-3">
-              <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search users by email..."
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm transition-all text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={searchLoading}
-                className="rounded-xl px-6 py-3 bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-60 shadow-sm transition-all hover:shadow-md active:scale-95 flex items-center gap-2 text-sm"
+          {/* Search */}
+          <form onSubmit={handleSearch} className="flex gap-3 mb-6">
+            <div className="relative flex-1">
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5"
+                style={{ color: theme.textMuted }}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                {searchLoading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Searching
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                    Search
-                  </>
-                )}
-              </button>
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch("");
-                    fetchUsers({ page: 1, search: "" });
-                  }}
-                  className="rounded-xl px-4 py-3 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all text-sm font-medium"
-                >
-                  Clear
-                </button>
-              )}
-            </form>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 px-4 py-3 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  <svg
-                    className="h-5 w-5 text-rose-500"
-                    viewBox="0 0 20 20"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search users by email..."
+                className="w-full pl-12 pr-4 py-3 rounded-xl text-sm font-medium outline-none transition-colors"
+                style={{
+                  backgroundColor: theme.bgInput,
+                  border: `1px solid ${theme.border}`,
+                  color: theme.textPrimary
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={searchLoading}
+              className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-colors disabled:opacity-60"
+              style={{ backgroundColor: theme.accent }}
+            >
+              {searchLoading ? (
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
                     fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-rose-800 dark:text-rose-200">
-                    {error}
-                  </p>
-                </div>
-              </div>
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              )}
+              <span className="hidden sm:inline">Search</span>
+            </button>
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  fetchUsers({ page: 1, search: "" });
+                }}
+                className="px-4 py-3 rounded-xl text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: theme.bgButton,
+                  border: `1px solid ${theme.border}`,
+                  color: theme.textSecondary
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </form>
+
+          {/* Error */}
+          {error && (
+            <div
+              className="mb-6 px-4 py-4 rounded-xl flex items-center gap-3"
+              style={{
+                backgroundColor: theme.errorBg,
+                border: `1px solid ${theme.errorBorder}`
+              }}
+            >
+              <svg
+                className="h-5 w-5 flex-shrink-0"
+                style={{ color: theme.error }}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="text-sm font-medium" style={{ color: theme.errorText }}>
+                {error}
+              </span>
             </div>
           )}
 
-          {/* Mobile view - Card layout */}
+          {/* Mobile Cards */}
           <div className="md:hidden">
             {rows.length > 0 ? (
               rows.map((user) => (
@@ -1185,232 +1371,256 @@ export default function AuthorizationPage() {
                   updatingId={updatingId}
                   handleTogglePlatform={handleTogglePlatform}
                   handleChangeRole={handleChangeRole}
+                  theme={theme}
+                  isDarkMode={isDarkMode}
                 />
               ))
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 text-center">
-                <div className="flex flex-col items-center">
-                  <div className="h-16 w-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4">
-                    <svg
-                      className="w-8 h-8 text-gray-400 dark:text-gray-500"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
+              <div
+                className="rounded-xl p-12 text-center"
+                style={{
+                  backgroundColor: theme.bgCard,
+                  border: `1px solid ${theme.border}`
+                }}
+              >
+                <div
+                  className="h-14 w-14 rounded-xl flex items-center justify-center mx-auto mb-4"
+                  style={{ backgroundColor: theme.bgMuted }}
+                >
+                  <svg
+                    className="w-7 h-7"
+                    style={{ color: theme.textMuted }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       strokeWidth={1.5}
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                      />
-                    </svg>
-                  </div>
-                  <p className="font-semibold text-gray-900 dark:text-white mb-2">
-                    No users found
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {search
-                      ? "Try adjusting your search criteria"
-                      : "No user data available"}
-                  </p>
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
                 </div>
+                <p className="font-semibold" style={{ color: theme.textPrimary }}>
+                  No users found
+                </p>
+                <p className="text-sm" style={{ color: theme.textMuted }}>
+                  {search ? "Try a different search" : "No data available"}
+                </p>
               </div>
             )}
           </div>
 
-          {/* Desktop view - Premium Table with Microsoft Avatars */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          {/* Desktop Table - Full Width */}
+          <div
+            className="hidden md:block rounded-xl overflow-hidden"
+            style={{
+              backgroundColor: theme.bgCard,
+              border: `1px solid ${theme.border}`
+            }}
+          >
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                {/* Premium Sticky Header */}
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 sticky top-0 z-10 shadow-sm">
+              <table className="w-full">
+                <thead style={{ backgroundColor: theme.bgTableHeader }}>
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                        User
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                          />
-                        </svg>
-                        Email
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                          />
-                        </svg>
-                        Role
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                          />
-                        </svg>
-                        Platforms
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                          />
-                        </svg>
-                        Actions
-                      </div>
-                    </th>
+                    {[
+                      {
+                        label: "User",
+                        icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      },
+                      {
+                        label: "Email",
+                        icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      },
+                      {
+                        label: "Role",
+                        icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      },
+                      {
+                        label: "Platforms",
+                        icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                      },
+                      {
+                        label: "Actions",
+                        icon: "M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                      }
+                    ].map((col) => (
+                      <th
+                        key={col.label}
+                        className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider"
+                        style={{
+                          color: theme.textMuted,
+                          borderBottom: `1px solid ${theme.border}`
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d={col.icon}
+                            />
+                          </svg>
+                          {col.label}
+                        </div>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
 
-                {/* Premium Table Body with Zebra Stripes and Microsoft Avatars */}
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                  {rows.map((u, idx) => {
-                    const selectedPlatforms = (u.platforms || []).map((v) =>
-                      String(v).toLowerCase()
-                    );
-                    const rowDisabled = updatingId === u.id;
+                <tbody>
+                  {rows.length > 0 ? (
+                    rows.map((u, idx) => {
+                      const selectedPlatforms = (u.platforms || []).map((v) =>
+                        String(v).toLowerCase()
+                      );
+                      const isUpdating = updatingId === u.id;
 
-                    return (
-                      <tr
-                        key={u.id}
-                        className={`transition-all duration-150 hover:bg-gray-50 dark:hover:bg-gray-700/30 ${
-                          idx % 2 === 0
-                            ? "bg-white dark:bg-gray-800"
-                            : "bg-gray-50/30 dark:bg-gray-800/50"
-                        }`}
-                      >
-                        {/* User Column with Microsoft Avatar */}
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <MicrosoftAvatar email={u.email} size="md" />
-                            <div>
-                              <div className="font-semibold text-gray-900 dark:text-gray-100">
-                                {u.email?.split("@")[0] || "—"}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                ID: {String(u.id).slice(0, 8)}…
+                      return (
+                        <tr
+                          key={u.id}
+                          className="transition-colors"
+                          style={{
+                            backgroundColor: idx % 2 === 0 ? theme.bgTableRow : theme.bgTableRowAlt,
+                            borderBottom: `1px solid ${theme.borderLight}`
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = theme.bgTableRowHover;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor =
+                              idx % 2 === 0 ? theme.bgTableRow : theme.bgTableRowAlt;
+                          }}
+                        >
+                          {/* User */}
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar email={u.email} size="md" />
+                              <div>
+                                <div
+                                  className="font-semibold text-sm"
+                                  style={{ color: theme.textPrimary }}
+                                >
+                                  {u.email?.split("@")[0] || "—"}
+                                </div>
+                                <div className="text-xs" style={{ color: theme.textMuted }}>
+                                  {u.id?.slice(0, 8)}...
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Email Column */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4 text-gray-400 flex-shrink-0"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                              />
-                            </svg>
-                            <span className="truncate max-w-[250px]">
-                              {u.email || "—"}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Role Column */}
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <RoleBadge role={u.role} />
-                        </td>
-
-                        {/* Platforms Column */}
-                        <td className="px-6 py-4">
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-2">
-                              {selectedPlatforms.length ? (
-                                selectedPlatforms.map((p) => (
-                                  <Pill key={p} platform={p} />
-                                ))
-                              ) : (
-                                <span className="text-sm text-gray-400 dark:text-gray-500 italic">
-                                  No platforms
-                                </span>
-                              )}
-                            </div>
+                          {/* Email */}
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <PlatformDropdown
-                                value={u.platforms || []}
-                                disabled={rowDisabled}
-                                onToggle={(key) =>
-                                  handleTogglePlatform(u.id, key)
-                                }
+                              <svg
+                                className="h-4 w-4 flex-shrink-0"
+                                style={{ color: theme.textMuted }}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <span
+                                className="text-sm truncate max-w-[220px]"
+                                style={{ color: theme.textSecondary }}
+                              >
+                                {u.email || "—"}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Role */}
+                          <td className="px-6 py-4">
+                            <RoleBadge role={u.role} theme={theme} />
+                          </td>
+
+                          {/* Platforms */}
+                          <td className="px-6 py-4">
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap gap-1.5">
+                                {selectedPlatforms.length ? (
+                                  selectedPlatforms.map((p) => (
+                                    <PlatformPill key={p} platform={p} theme={theme} />
+                                  ))
+                                ) : (
+                                  <span
+                                    className="text-sm italic"
+                                    style={{ color: theme.textMuted }}
+                                  >
+                                    No platforms
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <PlatformDropdown
+                                  value={u.platforms || []}
+                                  disabled={isUpdating}
+                                  onToggle={(key) => handleTogglePlatform(u.id, key)}
+                                  theme={theme}
+                                  isDarkMode={isDarkMode}
+                                />
+                                {isUpdating && (
+                                  <span
+                                    className="text-xs flex items-center gap-1"
+                                    style={{ color: theme.accent }}
+                                  >
+                                    <svg
+                                      className="animate-spin h-3 w-3"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                      />
+                                    </svg>
+                                    Saving
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <RoleDropdown
+                                value={u.role}
+                                onChange={(role) => handleChangeRole(u.id, role)}
+                                disabled={isUpdating}
+                                theme={theme}
+                                isDarkMode={isDarkMode}
                               />
-                              {rowDisabled && (
-                                <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center whitespace-nowrap">
+                              {isUpdating && (
+                                <span
+                                  className="text-xs flex items-center gap-1"
+                                  style={{ color: theme.accent }}
+                                >
                                   <svg
-                                    className="animate-spin h-3.5 w-3.5 mr-1"
-                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="animate-spin h-3 w-3"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                   >
@@ -1421,86 +1631,49 @@ export default function AuthorizationPage() {
                                       r="10"
                                       stroke="currentColor"
                                       strokeWidth="4"
-                                    ></circle>
+                                    />
                                     <path
                                       className="opacity-75"
                                       fill="currentColor"
-                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    ></path>
+                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                    />
                                   </svg>
                                   Saving
                                 </span>
                               )}
                             </div>
-                          </div>
-                        </td>
-
-                        {/* Actions Column */}
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <RoleSelector
-                              value={u.role}
-                              onChange={(role) => handleChangeRole(u.id, role)}
-                              disabled={rowDisabled}
-                            />
-                            {rowDisabled && (
-                              <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center whitespace-nowrap">
-                                <svg
-                                  className="animate-spin h-3.5 w-3.5 mr-1"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  ></circle>
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  ></path>
-                                </svg>
-                                Saving
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {rows.length === 0 && (
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
                     <tr>
-                      <td className="px-6 py-20 text-center" colSpan={5}>
+                      <td colSpan={5} className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center">
-                          <div className="h-16 w-16 bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4">
+                          <div
+                            className="h-14 w-14 rounded-xl flex items-center justify-center mb-4"
+                            style={{ backgroundColor: theme.bgMuted }}
+                          >
                             <svg
-                              className="w-8 h-8 text-gray-400 dark:text-gray-500"
-                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-7 h-7"
+                              style={{ color: theme.textMuted }}
                               fill="none"
                               viewBox="0 0 24 24"
-                              strokeWidth={1.5}
                               stroke="currentColor"
                             >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                                strokeWidth={1.5}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                               />
                             </svg>
                           </div>
-                          <p className="font-semibold text-gray-900 dark:text-white mb-2">
+                          <p className="font-semibold" style={{ color: theme.textPrimary }}>
                             No users found
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {search
-                              ? "Try adjusting your search criteria"
-                              : "No user data available"}
+                          <p className="text-sm" style={{ color: theme.textMuted }}>
+                            {search ? "Try a different search" : "No data available"}
                           </p>
                         </div>
                       </td>
@@ -1511,88 +1684,98 @@ export default function AuthorizationPage() {
             </div>
           </div>
 
-          {/* Modern Pagination */}
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-xl border border-indigo-200 dark:border-indigo-700">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+          {/* Pagination */}
+          {rows.length > 0 && (
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{
+                    backgroundColor: theme.accentBg,
+                    color: theme.accent,
+                    border: `1px solid ${theme.accentBorder}`
+                  }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                <span className="font-semibold">{total}</span>
-              </div>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                users • Page{" "}
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {page}
-                </span>{" "}
-                of{" "}
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {pageCount}
+                  {total} users
                 </span>
-              </span>
-            </div>
+                <span className="text-sm" style={{ color: theme.textMuted }}>
+                  Page <strong style={{ color: theme.textPrimary }}>{page}</strong> of{" "}
+                  <strong style={{ color: theme.textPrimary }}>{pageCount}</strong>
+                </span>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  fetchUsers({ page: Math.max(1, page - 1), search })
-                }
-                disabled={page <= 1}
-                className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all hover:shadow-md flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                <svg
-                  className="w-4 h-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchUsers({ page: Math.max(1, page - 1), search })}
+                  disabled={page <= 1}
+                  className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: theme.bgButton,
+                    border: `1px solid ${theme.border}`,
+                    color: theme.textSecondary
+                  }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 19.5L8.25 12l7.5-7.5"
-                  />
-                </svg>
-                Previous
-              </button>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
 
-              <button
-                onClick={() =>
-                  fetchUsers({ page: Math.min(pageCount, page + 1), search })
-                }
-                disabled={page >= pageCount}
-                className="rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all hover:shadow-md flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Next
-                <svg
-                  className="w-4 h-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="currentColor"
+                {/* Page Numbers */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
+                    let num = page;
+                    if (pageCount <= 5) num = i + 1;
+                    else if (page <= 3) num = i + 1;
+                    else if (page >= pageCount - 2) num = pageCount - 4 + i;
+                    else num = page - 2 + i;
+
+                    const isActive = page === num;
+
+                    return (
+                      <button
+                        key={num}
+                        onClick={() => fetchUsers({ page: num, search })}
+                        className="w-9 h-9 rounded-lg text-sm font-semibold transition-colors"
+                        style={{
+                          backgroundColor: isActive ? theme.accent : "transparent",
+                          color: isActive ? "#FFFFFF" : theme.textSecondary
+                        }}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => fetchUsers({ page: Math.min(pageCount, page + 1), search })}
+                  disabled={page >= pageCount}
+                  className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: theme.bgButton,
+                    border: `1px solid ${theme.border}`,
+                    color: theme.textSecondary
+                  }}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                  />
-                </svg>
-              </button>
+                  <span className="hidden sm:inline">Next</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
