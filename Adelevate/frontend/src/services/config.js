@@ -173,6 +173,7 @@ export function fromFirestoreDoc(docSnap) {
         minBudget: d.minBudget ?? null,
         maxBudget: d.maxBudget ?? null,
         selectedAccounts: d.selectedAccounts || [],
+        ruleType: d.ruleType || "", // Rule type filter for exclusion rules
     };
 }
 
@@ -214,6 +215,8 @@ export function toFirestoreDoc(ui, id) {
             condition: normalizedCondition,
             // Normalize selectedAccounts to ensure proper format
             selectedAccounts: normalizeSelectedAccounts(ui.selectedAccounts || []),
+            // Add rule type filter (Pause Campaign, Activate Campaign, Change Budget Campaign)
+            ruleType: ui.ruleType || "",
 
             // Explicitly null out unrelated fields so downstream code won't assume them
             schedule: null,

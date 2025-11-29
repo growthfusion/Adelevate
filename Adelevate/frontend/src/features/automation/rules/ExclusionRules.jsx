@@ -119,6 +119,31 @@ const platformDisplayNames = {
   newsbreak: "NewsBreak"
 };
 
+// Rule type mapping: Display format (with spaces) ↔ Storage format (with hyphens/underscores)
+const RULE_TYPE_MAPPING = {
+  // Display → Storage
+  "Pause Campaign": "Pause-Campaign",
+  "Activate Campaign": "Activate-Campaign",
+  "Change Budget Campaign": "Change-Budget-Campaign"
+};
+
+// Reverse mapping: Storage → Display
+const RULE_TYPE_DISPLAY_MAP = {
+  "Pause_Campaign": "Pause Campaign",
+  "Activate-Campaign": "Activate Campaign",
+  "Change-Budget-Campaign": "Change Budget Campaign"
+};
+
+// Helper function to convert display format to storage format
+const toStorageFormat = (displayValue) => {
+  return RULE_TYPE_MAPPING[displayValue] || displayValue;
+};
+
+// Helper function to convert storage format to display format
+const toDisplayFormat = (storageValue) => {
+  return RULE_TYPE_DISPLAY_MAP[storageValue] || storageValue;
+};
+
 function parseIncomingCondition(raw, index) {
   const base = {
     id: index + 1,
@@ -252,6 +277,7 @@ export default function EditRuleFormExclusion() {
   // UI state
   const [ruleName, setRuleName] = useState("");
   const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [selectedRuleType, setSelectedRuleType] = useState(""); // Filter by rule type: "Pause Campaign", "Activate Campaign", "Change Budget Campaign"
   const [scheduleInterval, setScheduleInterval] = useState("");
   const [conditions, setConditions] = useState([
     { id: 1, logic: "If", metric: "", operator: "", value: "", unit: "none", target: "" }
@@ -758,6 +784,9 @@ export default function EditRuleFormExclusion() {
       }
 
       setRuleName(d.name || "");
+      // Convert storage format (with hyphens/underscores) to display format (with spaces) for UI
+      const storedRuleType = d.ruleType || "";
+      setSelectedRuleType(toDisplayFormat(storedRuleType));
 
       if (d.schedule?.mode === "custom") {
         setScheduleInterval("Custom");
@@ -904,6 +933,8 @@ export default function EditRuleFormExclusion() {
         target: c.target || ""
       })),
       selectedAccounts: selectedAccounts,
+      // Convert display format (with spaces) to storage format (with hyphens/underscores) for saving
+      ruleType: selectedRuleType ? toStorageFormat(selectedRuleType) : "",
       // 🔵 CHANGE: explicitly null out unrelated fields
       lookback: null,
       schedule: null,
@@ -959,7 +990,7 @@ export default function EditRuleFormExclusion() {
             </div>
             {/* Rule Section */}
             <div className="border border-gray-200 rounded-lg p-6 bg-white mb-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div className="space-y-2">
                   <Label htmlFor="rule-name" className="text-sm font-medium text-gray-700">
                     Rule Name
@@ -998,6 +1029,30 @@ export default function EditRuleFormExclusion() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rule-type" className="text-sm font-medium text-gray-700">
+                    Rules
+                  </Label>
+                  <Select
+                    value={selectedRuleType}
+                    onValueChange={(displayValue) => {
+                      // Store display format in state (for UI), convert to storage format when saving
+                      setSelectedRuleType(displayValue);
+                    }}
+                    disabled={isReadOnly}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Rule Type...">
+                        {selectedRuleType || "Select Rule Type..."}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pause Campaign">Pause Campaign</SelectItem>
+                      <SelectItem value="Activate Campaign">Activate Campaign</SelectItem>
+                      <SelectItem value="Change Budget Campaign">Change Budget Campaign</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

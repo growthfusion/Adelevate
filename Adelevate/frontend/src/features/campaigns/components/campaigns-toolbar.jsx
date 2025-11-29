@@ -1411,10 +1411,10 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     status.length === 2 && status.includes("active") && status.includes("paused")
                       ? "bg-blue-100 text-blue-700"
                       : status[0] === "active"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : status[0] === "paused"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-blue-100 text-blue-700"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : status[0] === "paused"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-blue-100 text-blue-700"
                   }`}
                 >
                   {status.length === 2 && status.includes("active") && status.includes("paused")
@@ -1477,7 +1477,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                           ? "bg-emerald-500 font-semibold text-white shadow-sm"
                           : status.includes("active")
                             ? "bg-emerald-200 font-medium text-emerald-900 shadow-sm"
-                            : "text-gray-700 hover:bg-gray-100"
+                          : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1512,7 +1512,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                           ? "bg-amber-500 font-semibold text-white shadow-sm"
                           : status.includes("paused")
                             ? "bg-amber-200 font-medium text-amber-900 shadow-sm"
-                            : "text-gray-700 hover:bg-gray-100"
+                          : "text-gray-700 hover:bg-gray-100"
                       }`}
                     >
                       <div className="flex items-center gap-2">
