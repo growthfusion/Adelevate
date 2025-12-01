@@ -129,7 +129,7 @@ const RULE_TYPE_MAPPING = {
 
 // Reverse mapping: Storage → Display
 const RULE_TYPE_DISPLAY_MAP = {
-  "Pause_Campaign": "Pause Campaign",
+  "Pause-Campaign": "Pause Campaign",
   "Activate-Campaign": "Activate Campaign",
   "Change-Budget-Campaign": "Change Budget Campaign"
 };

@@ -7,7 +7,8 @@ import {
   LogOut,
   KeyRound,
   Sun,
-  Moon
+  Moon,
+  FileText
 } from "lucide-react";
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
@@ -625,6 +626,13 @@ const SlideSidebar = () => {
     },
     {
       type: "single",
+      path: "/report",
+      icon: FileText,
+      label: "Report",
+      badge: null
+    },
+    {
+      type: "single",
       path: "/addAccount",
       icon: IoPersonAddOutline,
       label: "Integration ",
@@ -657,7 +665,7 @@ const SlideSidebar = () => {
       icon: PiRocketLight,
       label: "Lander",
       badge: null
-    }
+    },
   ];
 
   // Sidebar Content Component (Shared between mobile and desktop)

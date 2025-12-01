@@ -284,6 +284,8 @@ export default function EditRuleForm() {
   const searchInputRef = useRef(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [campaignSearchTerm, setCampaignSearchTerm] = useState("");
+  const lookbackButtonRef = useRef(null);
+  const lookbackDropdownRef = useRef(null);
 
   const [enableLookback, setEnableLookback] = useState(false);
 
@@ -1083,6 +1085,52 @@ export default function EditRuleForm() {
 
   const removeCampaign = (index) => setCampaigns((prev) => prev.filter((_, i) => i !== index));
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on SelectContent (it's portaled outside)
+      // Check for Radix Select components
+      const isSelectContent = event.target.closest('[role="listbox"]') || 
+                              event.target.closest('[data-radix-portal]') ||
+                              event.target.closest('[data-radix-select-content]') ||
+                              event.target.closest('[data-radix-select-viewport]');
+      if (isSelectContent) {
+        return;
+      }
+
+      // Close lookback dropdown
+      if (
+        lookbackButtonRef.current &&
+        lookbackDropdownRef.current &&
+        !lookbackButtonRef.current.contains(event.target) &&
+        !lookbackDropdownRef.current.contains(event.target)
+      ) {
+        setShowLookBack(false);
+      }
+
+      // Close campaign dropdown
+      if (
+        campaignDropdownRef.current &&
+        !campaignDropdownRef.current.contains(event.target)
+      ) {
+        setShowCampaignDropdown(false);
+      }
+
+      // Close search dropdown
+      if (
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target)
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   /* ------ save -> Firestore via services/config.js ------ */
   const handleSave = async () => {
     if (isReadOnly) return;
@@ -1290,7 +1338,7 @@ export default function EditRuleForm() {
               <h2 className="text-base sm:text-lg font-semibold text-gray-900">Rule Conditions</h2>
             </div>
 
-            <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white">
+            <div className="border border-gray-200 rounded-lg p-3 sm:p-6 bg-white overflow-visible">
               <div className="space-y-6">
                 {conditions.map((condition, index) => (
                   <div
@@ -1522,7 +1570,7 @@ export default function EditRuleForm() {
                     />
                     <span className="text-sm text-gray-700">Enable Lookback</span>
                   </label>
-                  <div>
+                  <div className="relative" ref={lookbackButtonRef}>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1541,8 +1589,8 @@ export default function EditRuleForm() {
                       )}
                     </Button>
                     {enableLookback && showLookBack && (
-                      <div className="absolute z-50 mt-2 w-96 rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
-                        <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200">
+                      <div ref={lookbackDropdownRef} className="absolute z-[99999] mt-2 left-0 w-96 max-h-[85vh] overflow-y-auto rounded-lg shadow-xl bg-white ring-1 ring-black ring-opacity-5">
+                        <div className="py-3 px-4 flex justify-between items-center border-b border-gray-200 sticky top-0 bg-white z-10">
                           <span className="text-base font-medium text-gray-800">
                             Look Back Period
                           </span>
@@ -1554,7 +1602,7 @@ export default function EditRuleForm() {
                           </button>
                         </div>
 
-                        <div className="p-4">
+                        <div className="p-4 pb-6" onClick={(e) => e.stopPropagation()}>
                           <Select
                             value={lookBackPeriod}
                             onValueChange={(value) => {
@@ -1686,7 +1734,7 @@ export default function EditRuleForm() {
                             <SelectTrigger className="w-full mb-3">
                               <SelectValue placeholder="Select period" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="z-[999999] max-h-[300px]" onCloseAutoFocus={(e) => e.preventDefault()}>
                               <SelectGroup>
                                 <SelectLabel>Hourly</SelectLabel>
                                 <SelectItem value="1_hour">Last 1 hour</SelectItem>

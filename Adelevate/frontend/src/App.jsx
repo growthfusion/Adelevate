@@ -24,6 +24,7 @@ import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
 import Add_Acounts from "./features/addAccount/page";
 import LanderPage from "./features/lander/page";
 import AuthCallback from "@/pages/AuthCallback.jsx";
+import ReportPage from "./features/report/ReportPage";
 
 // Supabase
 import { supabase } from "@/supabaseClient";
@@ -198,6 +199,17 @@ function App() {
               <PrivateRoute>
                 <ProtectedLayout>
                   <LanderPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/report"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <ReportPage />
                 </ProtectedLayout>
               </PrivateRoute>
             }
