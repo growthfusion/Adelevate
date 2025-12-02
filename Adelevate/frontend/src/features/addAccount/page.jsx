@@ -1,230 +1,44 @@
-import React, { useState, useRef, useEffect } from "react";
+// Add_Accounts.jsx
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+
+// Redux
+import { useTheme } from "@/hooks/useTheme";
+import {
+  fetchAccounts,
+  createAccount,
+  modifyAccount,
+  removeAccount,
+  setPlatformFilter,
+  openEditModal,
+  closeEditModal,
+  openDeleteModal,
+  closeDeleteModal,
+  clearError,
+  clearSuccess,
+  selectFilteredAccounts,
+  selectIsLoading,
+  selectIsSubmitting,
+  selectError,
+  selectSuccess,
+  selectPlatformFilter,
+  selectSelectedAccount,
+  selectEditModalOpen,
+  selectDeleteModalOpen,
+  selectPlatformCounts,
+  selectAccounts
+} from "./accountsSlice";
+
+// Assets
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
-import {
-  addAccount,
-  accountExists,
-  getAllAccounts,
-  updateAccount,
-  deleteAccount
-} from "@/services/accountsConfig";
-import { useTheme } from "@/context/ThemeContext";
 
 // ============================================
-// PREMIUM SAAS THEME CONFIGURATION
+// PLATFORM ICON COMPONENT
 // ============================================
-const createPremiumTheme = (isDarkMode) => {
-  if (isDarkMode) {
-    return {
-      // Backgrounds - Deep Rich Blacks
-      bgMain: "#050505",
-      bgCard: "#0A0A0A",
-      bgCardHover: "#0E0E0E",
-      bgCardElevated: "#0C0C0C",
-      bgSection: "#080808",
-      bgMuted: "#0F0F0F",
-      bgInput: "#0A0A0A",
-      bgInputHover: "#0E0E0E",
-      bgButton: "#111111",
-      bgButtonHover: "#1A1A1A",
-      bgButtonSecondary: "#151515",
-      bgDropdown: "#0C0C0C",
-      bgModal: "#0A0A0A",
-      bgOverlay: "rgba(0, 0, 0, 0.75)",
-
-      // Gradients
-      gradientPrimary: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
-      gradientSecondary: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
-      gradientAccent: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)",
-      gradientSuccess: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-      gradientDanger: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
-      gradientCard: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)",
-      gradientHeader: "linear-gradient(135deg, #0A0A0A 0%, #111111 100%)",
-
-      // Borders
-      borderSubtle: "rgba(255, 255, 255, 0.06)",
-      borderMedium: "rgba(255, 255, 255, 0.1)",
-      borderStrong: "rgba(255, 255, 255, 0.15)",
-      borderInput: "rgba(255, 255, 255, 0.08)",
-      borderInputFocus: "#3B82F6",
-      borderInputHover: "rgba(255, 255, 255, 0.12)",
-      dividerSubtle: "rgba(255, 255, 255, 0.04)",
-
-      // Text
-      textPrimary: "#FAFAFA",
-      textSecondary: "#A3A3A3",
-      textTertiary: "#707070",
-      textMuted: "#505050",
-      textInverse: "#0A0A0A",
-
-      // Accent Colors
-      accent: "#3B82F6",
-      accentHover: "#60A5FA",
-      accentLight: "rgba(59, 130, 246, 0.15)",
-      accentLighter: "rgba(59, 130, 246, 0.08)",
-      accentGlow: "rgba(59, 130, 246, 0.35)",
-
-      // Status Colors with Glow
-      success: "#10B981",
-      successLight: "rgba(16, 185, 129, 0.15)",
-      successBorder: "rgba(16, 185, 129, 0.3)",
-      successGlow: "rgba(16, 185, 129, 0.25)",
-
-      warning: "#F59E0B",
-      warningLight: "rgba(245, 158, 11, 0.15)",
-      warningBorder: "rgba(245, 158, 11, 0.3)",
-      warningGlow: "rgba(245, 158, 11, 0.25)",
-
-      error: "#EF4444",
-      errorLight: "rgba(239, 68, 68, 0.15)",
-      errorBorder: "rgba(239, 68, 68, 0.3)",
-      errorGlow: "rgba(239, 68, 68, 0.25)",
-
-      info: "#3B82F6",
-      infoLight: "rgba(59, 130, 246, 0.15)",
-      infoBorder: "rgba(59, 130, 246, 0.3)",
-      infoGlow: "rgba(59, 130, 246, 0.25)",
-
-      purple: "#8B5CF6",
-      purpleLight: "rgba(139, 92, 246, 0.15)",
-      purpleBorder: "rgba(139, 92, 246, 0.3)",
-
-      // Platform Colors
-      platformMeta: {
-        bg: "rgba(24, 119, 242, 0.15)",
-        border: "rgba(24, 119, 242, 0.3)",
-        color: "#60A5FA"
-      },
-      platformSnap: {
-        bg: "rgba(255, 252, 0, 0.12)",
-        border: "rgba(255, 252, 0, 0.25)",
-        color: "#FFFC00"
-      },
-      platformTikTok: {
-        bg: "rgba(255, 255, 255, 0.08)",
-        border: "rgba(255, 255, 255, 0.15)",
-        color: "#FFFFFF"
-      },
-      platformGoogle: {
-        bg: "rgba(66, 133, 244, 0.15)",
-        border: "rgba(66, 133, 244, 0.3)",
-        color: "#60A5FA"
-      },
-      platformNewsBreak: {
-        bg: "rgba(255, 107, 107, 0.15)",
-        border: "rgba(255, 107, 107, 0.3)",
-        color: "#FF6B6B"
-      },
-
-      // Shadows
-      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.5)",
-      shadowMd: "0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03)",
-      shadowLg: "0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04)",
-      shadowXl: "0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05)",
-      shadowGlow: "0 0 40px rgba(59, 130, 246, 0.2)",
-      shadowInner: "inset 0 2px 4px rgba(0, 0, 0, 0.3)",
-      shadowButton: "0 4px 14px rgba(59, 130, 246, 0.4)",
-      shadowButtonHover: "0 8px 25px rgba(59, 130, 246, 0.5)"
-    };
-  } else {
-    return {
-      // Light Theme - Clean & Sophisticated
-      bgMain: "#F8F9FC",
-      bgCard: "#FFFFFF",
-      bgCardHover: "#FAFBFD",
-      bgCardElevated: "#FFFFFF",
-      bgSection: "#F5F6FA",
-      bgMuted: "#F3F4F8",
-      bgInput: "#FFFFFF",
-      bgInputHover: "#FAFBFC",
-      bgButton: "#F5F6FA",
-      bgButtonHover: "#EBEDF3",
-      bgButtonSecondary: "#F0F1F5",
-      bgDropdown: "#FFFFFF",
-      bgModal: "#FFFFFF",
-      bgOverlay: "rgba(15, 23, 42, 0.5)",
-
-      // Gradients
-      gradientPrimary: "linear-gradient(135deg, #4F46E5 0%, #4338CA 100%)",
-      gradientSecondary: "linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)",
-      gradientAccent: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
-      gradientSuccess: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-      gradientDanger: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
-      gradientCard: "linear-gradient(180deg, #FFFFFF 0%, #FEFEFE 100%)",
-      gradientHeader: "linear-gradient(135deg, #F8F9FC 0%, #FFFFFF 100%)",
-
-      // Borders
-      borderSubtle: "#E8EAF0",
-      borderMedium: "#DDE0E9",
-      borderStrong: "#CBD0DC",
-      borderInput: "#E2E5ED",
-      borderInputFocus: "#4F46E5",
-      borderInputHover: "#D1D5E0",
-      dividerSubtle: "#F0F1F5",
-
-      // Text
-      textPrimary: "#0F172A",
-      textSecondary: "#475569",
-      textTertiary: "#64748B",
-      textMuted: "#94A3B8",
-      textInverse: "#FFFFFF",
-
-      // Accent Colors
-      accent: "#4F46E5",
-      accentHover: "#4338CA",
-      accentLight: "rgba(79, 70, 229, 0.08)",
-      accentLighter: "rgba(79, 70, 229, 0.04)",
-      accentGlow: "rgba(79, 70, 229, 0.15)",
-
-      // Status Colors
-      success: "#059669",
-      successLight: "#ECFDF5",
-      successBorder: "#A7F3D0",
-      successGlow: "rgba(5, 150, 105, 0.1)",
-
-      warning: "#D97706",
-      warningLight: "#FFFBEB",
-      warningBorder: "#FDE68A",
-      warningGlow: "rgba(217, 119, 6, 0.1)",
-
-      error: "#DC2626",
-      errorLight: "#FEF2F2",
-      errorBorder: "#FECACA",
-      errorGlow: "rgba(220, 38, 38, 0.1)",
-
-      info: "#2563EB",
-      infoLight: "#EFF6FF",
-      infoBorder: "#BFDBFE",
-      infoGlow: "rgba(37, 99, 235, 0.1)",
-
-      purple: "#7C3AED",
-      purpleLight: "#F5F3FF",
-      purpleBorder: "#DDD6FE",
-
-      // Platform Colors
-      platformMeta: { bg: "#E7F3FF", border: "#BFDBFE", color: "#1877F2" },
-      platformSnap: { bg: "#FFFDE7", border: "#FEF08A", color: "#FACC15" },
-      platformTikTok: { bg: "#F5F5F5", border: "#E5E5E5", color: "#000000" },
-      platformGoogle: { bg: "#E8F0FE", border: "#BFDBFE", color: "#4285F4" },
-      platformNewsBreak: { bg: "#FFE7E7", border: "#FECACA", color: "#DC2626" },
-
-      // Shadows
-      shadowSm: "0 1px 2px rgba(15, 23, 42, 0.04)",
-      shadowMd: "0 4px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04)",
-      shadowLg: "0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.04)",
-      shadowXl: "0 24px 56px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.06)",
-      shadowGlow: "0 0 0 3px rgba(79, 70, 229, 0.12)",
-      shadowInner: "inset 0 1px 2px rgba(15, 23, 42, 0.06)",
-      shadowButton: "0 4px 14px rgba(79, 70, 229, 0.25)",
-      shadowButtonHover: "0 8px 25px rgba(79, 70, 229, 0.35)"
-    };
-  }
-};
-
-// Platform Icon Component with Enhanced Fallback
 const PlatformIcon = ({ platform, className = "w-6 h-6", theme }) => {
   const [imageError, setImageError] = useState(false);
 
@@ -275,16 +89,23 @@ const PlatformIcon = ({ platform, className = "w-6 h-6", theme }) => {
   );
 };
 
-// Edit Modal Component
-function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme, isDarkMode }) {
+// ============================================
+// EDIT ACCOUNT MODAL COMPONENT
+// ============================================
+function EditAccountModal({ platforms }) {
+  const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
+  const account = useSelector(selectSelectedAccount);
+  const isOpen = useSelector(selectEditModalOpen);
+  const isSubmitting = useSelector(selectIsSubmitting);
+
   const [formData, setFormData] = useState({
-    bmName: account?.bmName || "",
-    accessToken: account?.accessToken || "",
-    accountId: account?.accountId || "",
-    accountLabel: account?.accountLabel || ""
+    bmName: "",
+    accessToken: "",
+    accountId: "",
+    accountLabel: ""
   });
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
   const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
@@ -296,24 +117,25 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
         accountLabel: account.accountLabel || ""
       });
       setShowToken(false);
+      setLocalError("");
     }
   }, [account]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setIsUpdating(true);
+    setLocalError("");
 
     try {
-      await updateAccount(account.id, formData);
-      onUpdate();
-      onClose();
+      await dispatch(modifyAccount({ id: account.id, data: formData })).unwrap();
     } catch (err) {
       console.error("Error updating account:", err);
-      setError(err.message || "Failed to update account");
-    } finally {
-      setIsUpdating(false);
+      setLocalError(err || "Failed to update account");
     }
+  };
+
+  const handleClose = () => {
+    dispatch(closeEditModal());
+    setLocalError("");
   };
 
   if (!isOpen || !account) return null;
@@ -323,7 +145,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 animate-fadeIn"
-      style={{ backgroundColor: theme.bgOverlay, backdropFilter: "blur(8px)" }}
+      style={{ backgroundColor: theme.overlay, backdropFilter: "blur(8px)" }}
     >
       <div
         className="rounded-2xl xs:rounded-3xl max-w-2xl w-full max-h-[95vh] xs:max-h-[90vh] overflow-hidden animate-slideUp"
@@ -384,7 +206,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="h-8 w-8 xs:h-10 xs:w-10 rounded-xl xs:rounded-xl flex items-center justify-center transition-all duration-200 flex-shrink-0"
               style={{
                 backgroundColor: isDarkMode ? "rgba(255,255,255,0.05)" : theme.bgMuted,
@@ -426,7 +248,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
           className="p-4 xs:p-5 md:p-6 space-y-4 xs:space-y-5 md:space-y-6 overflow-y-auto max-h-[calc(95vh-180px)] xs:max-h-[calc(90vh-180px)]"
           style={{ backgroundColor: theme.bgCard }}
         >
-          {error && (
+          {localError && (
             <div
               className="rounded-xl xs:rounded-2xl p-3 xs:p-4 flex items-start gap-2 xs:gap-3"
               style={{
@@ -452,7 +274,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
                 </svg>
               </div>
               <p className="text-xs xs:text-sm" style={{ color: theme.error }}>
-                {error}
+                {localError}
               </p>
             </div>
           )}
@@ -642,7 +464,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
         >
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full ss:w-auto px-4 xs:px-6 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200"
             style={{
               backgroundColor: "transparent",
@@ -662,16 +484,16 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isUpdating}
+            disabled={isSubmitting}
             className="w-full ss:w-auto px-4 xs:px-6 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
             style={{
               background: theme.gradientPrimary,
               color: "#FFFFFF",
               boxShadow: theme.shadowButton,
-              opacity: isUpdating ? 0.7 : 1
+              opacity: isSubmitting ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
-              if (!isUpdating) {
+              if (!isSubmitting) {
                 e.currentTarget.style.transform = "translateY(-1px)";
                 e.currentTarget.style.boxShadow = theme.shadowButtonHover;
               }
@@ -681,7 +503,7 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
               e.currentTarget.style.boxShadow = theme.shadowButton;
             }}
           >
-            {isUpdating ? (
+            {isSubmitting ? (
               <>
                 <svg
                   className="animate-spin h-4 w-4 xs:h-5 xs:w-5"
@@ -731,17 +553,26 @@ function EditAccountModal({ account, isOpen, onClose, onUpdate, platforms, theme
   );
 }
 
-// Delete Confirmation Modal
-function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, theme, isDarkMode }) {
-  const [isDeleting, setIsDeleting] = useState(false);
+// ============================================
+// DELETE CONFIRMATION MODAL COMPONENT
+// ============================================
+function DeleteConfirmModal({ platforms }) {
+  const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
+  const account = useSelector(selectSelectedAccount);
+  const isOpen = useSelector(selectDeleteModalOpen);
+  const isSubmitting = useSelector(selectIsSubmitting);
 
   const handleDelete = async () => {
-    setIsDeleting(true);
     try {
-      await onConfirm();
-    } finally {
-      setIsDeleting(false);
+      await dispatch(removeAccount(account.id)).unwrap();
+    } catch (error) {
+      console.error("Error deleting account:", error);
     }
+  };
+
+  const handleClose = () => {
+    dispatch(closeDeleteModal());
   };
 
   if (!isOpen || !account) return null;
@@ -751,7 +582,7 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 animate-fadeIn"
-      style={{ backgroundColor: theme.bgOverlay, backdropFilter: "blur(8px)" }}
+      style={{ backgroundColor: theme.overlay, backdropFilter: "blur(8px)" }}
     >
       <div
         className="rounded-2xl xs:rounded-3xl max-w-md w-full overflow-hidden animate-slideUp"
@@ -858,17 +689,17 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
           }}
         >
           <button
-            onClick={onClose}
-            disabled={isDeleting}
+            onClick={handleClose}
+            disabled={isSubmitting}
             className="w-full ss:w-auto px-4 xs:px-6 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200"
             style={{
               backgroundColor: "transparent",
               border: `1px solid ${theme.borderMedium}`,
               color: theme.textSecondary,
-              opacity: isDeleting ? 0.5 : 1
+              opacity: isSubmitting ? 0.5 : 1
             }}
             onMouseEnter={(e) => {
-              if (!isDeleting) {
+              if (!isSubmitting) {
                 e.currentTarget.style.backgroundColor = theme.bgButtonHover;
               }
             }}
@@ -880,7 +711,7 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
           </button>
           <button
             onClick={handleDelete}
-            disabled={isDeleting}
+            disabled={isSubmitting}
             className="w-full ss:w-auto px-4 xs:px-6 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
             style={{
               background: theme.gradientDanger,
@@ -888,10 +719,10 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
               boxShadow: isDarkMode
                 ? `0 4px 20px ${theme.errorGlow}`
                 : "0 4px 14px rgba(239, 68, 68, 0.3)",
-              opacity: isDeleting ? 0.7 : 1
+              opacity: isSubmitting ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
-              if (!isDeleting) {
+              if (!isSubmitting) {
                 e.currentTarget.style.transform = "translateY(-1px)";
               }
             }}
@@ -899,7 +730,7 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
               e.currentTarget.style.transform = "translateY(0)";
             }}
           >
-            {isDeleting ? (
+            {isSubmitting ? (
               <>
                 <svg
                   className="animate-spin h-4 w-4 xs:h-5 xs:w-5"
@@ -949,30 +780,30 @@ function DeleteConfirmModal({ account, isOpen, onClose, onConfirm, platforms, th
   );
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
 function Add_Accounts() {
-  const { isDarkMode } = useTheme();
-  const theme = createPremiumTheme(isDarkMode);
+  const dispatch = useDispatch();
+  const { theme, isDarkMode } = useTheme();
 
+  // Redux State
+  const filteredAccounts = useSelector(selectFilteredAccounts);
+  const allAccounts = useSelector(selectAccounts);
+  const isLoading = useSelector(selectIsLoading);
+  const isSubmitting = useSelector(selectIsSubmitting);
+  const error = useSelector(selectError);
+  const success = useSelector(selectSuccess);
+  const platformFilter = useSelector(selectPlatformFilter);
+  const platformCounts = useSelector(selectPlatformCounts);
+
+  // Local Form State (only for form inputs)
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [bmName, setBmName] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [accountId, setAccountId] = useState("");
   const [accountLabel, setAccountLabel] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [connectedAccounts, setConnectedAccounts] = useState([]);
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAccessToken, setShowAccessToken] = useState(false);
-
-  // Modal states
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState(null);
-
-  // Filter state
-  const [platformFilter, setPlatformFilter] = useState("all");
 
   const platforms = [
     { name: "Meta", icon: fb, value: "facebook", description: "Facebook & Instagram Ads" },
@@ -989,33 +820,30 @@ function Add_Accounts() {
 
   // Load accounts on mount
   useEffect(() => {
-    loadAccounts();
-  }, []);
+    dispatch(fetchAccounts());
+  }, [dispatch]);
 
-  const loadAccounts = async () => {
-    setIsLoadingAccounts(true);
-    try {
-      const accounts = await getAllAccounts();
-      setConnectedAccounts(accounts || []);
-    } catch (err) {
-      console.error("Error loading accounts:", err);
-      setError("Failed to load accounts");
-    } finally {
-      setIsLoadingAccounts(false);
+  // Clear error and success after timeout
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [error, dispatch]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        dispatch(clearSuccess());
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, dispatch]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await loadAccounts();
-      setSuccess("Accounts refreshed successfully!");
-      setTimeout(() => setSuccess(""), 2000);
-    } catch (err) {
-      setError("Failed to refresh accounts");
-    } finally {
-      setIsRefreshing(false);
-    }
+    await dispatch(fetchAccounts()).unwrap();
   };
 
   const handleReset = () => {
@@ -1024,16 +852,11 @@ function Add_Accounts() {
     setAccessToken("");
     setAccountId("");
     setAccountLabel("");
-    setError("");
-    setSuccess("");
     setShowAccessToken(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setIsSubmitting(true);
 
     try {
       const accountData = {
@@ -1044,77 +867,24 @@ function Add_Accounts() {
         accountLabel
       };
 
-      const exists = await accountExists(selectedPlatform, accountId);
-      if (exists) {
-        setError("An account with this ID already exists for this platform.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const id = await addAccount(accountData);
-      console.log("✅ Account added successfully with ID:", id);
-
-      setSuccess("Account added successfully!");
-      await loadAccounts();
-
-      setTimeout(() => {
-        handleReset();
-      }, 2000);
+      await dispatch(createAccount(accountData)).unwrap();
+      handleReset();
     } catch (err) {
       console.error("❌ Error adding account:", err);
-      setError(err.message || "Failed to add account. Please try again.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (account) => {
-    setSelectedAccount(account);
-    setEditModalOpen(true);
-  };
-
-  const handleEditComplete = async () => {
-    await loadAccounts();
-    setEditModalOpen(false);
-    setSelectedAccount(null);
-    setSuccess("Account updated successfully!");
-    setTimeout(() => setSuccess(""), 2000);
+    dispatch(openEditModal(account));
   };
 
   const handleDeleteClick = (account) => {
-    setSelectedAccount(account);
-    setDeleteModalOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      await deleteAccount(selectedAccount.id);
-      await loadAccounts();
-      setDeleteModalOpen(false);
-      setSelectedAccount(null);
-      setSuccess("Account deleted successfully!");
-      setTimeout(() => setSuccess(""), 2000);
-    } catch (err) {
-      console.error("Error deleting account:", err);
-      setError("Failed to delete account");
-    }
+    dispatch(openDeleteModal(account));
   };
 
   const getPlatformById = (value) => {
     return platforms.find((p) => p.value === value) || null;
   };
-
-  const filteredAccounts =
-    platformFilter === "all"
-      ? connectedAccounts
-      : connectedAccounts.filter((account) => account.platform === platformFilter);
-
-  const platformCounts = platforms.reduce((acc, platform) => {
-    acc[platform.value] = connectedAccounts.filter(
-      (account) => account.platform === platform.value
-    ).length;
-    return acc;
-  }, {});
 
   return (
     <div
@@ -1126,7 +896,6 @@ function Add_Accounts() {
         {/* Header Section */}
         <div className="mb-6 xs:mb-8">
           <div className="flex items-center gap-3 mb-3">
-           
             <div>
               <h1
                 className="text-xl xs:text-2xl md:text-3xl font-bold"
@@ -1236,13 +1005,12 @@ function Add_Accounts() {
                 boxShadow: theme.shadowMd
               }}
             >
-              {/* Section 1: Platform Selection */}
+              {/* Platform Selection Section - Same as before */}
               <div
                 className="p-4 xs:p-6 md:p-8"
                 style={{ borderBottom: `1px solid ${theme.borderSubtle}` }}
               >
                 <div className="flex items-center gap-2 xs:gap-3 mb-4 xs:mb-6">
-                 
                   <div>
                     <h2
                       className="text-base xs:text-lg md:text-xl font-bold"
@@ -1253,7 +1021,6 @@ function Add_Accounts() {
                   </div>
                 </div>
 
-                {/* Platform Selector Grid */}
                 <div className="space-y-3">
                   <label
                     className="block text-xs xs:text-sm font-semibold mb-2 xs:mb-3"
@@ -1373,7 +1140,7 @@ function Add_Accounts() {
                   </div>
                 </div>
 
-                {/* Facebook-specific field */}
+                {/* Facebook Business Manager Name */}
                 {selectedPlatform === "facebook" && (
                   <div className="mt-4 xs:mt-6 space-y-2 animate-fadeIn">
                     <label
@@ -1500,14 +1267,13 @@ function Add_Accounts() {
                 )}
               </div>
 
-              {/* Section 2: Account Details */}
+              {/* Account Details Section */}
               {selectedPlatform && (
                 <div
                   className="p-4 xs:p-6 md:p-8 animate-fadeIn"
                   style={{ backgroundColor: theme.bgSection }}
                 >
                   <div className="flex items-center gap-2 xs:gap-3 mb-4 xs:mb-6">
-                   
                     <div>
                       <h2
                         className="text-base xs:text-lg md:text-xl font-bold"
@@ -1515,7 +1281,6 @@ function Add_Accounts() {
                       >
                         Account Details
                       </h2>
-                   
                     </div>
                   </div>
 
@@ -1595,7 +1360,7 @@ function Add_Accounts() {
                     </div>
                   </div>
 
-                  {/* Submit and Cancel Buttons */}
+                  {/* Submit Buttons */}
                   <div className="mt-6 xs:mt-8 flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-3 xs:gap-4">
                     <div
                       className="flex items-center gap-2 text-xs order-2 xs:order-1"
@@ -1772,7 +1537,7 @@ function Add_Accounts() {
               >
                 <div className="flex gap-1.5 flex-wrap">
                   <button
-                    onClick={() => setPlatformFilter("all")}
+                    onClick={() => dispatch(setPlatformFilter("all"))}
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200"
                     style={{
                       background: platformFilter === "all" ? theme.gradientPrimary : "transparent",
@@ -1784,12 +1549,12 @@ function Add_Accounts() {
                           : "none"
                     }}
                   >
-                    All ({connectedAccounts.length})
+                    All ({allAccounts.length})
                   </button>
                   {platforms.map((platform) => (
                     <button
                       key={platform.value}
-                      onClick={() => setPlatformFilter(platform.value)}
+                      onClick={() => dispatch(setPlatformFilter(platform.value))}
                       className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 flex items-center gap-1.5"
                       style={{
                         background:
@@ -1819,7 +1584,7 @@ function Add_Accounts() {
 
               {/* Account List */}
               <div className="p-3 xs:p-4 space-y-2 xs:space-y-3 max-h-[400px] xs:max-h-[500px] md:max-h-[600px] overflow-y-auto">
-                {isLoadingAccounts ? (
+                {isLoading ? (
                   <div className="text-center py-8 xs:py-12">
                     <svg
                       className="animate-spin h-10 w-10 xs:h-12 xs:w-12 mx-auto mb-3 xs:mb-4"
@@ -2034,16 +1799,16 @@ function Add_Accounts() {
               >
                 <button
                   onClick={handleRefresh}
-                  disabled={isRefreshing}
+                  disabled={isLoading}
                   className="w-full px-4 py-2.5 text-xs xs:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: theme.accentLight,
                     border: `1px solid ${isDarkMode ? theme.accent + "30" : theme.accentLight}`,
                     color: theme.accent,
-                    opacity: isRefreshing ? 0.6 : 1
+                    opacity: isLoading ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isRefreshing) {
+                    if (!isLoading) {
                       e.currentTarget.style.backgroundColor = isDarkMode
                         ? theme.accent + "20"
                         : theme.accentLight;
@@ -2055,7 +1820,7 @@ function Add_Accounts() {
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                    className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -2067,7 +1832,7 @@ function Add_Accounts() {
                       d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                  {isRefreshing ? "Refreshing..." : "Refresh All Accounts"}
+                  {isLoading ? "Refreshing..." : "Refresh All Accounts"}
                 </button>
               </div>
             </div>
@@ -2076,31 +1841,8 @@ function Add_Accounts() {
       </div>
 
       {/* Modals */}
-      <EditAccountModal
-        account={selectedAccount}
-        isOpen={editModalOpen}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedAccount(null);
-        }}
-        onUpdate={handleEditComplete}
-        platforms={platforms}
-        theme={theme}
-        isDarkMode={isDarkMode}
-      />
-
-      <DeleteConfirmModal
-        account={selectedAccount}
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setSelectedAccount(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        platforms={platforms}
-        theme={theme}
-        isDarkMode={isDarkMode}
-      />
+      <EditAccountModal platforms={platforms} />
+      <DeleteConfirmModal platforms={platforms} />
 
       {/* Animations */}
       <style>{`

@@ -1,15 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-  ChevronDown,
-  Home,
-  Menu,
-  X,
-  LogOut,
-  KeyRound,
-  Sun,
-  Moon,
-  FileText
-} from "lucide-react";
+import { useDispatch, useSelector } from "react-redux";
+import { ChevronDown, Home, Menu, X, LogOut, KeyRound, Sun, Moon, FileText } from "lucide-react";
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
 import { MdDataSaverOn } from "react-icons/md";
@@ -19,7 +10,9 @@ import { HiOutlineSpeakerphone } from "react-icons/hi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { PiRocketLight } from "react-icons/pi";
-import { useTheme } from "@/context/ThemeContext";
+
+// Redux imports
+import { toggleTheme, selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice";
 
 // Create dynamic global styles
 const createGlobalStyles = (theme) => `
@@ -47,6 +40,11 @@ const createGlobalStyles = (theme) => `
     from { transform: rotate(180deg); }
     to { transform: rotate(0deg); }
   }
+
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
   
   .animate-slide-in {
     animation: slideIn 0.3s ease-out forwards;
@@ -58,6 +56,12 @@ const createGlobalStyles = (theme) => `
 
   .theme-icon-rotate {
     animation: rotate-sun 0.3s ease-out forwards;
+  }
+
+  .shimmer-effect {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
   }
   
   .custom-scrollbar::-webkit-scrollbar {
@@ -94,9 +98,8 @@ const createGlobalStyles = (theme) => `
 `;
 
 // Premium Tooltip Component
-const Tooltip = ({ children, text, show = false }) => {
+const Tooltip = ({ children, text, show = false, theme }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const { theme } = useTheme();
 
   if (!show) return children;
 
@@ -137,13 +140,19 @@ const Tooltip = ({ children, text, show = false }) => {
 
 // Theme Toggle Button Component
 const ThemeToggle = ({ collapsed }) => {
-  const { theme, isDarkMode, toggleTheme } = useTheme();
+  const dispatch = useDispatch();
+  const theme = useSelector(selectThemeColors);
+  const isDarkMode = useSelector(selectIsDarkMode);
   const [isHovered, setIsHovered] = useState(false);
 
+  const handleToggle = () => {
+    dispatch(toggleTheme());
+  };
+
   return (
-    <Tooltip text={isDarkMode ? "Light Mode" : "Dark Mode"} show={collapsed}>
+    <Tooltip text={isDarkMode ? "Light Mode" : "Dark Mode"} show={collapsed} theme={theme}>
       <button
-        onClick={toggleTheme}
+        onClick={handleToggle}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`flex items-center ${
@@ -164,7 +173,7 @@ const ThemeToggle = ({ collapsed }) => {
               <Moon
                 className="w-5 h-5 absolute inset-0 transition-all duration-300"
                 style={{
-                  color: isHovered ? theme.accent : theme.textIcon,
+                  color: isHovered ? theme.blue : theme.textIcon,
                   opacity: 1
                 }}
               />
@@ -172,7 +181,7 @@ const ThemeToggle = ({ collapsed }) => {
               <Sun
                 className="w-5 h-5 absolute inset-0 transition-all duration-300"
                 style={{
-                  color: isHovered ? theme.themeToggleIcon : theme.textIcon,
+                  color: isHovered ? theme.yellow : theme.textIcon,
                   opacity: 1
                 }}
               />
@@ -193,7 +202,7 @@ const ThemeToggle = ({ collapsed }) => {
           <div
             className="relative w-11 h-6 rounded-full transition-all duration-300"
             style={{
-              backgroundColor: isDarkMode ? theme.accent : theme.borderSubtle
+              backgroundColor: isDarkMode ? theme.blue : theme.borderSubtle
             }}
           >
             <div
@@ -211,14 +220,13 @@ const ThemeToggle = ({ collapsed }) => {
 };
 
 // Single Navigation Item Component
-const NavItem = ({ item, collapsed, isActive }) => {
+const NavItem = ({ item, collapsed, isActive, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const { theme } = useTheme();
   const active = isActive(item.path);
 
   return (
     <li>
-      <Tooltip text={item.label} show={collapsed}>
+      <Tooltip text={item.label} show={collapsed} theme={theme}>
         <a
           href={item.path}
           onMouseEnter={() => setIsHovered(true)}
@@ -228,7 +236,7 @@ const NavItem = ({ item, collapsed, isActive }) => {
           } px-3.5 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden`}
           style={{
             backgroundColor: active
-              ? theme.bgActiveMenu
+              ? theme.bgActiveMenu || theme.bgCardHover
               : isHovered
                 ? theme.bgCardHover
                 : "transparent",
@@ -242,7 +250,7 @@ const NavItem = ({ item, collapsed, isActive }) => {
             <div
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
               style={{
-                background: `linear-gradient(180deg, ${theme.accentGradientStart}, ${theme.accentGradientEnd})`
+                background: `linear-gradient(180deg, ${theme.blue}, ${theme.cyan})`
               }}
             />
           )}
@@ -251,7 +259,11 @@ const NavItem = ({ item, collapsed, isActive }) => {
             <item.icon
               className="w-5 h-5 transition-colors"
               style={{
-                color: active ? theme.accent : isHovered ? theme.accent : theme.textIcon
+                color: active
+                  ? theme.blue
+                  : isHovered
+                    ? theme.blue
+                    : theme.textIcon || theme.textTertiary
               }}
             />
             {!collapsed && (
@@ -273,8 +285,8 @@ const NavItem = ({ item, collapsed, isActive }) => {
             <span
               className="px-2.5 py-1 text-xs font-bold rounded-full min-w-[24px] text-center"
               style={{
-                backgroundColor: active ? theme.accent : theme.accentLight,
-                color: active ? "#FFFFFF" : theme.accent
+                backgroundColor: active ? theme.blue : `${theme.blue}20`,
+                color: active ? "#FFFFFF" : theme.blue
               }}
             >
               {item.badge}
@@ -284,7 +296,7 @@ const NavItem = ({ item, collapsed, isActive }) => {
             <span
               className="absolute top-2 right-2 w-2 h-2 rounded-full border-2"
               style={{
-                backgroundColor: theme.accent,
+                backgroundColor: theme.blue,
                 borderColor: theme.bgCard
               }}
             />
@@ -296,10 +308,9 @@ const NavItem = ({ item, collapsed, isActive }) => {
 };
 
 // Parent Navigation Item Component
-const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
+const ParentNavItem = ({ item, collapsed, isActive, navigate, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredChild, setHoveredChild] = useState(null);
-  const { theme } = useTheme();
   const hasActiveChild = item.children?.some((child) => isActive(child.path));
   const isOpen = item.isOpen;
 
@@ -313,7 +324,7 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
 
   return (
     <li>
-      <Tooltip text={item.label} show={collapsed}>
+      <Tooltip text={item.label} show={collapsed} theme={theme}>
         <button
           onClick={handleClick}
           onMouseEnter={() => setIsHovered(true)}
@@ -324,7 +335,7 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
           style={{
             backgroundColor:
               isOpen || hasActiveChild
-                ? theme.bgActiveMenu
+                ? theme.bgActiveMenu || theme.bgCardHover
                 : isHovered
                   ? theme.bgCardHover
                   : "transparent",
@@ -342,7 +353,7 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
             <div
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
               style={{
-                background: `linear-gradient(180deg, ${theme.accentGradientStart}, ${theme.accentGradientEnd})`
+                background: `linear-gradient(180deg, ${theme.blue}, ${theme.cyan})`
               }}
             />
           )}
@@ -353,10 +364,10 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
               style={{
                 color:
                   isOpen || hasActiveChild
-                    ? theme.accent
+                    ? theme.blue
                     : isHovered
-                      ? theme.accent
-                      : theme.textIcon
+                      ? theme.blue
+                      : theme.textIcon || theme.textTertiary
               }}
             />
             {!collapsed && (
@@ -381,7 +392,7 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
               style={{
                 color:
                   isOpen || hasActiveChild
-                    ? theme.accent
+                    ? theme.blue
                     : isHovered
                       ? theme.textSecondary
                       : theme.textTertiary,
@@ -418,7 +429,7 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
                     className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-200 group"
                     style={{
                       backgroundColor: childActive
-                        ? theme.bgActiveMenu
+                        ? theme.bgActiveMenu || theme.bgCardHover
                         : childHovered
                           ? theme.bgCardHover
                           : "transparent",
@@ -436,11 +447,11 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
                         className="w-2 h-2 rounded-full transition-all duration-200"
                         style={{
                           backgroundColor: childActive
-                            ? theme.accent
+                            ? theme.blue
                             : childHovered
                               ? theme.textTertiary
                               : theme.textMuted,
-                          boxShadow: childActive ? `0 0 8px ${theme.accentGlow}` : "none"
+                          boxShadow: childActive ? `0 0 8px ${theme.blue}50` : "none"
                         }}
                       />
                       <span
@@ -460,8 +471,8 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
                       <span
                         className="px-2 py-0.5 text-xs font-bold rounded-full min-w-[20px] text-center"
                         style={{
-                          backgroundColor: childActive ? theme.accent : theme.accentLight,
-                          color: childActive ? "#FFFFFF" : theme.accent
+                          backgroundColor: childActive ? theme.blue : `${theme.blue}20`,
+                          color: childActive ? "#FFFFFF" : theme.blue
                         }}
                       >
                         {child.badge}
@@ -479,6 +490,10 @@ const ParentNavItem = ({ item, collapsed, isActive, navigate }) => {
 };
 
 const SlideSidebar = () => {
+  const dispatch = useDispatch();
+  const theme = useSelector(selectThemeColors);
+  const isDarkMode = useSelector(selectIsDarkMode);
+
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -486,12 +501,11 @@ const SlideSidebar = () => {
     typeof window !== "undefined" ? window.innerWidth : 0
   );
   const [user, setUser] = useState(null);
+  const [logoutHovered, setLogoutHovered] = useState(false);
+  const [profileHovered, setProfileHovered] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Use theme from context
-  const { theme, isDarkMode, toggleTheme } = useTheme();
 
   // Inject global styles
   useEffect(() => {
@@ -550,6 +564,10 @@ const SlideSidebar = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login");
+  };
+
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
   };
 
   // Check if route is active
@@ -622,7 +640,7 @@ const SlideSidebar = () => {
       path: "/campaigns",
       icon: HiOutlineSpeakerphone,
       label: "Campaigns",
-      badge: null,
+      badge: null
     },
     {
       type: "single",
@@ -635,22 +653,22 @@ const SlideSidebar = () => {
       type: "single",
       path: "/addAccount",
       icon: IoPersonAddOutline,
-      label: "Integration ",
-      badge: null,
+      label: "Integration",
+      badge: null
     },
     {
       type: "single",
-          path: "/authorization",
-          icon: KeyRound,
-          label: "Authorization",
-      badge: null,
+      path: "/authorization",
+      icon: KeyRound,
+      label: "Authorization",
+      badge: null
     },
     {
       type: "single",
       path: "/log",
       icon: MdOutlineDataSaverOff,
       label: "Logs",
-      badge: null,
+      badge: null
     },
     {
       type: "single",
@@ -665,7 +683,7 @@ const SlideSidebar = () => {
       icon: PiRocketLight,
       label: "Lander",
       badge: null
-    },
+    }
   ];
 
   // Sidebar Content Component (Shared between mobile and desktop)
@@ -685,19 +703,26 @@ const SlideSidebar = () => {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div
-                    className={`${isMobileView ? "w-11 h-11" : "w-9 h-9"} rounded-xl flex items-center justify-center`}
+                    className={`${isMobileView ? "w-11 h-11" : "w-9 h-9"} rounded-xl flex items-center justify-center relative overflow-hidden`}
                     style={{
-                      background: `linear-gradient(135deg, ${theme.accentGradientStart} 0%, ${theme.accentGradientEnd} 100%)`,
-                      boxShadow: `0 0 20px ${theme.accentGlow}`
+                      background: `linear-gradient(135deg, ${theme.blue} 0%, ${theme.cyan} 100%)`,
+                      boxShadow: `0 0 20px ${theme.blue}40`
                     }}
                   >
-                    <span className={`font-bold ${isMobileView ? "text-xl" : "text-lg"}`} style={{ color: "#FFFFFF" }}>
+                    <span
+                      className={`font-bold ${isMobileView ? "text-xl" : "text-lg"} relative z-10`}
+                      style={{ color: "#FFFFFF" }}
+                    >
                       A
                     </span>
+                    <div className="absolute inset-0 shimmer-effect opacity-30" />
                   </div>
                 </div>
                 <div>
-                  <h1 className={`font-bold ${isMobileView ? "text-lg" : "text-base"} tracking-tight`} style={{ color: theme.textPrimary }}>
+                  <h1
+                    className={`font-bold ${isMobileView ? "text-lg" : "text-base"} tracking-tight`}
+                    style={{ color: theme.textPrimary }}
+                  >
                     Adelevate
                   </h1>
                   {isMobileView && (
@@ -709,13 +734,15 @@ const SlideSidebar = () => {
               </div>
               <button
                 onClick={isMobileView ? toggleSidebar : toggleSidebarCollapse}
-                className="p-2 rounded-lg transition-all duration-200"
+                className="p-2 rounded-lg transition-all duration-200 hover:scale-95"
                 style={{
-                  backgroundColor: theme.bgActiveMenu,
-                  color: theme.textIcon
+                  backgroundColor: theme.bgActiveMenu || theme.bgCardHover,
+                  color: theme.textIcon || theme.textTertiary
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.bgCardHover)}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.bgActiveMenu)}
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = theme.bgActiveMenu || theme.bgCardHover)
+                }
               >
                 {isMobileView ? <X className="w-5 h-5" /> : <BsLayoutSidebar className="w-4 h-4" />}
               </button>
@@ -724,37 +751,36 @@ const SlideSidebar = () => {
             <div className="space-y-3">
               <div className="flex justify-center">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
                   style={{
-                    background: `linear-gradient(135deg, ${theme.accentGradientStart} 0%, ${theme.accentGradientEnd} 100%)`,
-                    boxShadow: `0 0 16px ${theme.accentGlow}`
+                    background: `linear-gradient(135deg, ${theme.blue} 0%, ${theme.cyan} 100%)`,
+                    boxShadow: `0 0 16px ${theme.blue}40`
                   }}
                 >
-                  <span className="font-bold text-lg" style={{ color: "#FFFFFF" }}>
+                  <span className="font-bold text-lg relative z-10" style={{ color: "#FFFFFF" }}>
                     A
                   </span>
+                  <div className="absolute inset-0 shimmer-effect opacity-30" />
                 </div>
               </div>
-              <Tooltip text="Expand Sidebar" show={true}>
+              <Tooltip text="Expand Sidebar" show={true} theme={theme}>
                 <div className="flex justify-center">
                   <button
                     onClick={toggleSidebarCollapse}
-                    className="p-2 rounded-lg transition-all duration-200"
+                    className="p-2 rounded-lg transition-all duration-200 hover:scale-95"
                     style={{
-                      backgroundColor: theme.bgActiveMenu,
-                      color: theme.textIcon
+                      backgroundColor: theme.bgActiveMenu || theme.bgCardHover,
+                      color: theme.textIcon || theme.textTertiary
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = theme.bgCardHover;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = theme.bgActiveMenu;
+                      e.currentTarget.style.backgroundColor =
+                        theme.bgActiveMenu || theme.bgCardHover;
                     }}
                   >
-                    <BsLayoutSidebar
-                      className="w-4 h-4"
-                      style={{ transform: "rotate(180deg)" }}
-                    />
+                    <BsLayoutSidebar className="w-4 h-4" style={{ transform: "rotate(180deg)" }} />
                   </button>
                 </div>
               </Tooltip>
@@ -777,6 +803,7 @@ const SlideSidebar = () => {
                   item={item}
                   collapsed={!isMobileView && isSidebarCollapsed}
                   isActive={isActive}
+                  theme={theme}
                 />
               );
             } else if (item.type === "parent") {
@@ -787,6 +814,7 @@ const SlideSidebar = () => {
                   collapsed={!isMobileView && isSidebarCollapsed}
                   isActive={isActive}
                   navigate={navigate}
+                  theme={theme}
                 />
               );
             }
@@ -795,87 +823,142 @@ const SlideSidebar = () => {
         </ul>
 
         {/* Theme Toggle */}
-        <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${theme.borderSubtle}` }}>
+        <div className="mt-6 pt-6" style={{ borderTop: `1px solid ${theme.borderSubtle}` }}>
           <ThemeToggle collapsed={!isMobileView && isSidebarCollapsed} />
         </div>
       </nav>
 
-      {/* User Profile section */}
+      {/* User Profile section - REDESIGNED WITH BETTER SPACING */}
       <div
-        className={`p-${isMobileView ? "4" : "3"}`}
+        className={`${isMobileView ? "p-5" : "p-4"}`}
         style={{
           backgroundColor: theme.bgSecondary,
-          borderTop: `1px solid ${theme.dividerSubtle}`
+          borderTop: `1px solid ${theme.dividerSubtle || theme.borderSubtle}`
         }}
       >
         {isMobileView || !isSidebarCollapsed ? (
-          <>
+          <div className="space-y-4">
+            {/* Profile Card */}
             <div
-              className={`rounded-2xl p-${isMobileView ? "4" : "3"} mb-${isMobileView ? "3" : "2.5"} shadow-sm`}
+              className={`rounded-2xl ${isMobileView ? "p-5" : "p-4"} transition-all duration-300 relative overflow-hidden group`}
               style={{
-                backgroundColor: theme.bgUserCard,
-                border: `1px solid ${theme.borderUserCard}`,
-                boxShadow: `0 2px 8px ${theme.shadowSoft}`
+                backgroundColor: theme.bgCard,
+                border: `1px solid ${profileHovered ? theme.blue + "30" : theme.borderSubtle}`,
+                boxShadow: profileHovered
+                  ? `0 8px 24px ${theme.shadowDeep}`
+                  : `0 2px 8px ${theme.shadowSoft}`,
+                transform: profileHovered ? "translateY(-2px)" : "translateY(0)"
               }}
+              onMouseEnter={() => setProfileHovered(true)}
+              onMouseLeave={() => setProfileHovered(false)}
             >
-              <div className="flex items-center gap-3">
+              {/* Gradient Background Effect */}
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{
+                  background: `radial-gradient(circle at top right, ${theme.blue}10, transparent 70%)`
+                }}
+              />
+
+              <div className="flex items-center gap-4 relative z-10">
                 <div className="relative flex-shrink-0">
+                  {/* Avatar with gradient border */}
                   <div
-                    className={`${isMobileView ? "w-11 h-11" : "w-10 h-10"} rounded-xl overflow-hidden`}
+                    className={`${isMobileView ? "w-14 h-14" : "w-12 h-12"} rounded-2xl overflow-hidden relative`}
                     style={{
                       border: `2px solid transparent`,
-                      backgroundImage: `linear-gradient(${theme.bgUserCard}, ${theme.bgUserCard}), linear-gradient(135deg, ${theme.accentGradientStart}, ${theme.accentGradientEnd})`,
+                      backgroundImage: `linear-gradient(${theme.bgCard}, ${theme.bgCard}), linear-gradient(135deg, ${theme.blue}, ${theme.cyan})`,
                       backgroundOrigin: "border-box",
                       backgroundClip: "content-box, border-box"
                     }}
                   >
                     <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                   </div>
+                  {/* Online status indicator */}
+                  <div
+                    className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center"
+                    style={{
+                      backgroundColor: theme.green,
+                      borderColor: theme.bgCard,
+                      boxShadow: `0 0 8px ${theme.green}60`
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: theme.bgCard }}
+                    />
+                  </div>
                 </div>
+
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-${isMobileView ? "sm" : "xs"} font-bold truncate mb-0.5`}
-                    style={{ color: theme.textSecondary }}
+                    className={`${isMobileView ? "text-base" : "text-sm"} font-bold truncate mb-1`}
+                    style={{ color: theme.textPrimary }}
                   >
                     {displayName}
                   </p>
-                  <p className={`text-${isMobileView ? "xs" : "[10px]"} truncate`} style={{ color: theme.textEmail }}>
+                  <p
+                    className={`${isMobileView ? "text-sm" : "text-xs"} truncate`}
+                    style={{ color: theme.textTertiary }}
+                  >
                     {user?.email}
                   </p>
+                  {isMobileView && (
+                    <div
+                      className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                      style={{
+                        backgroundColor: `${theme.blue}15`,
+                        color: theme.blue
+                      }}
+                    >
+                      <div
+                        className="w-1.5 h-1.5 rounded-full animate-pulse"
+                        style={{ backgroundColor: theme.blue }}
+                      />
+                      Active Now
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Logout Button - Enhanced Design */}
             <button
               onClick={handleLogout}
-              className={`flex items-center justify-center gap-2${isMobileView ? ".5" : ""} w-full px-${isMobileView ? "4" : "3.5"} py-${isMobileView ? "3" : "2.5"} rounded-xl transition-all duration-200 border font-semibold text-${isMobileView ? "[15px]" : "sm"}`}
+              onMouseEnter={() => setLogoutHovered(true)}
+              onMouseLeave={() => setLogoutHovered(false)}
+              className={`flex items-center justify-center gap-3 w-full ${isMobileView ? "px-5 py-3.5" : "px-4 py-3"} rounded-xl transition-all duration-300 border font-semibold ${isMobileView ? "text-base" : "text-sm"} relative overflow-hidden group`}
               style={{
-                backgroundColor: theme.logoutBg,
-                border: `1px solid ${theme.logoutBorder}`,
-                color: theme.logout
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = theme.logoutBgHover;
-                e.currentTarget.style.transform = "scale(0.98)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = theme.logoutBg;
-                e.currentTarget.style.transform = "scale(1)";
+                backgroundColor: logoutHovered ? `${theme.red}20` : `${theme.red}10`,
+                border: `1px solid ${logoutHovered ? `${theme.red}50` : `${theme.red}30`}`,
+                color: theme.red,
+                transform: logoutHovered ? "scale(0.98)" : "scale(1)",
+                boxShadow: logoutHovered ? `0 4px 16px ${theme.red}30` : "none"
               }}
             >
-              <LogOut className={`w-4${isMobileView ? ".5" : ""} h-4${isMobileView ? ".5" : ""}`} />
-              <span>Logout</span>
+              {/* Shimmer effect on hover */}
+              {logoutHovered && <div className="absolute inset-0 shimmer-effect opacity-20" />}
+
+              <LogOut
+                className={`${isMobileView ? "w-5 h-5" : "w-4 h-4"} transition-transform duration-300 relative z-10`}
+                style={{
+                  transform: logoutHovered ? "translateX(-2px)" : "translateX(0)"
+                }}
+              />
+              <span className="relative z-10">Logout</span>
             </button>
-          </>
+          </div>
         ) : (
-          <div className="space-y-2.5">
-            <Tooltip text={displayName} show={isSidebarCollapsed}>
+          // Collapsed Profile View
+          <div className="space-y-3">
+            <Tooltip text={displayName} show={isSidebarCollapsed} theme={theme}>
               <div className="flex justify-center">
                 <div className="relative">
                   <div
-                    className="w-10 h-10 rounded-xl overflow-hidden"
+                    className="w-11 h-11 rounded-2xl overflow-hidden transition-transform duration-300 hover:scale-105"
                     style={{
                       border: `2px solid transparent`,
-                      backgroundImage: `linear-gradient(${theme.bgUserCard}, ${theme.bgUserCard}), linear-gradient(135deg, ${theme.accentGradientStart}, ${theme.accentGradientEnd})`,
+                      backgroundImage: `linear-gradient(${theme.bgCard}, ${theme.bgCard}), linear-gradient(135deg, ${theme.blue}, ${theme.cyan})`,
                       backgroundOrigin: "border-box",
                       backgroundClip: "content-box, border-box"
                     }}
@@ -883,34 +966,33 @@ const SlideSidebar = () => {
                     <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                   </div>
                   <div
-                    className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
+                    className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
                     style={{
-                      backgroundColor: theme.online,
-                      borderColor: theme.bgCard
+                      backgroundColor: theme.green,
+                      borderColor: theme.bgCard,
+                      boxShadow: `0 0 8px ${theme.green}60`
                     }}
                   />
                 </div>
               </div>
             </Tooltip>
-            <Tooltip text="Logout" show={isSidebarCollapsed}>
+
+            <Tooltip text="Logout" show={isSidebarCollapsed} theme={theme}>
               <button
                 onClick={handleLogout}
-                className="flex justify-center items-center w-full p-2.5 rounded-xl transition-all duration-200 border"
+                onMouseEnter={() => setLogoutHovered(true)}
+                onMouseLeave={() => setLogoutHovered(false)}
+                className="flex justify-center items-center w-full p-3 rounded-xl transition-all duration-300 border relative overflow-hidden"
                 style={{
-                  backgroundColor: theme.logoutBg,
-                  border: `1px solid ${theme.logoutBorder}`,
-                  color: theme.logout
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.logoutBgHover;
-                  e.currentTarget.style.transform = "scale(0.98)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = theme.logoutBg;
-                  e.currentTarget.style.transform = "scale(1)";
+                  backgroundColor: logoutHovered ? `${theme.red}20` : `${theme.red}10`,
+                  border: `1px solid ${logoutHovered ? `${theme.red}50` : `${theme.red}30`}`,
+                  color: theme.red,
+                  transform: logoutHovered ? "scale(0.95)" : "scale(1)",
+                  boxShadow: logoutHovered ? `0 4px 16px ${theme.red}30` : "none"
                 }}
               >
-                <LogOut className="w-4 h-4" />
+                {logoutHovered && <div className="absolute inset-0 shimmer-effect opacity-20" />}
+                <LogOut className="w-4.5 h-4.5 relative z-10" />
               </button>
             </Tooltip>
           </div>
@@ -934,27 +1016,30 @@ const SlideSidebar = () => {
           <div className="flex items-center justify-between px-4 py-3.5">
             <button
               onClick={toggleSidebar}
-              className="p-2 rounded-xl transition-all duration-200"
+              className="p-2.5 rounded-xl transition-all duration-200 hover:scale-95"
               style={{
-                backgroundColor: theme.bgActiveMenu,
+                backgroundColor: theme.bgActiveMenu || theme.bgCardHover,
                 border: `1px solid ${theme.borderSubtle}`
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.bgCardHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.bgActiveMenu)}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = theme.bgActiveMenu || theme.bgCardHover)
+              }
             >
-              <Menu className="w-5 h-5" style={{ color: theme.textIcon }} />
+              <Menu className="w-5 h-5" style={{ color: theme.textIcon || theme.textTertiary }} />
             </button>
             <div className="flex items-center gap-2.5">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                className="w-9 h-9 rounded-xl flex items-center justify-center relative overflow-hidden"
                 style={{
-                  background: `linear-gradient(135deg, ${theme.accentGradientStart} 0%, ${theme.accentGradientEnd} 100%)`,
-                  boxShadow: `0 0 16px ${theme.accentGlow}`
+                  background: `linear-gradient(135deg, ${theme.blue} 0%, ${theme.cyan} 100%)`,
+                  boxShadow: `0 0 16px ${theme.blue}40`
                 }}
               >
-                <span className="font-bold text-base" style={{ color: "#FFFFFF" }}>
+                <span className="font-bold text-base relative z-10" style={{ color: "#FFFFFF" }}>
                   A
                 </span>
+                <div className="absolute inset-0 shimmer-effect opacity-30" />
               </div>
               <div>
                 <h1
@@ -967,17 +1052,17 @@ const SlideSidebar = () => {
             </div>
             {/* Mobile Theme Toggle Icon */}
             <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl transition-all duration-200"
+              onClick={handleThemeToggle}
+              className="p-2.5 rounded-xl transition-all duration-200 hover:scale-95"
               style={{
-                backgroundColor: theme.bgActiveMenu,
+                backgroundColor: theme.bgActiveMenu || theme.bgCardHover,
                 border: `1px solid ${theme.borderSubtle}`
               }}
             >
               {isDarkMode ? (
-                <Moon className="w-5 h-5" style={{ color: theme.textIcon }} />
+                <Moon className="w-5 h-5" style={{ color: theme.blue }} />
               ) : (
-                <Sun className="w-5 h-5" style={{ color: theme.themeToggleIcon }} />
+                <Sun className="w-5 h-5" style={{ color: theme.yellow }} />
               )}
             </button>
           </div>

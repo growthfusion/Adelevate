@@ -1,10 +1,41 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="src/assets/images/dashboard_img/image.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="description" content="Adelevate - Analytics & Automation Platform" />
+    
     <title>Adelevate</title>
+    
+    <!-- Prevent theme flash -->
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('app-theme-mode');
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.classList.add(theme);
+            document.documentElement.setAttribute('data-theme', theme);
+            if (theme === 'light') {
+              document.querySelector('meta[name="theme-color"]').content = '#FFFFFF';
+            }
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    
+    <!-- Prevent flash -->
+    <style>
+      html.dark { background-color: #050505; }
+      html.light { background-color: #FFFFFF; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

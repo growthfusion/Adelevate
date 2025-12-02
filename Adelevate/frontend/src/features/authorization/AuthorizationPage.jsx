@@ -1,8 +1,30 @@
-// authorization.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// AuthorizationPage.jsx
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { createPortal } from "react-dom";
 import { supabase } from "@/supabaseClient";
-import { useTheme } from "@/context/ThemeContext";
+
+// Redux - only import isDarkMode selector
+import { selectIsDarkMode } from "@/features/theme/themeSlice";
+import {
+  fetchSession,
+  fetchUsers,
+  changeUserRole,
+  toggleUserPlatform,
+  clearError,
+  selectUsers,
+  selectTotal,
+  selectPage,
+  selectPageSize,
+  selectSearch,
+  selectMyRole,
+  selectSession,
+  selectUpdatingUserId,
+  selectIsLoading,
+  selectIsSearching,
+  selectError,
+  selectPageCount
+} from "@/features/authorization/authorizationSlice";
 
 // Import platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
@@ -12,7 +34,7 @@ import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
 // ============================================
-// PREMIUM CLEAN THEME
+// THEME CONFIGURATION
 // ============================================
 const createTheme = (isDarkMode) => {
   if (isDarkMode) {
@@ -322,9 +344,16 @@ function Avatar({ email, size = "md" }) {
   );
 }
 
-// Role Badge
+// Role Badge - Fixed with null check
 function RoleBadge({ role, theme }) {
-  const config = theme.roles[role] || theme.roles.user;
+  // Safe fallback for roles
+  const defaultRoleConfig = {
+    bg: theme.bgMuted,
+    border: theme.border,
+    text: theme.textSecondary
+  };
+
+  const config = theme.roles?.[role] || theme.roles?.user || defaultRoleConfig;
 
   const icons = {
     SuperAdmin: (
@@ -367,18 +396,20 @@ function RoleBadge({ role, theme }) {
       }}
     >
       {icons[role] || icons.user}
-      <span>{role}</span>
+      <span>{role || "user"}</span>
     </span>
   );
 }
 
-// Platform Pill
+// Platform Pill - Fixed with null check
 function PlatformPill({ platform, theme }) {
-  const config = theme.platforms[platform] || {
+  const defaultConfig = {
     bg: theme.bgMuted,
     border: theme.border,
     text: theme.textSecondary
   };
+
+  const config = theme.platforms?.[platform] || defaultConfig;
 
   return (
     <span
@@ -390,15 +421,15 @@ function PlatformPill({ platform, theme }) {
       }}
     >
       <img src={PLATFORM_ICON[platform]} alt="" className="w-3.5 h-3.5" />
-      <span>{PLATFORM_LABEL[platform]}</span>
+      <span>{PLATFORM_LABEL[platform] || platform}</span>
     </span>
   );
 }
 
 // Dropdown Portal
 function Dropdown({ isOpen, onClose, trigger, children, theme }) {
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
+  const triggerRef = React.useRef(null);
+  const menuRef = React.useRef(null);
   const [style, setStyle] = useState({});
 
   useEffect(() => {
@@ -560,7 +591,11 @@ function PlatformDropdown({ value = [], onToggle, disabled, theme, isDarkMode })
         <div className="py-1 max-h-[220px] overflow-y-auto">
           {PLATFORM_KEYS.map((key) => {
             const checked = selected.includes(key);
-            const config = theme.platforms[key];
+            const config = theme.platforms?.[key] || {
+              bg: theme.bgMuted,
+              border: theme.border,
+              text: theme.textSecondary
+            };
 
             return (
               <button
@@ -633,7 +668,14 @@ function PlatformDropdown({ value = [], onToggle, disabled, theme, isDarkMode })
 function RoleDropdown({ value, onChange, disabled, theme, isDarkMode }) {
   const [open, setOpen] = useState(false);
   const currentRole = ROLES.includes(value) ? value : "user";
-  const config = theme.roles[currentRole];
+
+  const defaultConfig = {
+    bg: theme.bgMuted,
+    border: theme.border,
+    text: theme.textSecondary
+  };
+
+  const config = theme.roles?.[currentRole] || defaultConfig;
 
   const icons = {
     SuperAdmin: (
@@ -710,7 +752,7 @@ function RoleDropdown({ value, onChange, disabled, theme, isDarkMode }) {
 
         <div className="py-1">
           {ROLES.map((role) => {
-            const rConfig = theme.roles[role];
+            const rConfig = theme.roles?.[role] || defaultConfig;
             const isActive = role === currentRole;
 
             return (
@@ -750,10 +792,21 @@ function RoleDropdown({ value, onChange, disabled, theme, isDarkMode }) {
 }
 
 // Mobile User Card
-function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole, theme, isDarkMode }) {
+function UserCard({ user, theme, isDarkMode }) {
+  const dispatch = useDispatch();
+  const updatingUserId = useSelector(selectUpdatingUserId);
+
   const { id, email, role, platforms = [] } = user;
   const selectedPlatforms = platforms.map((v) => String(v).toLowerCase());
-  const isUpdating = updatingId === id;
+  const isUpdating = updatingUserId === id;
+
+  const handleTogglePlatform = (platform) => {
+    dispatch(toggleUserPlatform({ userId: id, platform }));
+  };
+
+  const handleChangeRole = (newRole) => {
+    dispatch(changeUserRole({ userId: id, newRole }));
+  };
 
   return (
     <div
@@ -834,7 +887,7 @@ function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole, th
           <PlatformDropdown
             value={platforms}
             disabled={isUpdating}
-            onToggle={(key) => handleTogglePlatform(id, key)}
+            onToggle={handleTogglePlatform}
             theme={theme}
             isDarkMode={isDarkMode}
           />
@@ -859,7 +912,7 @@ function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole, th
 
           <RoleDropdown
             value={role}
-            onChange={(newRole) => handleChangeRole(id, newRole)}
+            onChange={handleChangeRole}
             disabled={isUpdating}
             theme={theme}
             isDarkMode={isDarkMode}
@@ -874,187 +927,90 @@ function UserCard({ user, updatingId, handleTogglePlatform, handleChangeRole, th
 // MAIN COMPONENT
 // ============================================
 export default function AuthorizationPage() {
-  const { isDarkMode } = useTheme();
+  const dispatch = useDispatch();
+
+  // Get isDarkMode from Redux
+  const isDarkMode = useSelector(selectIsDarkMode);
+
+  // Create theme inside component
   const theme = createTheme(isDarkMode);
 
-  const [session, setSession] = useState(null);
-  const [myRole, setMyRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // Redux State
+  const users = useSelector(selectUsers);
+  const total = useSelector(selectTotal);
+  const page = useSelector(selectPage);
+  const pageSize = useSelector(selectPageSize);
+  const search = useSelector(selectSearch);
+  const myRole = useSelector(selectMyRole);
+  const session = useSelector(selectSession);
+  const updatingUserId = useSelector(selectUpdatingUserId);
+  const isLoading = useSelector(selectIsLoading);
+  const isSearching = useSelector(selectIsSearching);
+  const error = useSelector(selectError);
+  const pageCount = useSelector(selectPageCount);
 
-  const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const pageSize = 12;
-  const [search, setSearch] = useState("");
-  const [updatingId, setUpdatingId] = useState(null);
-  const [error, setError] = useState("");
+  // Local search input state
+  const [searchInput, setSearchInput] = useState("");
 
-  // Auth
+  // Initialize
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(session);
+    dispatch(fetchSession());
+  }, [dispatch]);
 
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
+  // Fetch users when session is ready
+  useEffect(() => {
+    if (session && myRole === "SuperAdmin") {
+      dispatch(fetchUsers({ page: 1, search: "", pageSize }));
+    }
+  }, [session, myRole, dispatch, pageSize]);
 
-      const { data: meRow, error: meErr } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (meErr) setError(meErr.message);
-      else setMyRole(meRow?.role || "user");
-
-      await fetchUsers({ page: 1, search: "" });
-      setLoading(false);
-    })();
-
+  // Auth state listener
+  useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, sess) => {
-      setSession(sess);
+      if (sess) {
+        dispatch(fetchSession());
+      }
     });
 
     return () => {
-      mounted = false;
       sub?.subscription?.unsubscribe?.();
     };
-  }, []);
+  }, [dispatch]);
 
-  // Fetch users
-  async function fetchUsers({ page, search }) {
-    setError("");
-    setSearchLoading(true);
-
-    try {
-      const { data: list, error: rpcErr } = await supabase.rpc("list_users_with_roles", {
-        search: search?.trim() || null,
-        page_size: pageSize,
-        page
-      });
-
-      if (rpcErr) {
-        setError(rpcErr.message);
-        setRows([]);
-        setTotal(0);
-        return;
-      }
-
-      const norm = (arr) => Array.from(new Set((arr || []).map((v) => String(v).toLowerCase())));
-      setRows((list || []).map((u) => ({ ...u, platforms: norm(u.platforms) })));
-
-      const { data: countVal, error: cntErr } = await supabase.rpc("count_users", {
-        search: search?.trim() || null
-      });
-
-      if (cntErr) {
-        setError(cntErr.message);
-        setTotal(0);
-        return;
-      }
-
-      setTotal(Number(countVal) || 0);
-      setPage(page);
-    } finally {
-      setSearchLoading(false);
-    }
-  }
-
-  function handleSearch(e) {
-    e.preventDefault();
-    fetchUsers({ page: 1, search });
-  }
-
-  async function getSuperAdminCount() {
-    const { count, error } = await supabase
-      .from("user_roles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "SuperAdmin");
+  // Clear error after timeout
+  useEffect(() => {
     if (error) {
-      setError(error.message);
-      return 0;
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-    return count || 0;
-  }
+  }, [error, dispatch]);
 
-  async function handleChangeRole(userId, nextRole) {
-    setError("");
-    setUpdatingId(userId);
+  const handleSearch = (e) => {
+    e.preventDefault();
+    dispatch(fetchUsers({ page: 1, search: searchInput, pageSize }));
+  };
 
-    if (nextRole !== "SuperAdmin") {
-      const count = await getSuperAdminCount();
-      if (count <= 1) {
-        const target = rows.find((r) => r.id === userId);
-        if (target?.role === "SuperAdmin") {
-          setUpdatingId(null);
-          setError("Cannot remove the last SuperAdmin.");
-          return;
-        }
-      }
-    }
+  const handleClearSearch = () => {
+    setSearchInput("");
+    dispatch(fetchUsers({ page: 1, search: "", pageSize }));
+  };
 
-    const prev = rows.slice();
-    setRows((rs) => rs.map((r) => (r.id === userId ? { ...r, role: nextRole } : r)));
+  const handlePageChange = (newPage) => {
+    dispatch(fetchUsers({ page: newPage, search, pageSize }));
+  };
 
-    const { error: rpcErr } = await supabase.rpc("set_user_role", {
-      target_id: userId,
-      new_role: nextRole
-    });
+  const handleTogglePlatform = (userId, platform) => {
+    dispatch(toggleUserPlatform({ userId, platform }));
+  };
 
-    setUpdatingId(null);
-    if (rpcErr) {
-      setRows(prev);
-      setError(rpcErr.message);
-      return;
-    }
-
-    if (session?.user?.id === userId) {
-      const { data: meRow } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-      setMyRole(meRow?.role || "user");
-    }
-  }
-
-  async function handleTogglePlatform(userId, key) {
-    setError("");
-    setUpdatingId(userId);
-    const prev = rows.slice();
-    const row = rows.find((r) => r.id === userId);
-    const current = new Set((row?.platforms || []).map((v) => String(v).toLowerCase()));
-
-    if (current.has(key)) current.delete(key);
-    else current.add(key);
-
-    const nextArr = Array.from(current);
-
-    setRows((rs) => rs.map((r) => (r.id === userId ? { ...r, platforms: nextArr } : r)));
-
-    const { error: rpcErr } = await supabase.rpc("set_user_platforms", {
-      target_id: userId,
-      new_platforms: nextArr
-    });
-
-    setUpdatingId(null);
-    if (rpcErr) {
-      setRows(prev);
-      setError(rpcErr.message);
-    }
-  }
-
-  const pageCount = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
+  const handleChangeRole = (userId, newRole) => {
+    dispatch(changeUserRole({ userId, newRole }));
+  };
 
   // Loading
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -1186,7 +1142,7 @@ export default function AuthorizationPage() {
             Only <strong>SuperAdmin</strong> can access this page.
           </p>
           <p className="text-xs" style={{ color: theme.textMuted }}>
-            Your role: <strong style={{ color: theme.textPrimary }}>{myRole}</strong>
+            Your role: <strong style={{ color: theme.textPrimary }}>{myRole || "user"}</strong>
           </p>
         </div>
       </div>
@@ -1270,8 +1226,8 @@ export default function AuthorizationPage() {
                 />
               </svg>
               <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search users by email..."
                 className="w-full pl-12 pr-4 py-3 rounded-xl text-sm font-medium outline-none transition-colors"
                 style={{
@@ -1283,11 +1239,11 @@ export default function AuthorizationPage() {
             </div>
             <button
               type="submit"
-              disabled={searchLoading}
+              disabled={isSearching}
               className="px-5 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 transition-colors disabled:opacity-60"
               style={{ backgroundColor: theme.accent }}
             >
-              {searchLoading ? (
+              {isSearching ? (
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle
                     className="opacity-25"
@@ -1315,13 +1271,10 @@ export default function AuthorizationPage() {
               )}
               <span className="hidden sm:inline">Search</span>
             </button>
-            {search && (
+            {searchInput && (
               <button
                 type="button"
-                onClick={() => {
-                  setSearch("");
-                  fetchUsers({ page: 1, search: "" });
-                }}
+                onClick={handleClearSearch}
                 className="px-4 py-3 rounded-xl text-sm font-medium transition-colors"
                 style={{
                   backgroundColor: theme.bgButton,
@@ -1363,17 +1316,9 @@ export default function AuthorizationPage() {
 
           {/* Mobile Cards */}
           <div className="md:hidden">
-            {rows.length > 0 ? (
-              rows.map((user) => (
-                <UserCard
-                  key={user.id}
-                  user={user}
-                  updatingId={updatingId}
-                  handleTogglePlatform={handleTogglePlatform}
-                  handleChangeRole={handleChangeRole}
-                  theme={theme}
-                  isDarkMode={isDarkMode}
-                />
+            {users.length > 0 ? (
+              users.map((user) => (
+                <UserCard key={user.id} user={user} theme={theme} isDarkMode={isDarkMode} />
               ))
             ) : (
               <div
@@ -1412,7 +1357,7 @@ export default function AuthorizationPage() {
             )}
           </div>
 
-          {/* Desktop Table - Full Width */}
+          {/* Desktop Table */}
           <div
             className="hidden md:block rounded-xl overflow-hidden"
             style={{
@@ -1476,12 +1421,12 @@ export default function AuthorizationPage() {
                 </thead>
 
                 <tbody>
-                  {rows.length > 0 ? (
-                    rows.map((u, idx) => {
+                  {users.length > 0 ? (
+                    users.map((u, idx) => {
                       const selectedPlatforms = (u.platforms || []).map((v) =>
                         String(v).toLowerCase()
                       );
-                      const isUpdating = updatingId === u.id;
+                      const isUpdating = updatingUserId === u.id;
 
                       return (
                         <tr
@@ -1499,7 +1444,6 @@ export default function AuthorizationPage() {
                               idx % 2 === 0 ? theme.bgTableRow : theme.bgTableRowAlt;
                           }}
                         >
-                          {/* User */}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <Avatar email={u.email} size="md" />
@@ -1517,7 +1461,6 @@ export default function AuthorizationPage() {
                             </div>
                           </td>
 
-                          {/* Email */}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <svg
@@ -1543,12 +1486,10 @@ export default function AuthorizationPage() {
                             </div>
                           </td>
 
-                          {/* Role */}
                           <td className="px-6 py-4">
                             <RoleBadge role={u.role} theme={theme} />
                           </td>
 
-                          {/* Platforms */}
                           <td className="px-6 py-4">
                             <div className="space-y-3">
                               <div className="flex flex-wrap gap-1.5">
@@ -1604,7 +1545,6 @@ export default function AuthorizationPage() {
                             </div>
                           </td>
 
-                          {/* Actions */}
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <RoleDropdown
@@ -1614,33 +1554,6 @@ export default function AuthorizationPage() {
                                 theme={theme}
                                 isDarkMode={isDarkMode}
                               />
-                              {isUpdating && (
-                                <span
-                                  className="text-xs flex items-center gap-1"
-                                  style={{ color: theme.accent }}
-                                >
-                                  <svg
-                                    className="animate-spin h-3 w-3"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <circle
-                                      className="opacity-25"
-                                      cx="12"
-                                      cy="12"
-                                      r="10"
-                                      stroke="currentColor"
-                                      strokeWidth="4"
-                                    />
-                                    <path
-                                      className="opacity-75"
-                                      fill="currentColor"
-                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                    />
-                                  </svg>
-                                  Saving
-                                </span>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -1685,7 +1598,7 @@ export default function AuthorizationPage() {
           </div>
 
           {/* Pagination */}
-          {rows.length > 0 && (
+          {users.length > 0 && (
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <span
@@ -1706,7 +1619,7 @@ export default function AuthorizationPage() {
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => fetchUsers({ page: Math.max(1, page - 1), search })}
+                  onClick={() => handlePageChange(Math.max(1, page - 1))}
                   disabled={page <= 1}
                   className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
@@ -1726,7 +1639,6 @@ export default function AuthorizationPage() {
                   <span className="hidden sm:inline">Previous</span>
                 </button>
 
-                {/* Page Numbers */}
                 <div className="hidden sm:flex items-center gap-1">
                   {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => {
                     let num = page;
@@ -1740,7 +1652,7 @@ export default function AuthorizationPage() {
                     return (
                       <button
                         key={num}
-                        onClick={() => fetchUsers({ page: num, search })}
+                        onClick={() => handlePageChange(num)}
                         className="w-9 h-9 rounded-lg text-sm font-semibold transition-colors"
                         style={{
                           backgroundColor: isActive ? theme.accent : "transparent",
@@ -1754,7 +1666,7 @@ export default function AuthorizationPage() {
                 </div>
 
                 <button
-                  onClick={() => fetchUsers({ page: Math.min(pageCount, page + 1), search })}
+                  onClick={() => handlePageChange(Math.min(pageCount, page + 1))}
                   disabled={page >= pageCount}
                   className="px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{

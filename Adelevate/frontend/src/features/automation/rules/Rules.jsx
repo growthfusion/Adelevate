@@ -1,17 +1,41 @@
+// Rules.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Plus, Copy, Trash2, Search as SearchIcon, Edit2 } from "lucide-react";
-import { SquarePen } from "lucide-react";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  ChevronDown,
+  Plus,
+  Copy,
+  Trash2,
+  Search as SearchIcon,
+  Edit2,
+  SquarePen
+} from "lucide-react";
 
+// Redux
+import { selectIsDarkMode } from "@/features/theme/themeSlice";
+import {
+  selectSelectedRules,
+  selectSearchQuery,
+  selectCurrentPage,
+  selectRowsPerPage,
+  setSelectedRules,
+  setSearchQuery,
+  setCurrentPage,
+  setRowsPerPage,
+  clearSelectedRules
+} from "./rulesSlice";
+
+// Assets
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
+// Utils
 import { logAction } from "@/utils/actionLog";
 import { supabase } from "@/supabaseClient";
-import { useTheme } from "@/context/ThemeContext";
 
 // Firestore
 import { db } from "@/firebase";
@@ -62,10 +86,12 @@ const createPremiumTheme = (isDarkMode) => {
       success: "#10B981",
       successLight: "rgba(16, 185, 129, 0.12)",
       successGlow: "rgba(16, 185, 129, 0.25)",
+      successBorder: "rgba(16, 185, 129, 0.3)",
 
       warning: "#F59E0B",
       warningLight: "rgba(245, 158, 11, 0.12)",
       warningGlow: "rgba(245, 158, 11, 0.25)",
+      warningBorder: "rgba(245, 158, 11, 0.3)",
 
       error: "#EF4444",
       errorLight: "rgba(239, 68, 68, 0.12)",
@@ -123,11 +149,7 @@ const createPremiumTheme = (isDarkMode) => {
     };
   } else {
     return {
-      // ============================================
       // PREMIUM LIGHT THEME - Clean & Sophisticated
-      // ============================================
-
-      // Backgrounds - Warm, Soft Whites
       bgMain: "#F8F9FC",
       bgCard: "#FFFFFF",
       bgCardHover: "#FAFBFD",
@@ -207,6 +229,9 @@ const createPremiumTheme = (isDarkMode) => {
   }
 };
 
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 const normalizeStatus = (s) => {
   const v = typeof s === "string" ? s.trim().toLowerCase() : s;
   if (v === true || v === "running" || v === "active") return "Running";
@@ -244,26 +269,6 @@ function normalizePlatformKey(p) {
   if (["newsbreak", "nb"].includes(s)) return "newsbreak";
   return s;
 }
-
-const PlatformIcon = ({ platform, theme, isDarkMode }) => {
-  const key = normalizePlatformKey(platform);
-  const src = PLATFORM_ICONS[key];
-  if (!src) return null;
-  return (
-    <div
-      className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200"
-      style={{
-        backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.04)" : theme.bgMuted,
-        border: `1px solid ${theme.borderSubtle}`,
-        boxShadow: isDarkMode
-          ? "0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.02)"
-          : theme.shadowSm
-      }}
-    >
-      <img src={src} alt={key} title={key} className="w-5 h-5 object-contain" />
-    </div>
-  );
-};
 
 const ruleKey = (r) => `${r.__colName}::${r.id}`;
 
@@ -304,38 +309,185 @@ const sortRulesStable = (a, b) => {
   return an.localeCompare(bn);
 };
 
+// ============================================
+// PLATFORM ICON COMPONENT
+// ============================================
+const PlatformIcon = ({ platform, theme, isDarkMode }) => {
+  const key = normalizePlatformKey(platform);
+  const src = PLATFORM_ICONS[key];
+  if (!src) return null;
+  return (
+    <div
+      className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200"
+      style={{
+        backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.04)" : theme.bgMuted,
+        border: `1px solid ${theme.borderSubtle}`,
+        boxShadow: isDarkMode
+          ? "0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.02)"
+          : theme.shadowSm
+      }}
+    >
+      <img src={src} alt={key} title={key} className="w-5 h-5 object-contain" />
+    </div>
+  );
+};
+
+// ============================================
+// TOGGLE SWITCH COMPONENT
+// ============================================
+const ToggleSwitch = ({ checked, onChange, disabled, theme, isDarkMode }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <label
+      className="relative inline-flex items-center cursor-pointer select-none"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="sr-only peer"
+      />
+      <div
+        className="w-12 h-7 rounded-full transition-all duration-300 relative"
+        style={{
+          backgroundColor: checked ? theme.success : isDarkMode ? "#1F1F1F" : "#E2E5ED",
+          boxShadow: checked
+            ? isDarkMode
+              ? `0 0 ${isHovered ? "20px" : "14px"} ${theme.successGlow}, inset 0 1px 1px rgba(255,255,255,0.1)`
+              : `0 2px 8px ${theme.successGlow}`
+            : isDarkMode
+              ? "inset 0 2px 4px rgba(0,0,0,0.3)"
+              : `inset 0 2px 4px rgba(0,0,0,0.08)`
+        }}
+      >
+        <div
+          className="absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 flex items-center justify-center"
+          style={{
+            left: checked ? "calc(100% - 25px)" : "3px",
+            backgroundColor: "#FFFFFF",
+            boxShadow: isDarkMode
+              ? `0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.1)`
+              : `0 2px 6px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)`,
+            transform: isHovered && !disabled ? "scale(1.05)" : "scale(1)"
+          }}
+        >
+          <div
+            className="w-2 h-2 rounded-full transition-all duration-300"
+            style={{
+              backgroundColor: checked ? theme.success : isDarkMode ? "#555" : "#C0C0C0",
+              opacity: checked ? 1 : 0.6
+            }}
+          />
+        </div>
+      </div>
+    </label>
+  );
+};
+
+// ============================================
+// ACTION BUTTON COMPONENT
+// ============================================
+const ActionButton = ({ icon: Icon, onClick, color, hoverBg, tooltip, theme, isDarkMode }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div className="relative group">
+      <button
+        className="p-2.5 rounded-xl transition-all duration-200"
+        onClick={onClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          backgroundColor: isHovered ? hoverBg : "transparent",
+          transform: isHovered ? "translateY(-1px) scale(1.02)" : "translateY(0) scale(1)",
+          boxShadow: isHovered
+            ? isDarkMode
+              ? `0 4px 16px ${color}25`
+              : `0 4px 12px ${color}15`
+            : "none"
+        }}
+      >
+        <Icon
+          className="w-[18px] h-[18px] transition-all duration-200"
+          style={{
+            color,
+            filter: isHovered && isDarkMode ? `drop-shadow(0 0 6px ${color}80)` : "none"
+          }}
+        />
+      </button>
+      <div
+        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50"
+        style={{
+          backgroundColor: isDarkMode ? "#1A1A1A" : theme.bgCard,
+          color: theme.textSecondary,
+          border: `1px solid ${theme.borderSubtle}`,
+          boxShadow: theme.shadowLg
+        }}
+      >
+        {tooltip}
+        <div
+          className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]"
+          style={{
+            width: 0,
+            height: 0,
+            borderLeft: "6px solid transparent",
+            borderRight: "6px solid transparent",
+            borderTop: `6px solid ${theme.borderSubtle}`
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 const RulesDashboard = () => {
   const navigate = useNavigate();
-  const { isDarkMode } = useTheme();
+  const dispatch = useDispatch();
 
-  // Use premium theme
+  // Redux State
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const selectedRules = useSelector(selectSelectedRules);
+  const searchQuery = useSelector(selectSearchQuery);
+  const currentPage = useSelector(selectCurrentPage);
+  const rowsPerPage = useSelector(selectRowsPerPage);
+
+  // Theme
   const theme = createPremiumTheme(isDarkMode);
 
-  const [selectedRules, setSelectedRules] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [rules, setRules] = useState([]);
+  // Local State (UI-specific, temporary)
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [rowsDropdownOpen, setRowsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const headerRef = useRef(null);
   const [user, setUser] = useState(null);
   const [pendingKeys, setPendingKeys] = useState([]);
+  const [rules, setRules] = useState([]);
+
+  // Refs
+  const dropdownRef = useRef(null);
+  const rowsDropdownRef = useRef(null);
+  const headerRef = useRef(null);
+
   const isPending = (k) => pendingKeys.includes(k);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [rowsDropdownOpen, setRowsDropdownOpen] = useState(false);
-  const rowsDropdownRef = useRef(null);
+  // ============================================
+  // EFFECTS
+  // ============================================
 
-  // Session
+  // Get user session
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user);
     });
   }, []);
 
-  // Live Firestore
+  // Live Firestore listener
   useEffect(() => {
     const colNames = COLLECTION_ORDER;
     const unsubs = colNames.map((col) =>
@@ -382,6 +534,10 @@ const RulesDashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ============================================
+  // HANDLERS
+  // ============================================
+
   const ruleTypes = [
     { name: "Pause Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" },
     { name: "Activate Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" },
@@ -389,13 +545,12 @@ const RulesDashboard = () => {
     { name: "Exclusion Campaign", platform: "facebook,google,snapchat,tiktok,newsbreak" }
   ];
 
-  // Premium status styles
   const getStatusStyles = (status) => {
     if (status === "Running") {
       return isDarkMode
         ? {
             backgroundColor: theme.successLight,
-            borderColor: "rgba(16, 185, 129, 0.3)",
+            borderColor: theme.successBorder,
             color: theme.success,
             boxShadow: `0 0 16px ${theme.successGlow}`
           }
@@ -409,7 +564,7 @@ const RulesDashboard = () => {
     return isDarkMode
       ? {
           backgroundColor: theme.warningLight,
-          borderColor: "rgba(245, 158, 11, 0.3)",
+          borderColor: theme.warningBorder,
           color: theme.warning,
           boxShadow: `0 0 16px ${theme.warningGlow}`
         }
@@ -421,7 +576,6 @@ const RulesDashboard = () => {
         };
   };
 
-  // Premium condition styles
   const getConditionStyles = (index) => {
     const colorSet = theme.conditionColors[index % theme.conditionColors.length];
     return {
@@ -432,7 +586,6 @@ const RulesDashboard = () => {
     };
   };
 
-  // Comparison symbol
   const getComparisonSymbol = (operator) => {
     let symbol = "";
     let color = "";
@@ -534,7 +687,7 @@ const RulesDashboard = () => {
     const target = routeForType(type.name);
     navigate(target, { state: { mode: "new" } });
     setDropdownOpen(false);
-    setSearchQuery("");
+    dispatch(setSearchQuery(""));
 
     if (user?.email) {
       const platforms = type.platform || "";
@@ -559,7 +712,7 @@ const RulesDashboard = () => {
     }
 
     setRules((prev) => prev.filter((r) => ruleKey(r) !== key));
-    setSelectedRules((prev) => prev.filter((k) => k !== key));
+    dispatch(setSelectedRules(selectedRules.filter((k) => k !== key)));
 
     try {
       await deleteDoc(doc(db, rule.__colName, rule.id));
@@ -653,135 +806,29 @@ const RulesDashboard = () => {
     alert(`Duplicate feature for "${getRuleName(rule)}" coming soon!`);
   };
 
-  // Pagination calculations
+  // Pagination
   const totalPages = Math.ceil(rules.length / rowsPerPage);
   const paginatedRules = rules.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const goToNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+    if (currentPage < totalPages) dispatch(setCurrentPage(currentPage + 1));
   };
 
   const goToPrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
+    if (currentPage > 1) dispatch(setCurrentPage(currentPage - 1));
+  };
+
+  const handleRowsPerPageChange = (num) => {
+    dispatch(setRowsPerPage(num));
+    setRowsDropdownOpen(false);
+  };
+
+  const handlePageChange = (pageNum) => {
+    dispatch(setCurrentPage(pageNum));
   };
 
   // ============================================
-  // PREMIUM TOGGLE SWITCH COMPONENT
-  // ============================================
-  const ToggleSwitch = ({ checked, onChange, disabled }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-      <label
-        className="relative inline-flex items-center cursor-pointer select-none"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onChange}
-          disabled={disabled}
-          className="sr-only peer"
-        />
-        <div
-          className="w-12 h-7 rounded-full transition-all duration-300 relative"
-          style={{
-            backgroundColor: checked ? theme.success : isDarkMode ? "#1F1F1F" : "#E2E5ED",
-            boxShadow: checked
-              ? isDarkMode
-                ? `0 0 ${isHovered ? "20px" : "14px"} ${theme.successGlow}, inset 0 1px 1px rgba(255,255,255,0.1)`
-                : `0 2px 8px ${theme.successGlow}`
-              : isDarkMode
-                ? "inset 0 2px 4px rgba(0,0,0,0.3)"
-                : `inset 0 2px 4px rgba(0,0,0,0.08)`
-          }}
-        >
-          {/* Knob */}
-          <div
-            className="absolute top-[3px] w-[22px] h-[22px] rounded-full transition-all duration-300 flex items-center justify-center"
-            style={{
-              left: checked ? "calc(100% - 25px)" : "3px",
-              backgroundColor: "#FFFFFF",
-              boxShadow: isDarkMode
-                ? `0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.1)`
-                : `0 2px 6px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04)`,
-              transform: isHovered && !disabled ? "scale(1.05)" : "scale(1)"
-            }}
-          >
-            {/* Inner dot indicator */}
-            <div
-              className="w-2 h-2 rounded-full transition-all duration-300"
-              style={{
-                backgroundColor: checked ? theme.success : isDarkMode ? "#555" : "#C0C0C0",
-                opacity: checked ? 1 : 0.6
-              }}
-            />
-          </div>
-        </div>
-      </label>
-    );
-  };
-
-  // ============================================
-  // PREMIUM ACTION BUTTON COMPONENT
-  // ============================================
-  const ActionButton = ({ icon: Icon, onClick, color, hoverBg, tooltip }) => {
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-      <div className="relative group">
-        <button
-          className="p-2.5 rounded-xl transition-all duration-200"
-          onClick={onClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          style={{
-            backgroundColor: isHovered ? hoverBg : "transparent",
-            transform: isHovered ? "translateY(-1px) scale(1.02)" : "translateY(0) scale(1)",
-            boxShadow: isHovered
-              ? isDarkMode
-                ? `0 4px 16px ${color}25`
-                : `0 4px 12px ${color}15`
-              : "none"
-          }}
-        >
-          <Icon
-            className="w-[18px] h-[18px] transition-all duration-200"
-            style={{
-              color,
-              filter: isHovered && isDarkMode ? `drop-shadow(0 0 6px ${color}80)` : "none"
-            }}
-          />
-        </button>
-        {/* Premium Tooltip */}
-        <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50"
-          style={{
-            backgroundColor: isDarkMode ? "#1A1A1A" : theme.bgCard,
-            color: theme.textSecondary,
-            border: `1px solid ${theme.borderSubtle}`,
-            boxShadow: theme.shadowLg
-          }}
-        >
-          {tooltip}
-          <div
-            className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]"
-            style={{
-              width: 0,
-              height: 0,
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderTop: `6px solid ${theme.borderSubtle}`
-            }}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // ============================================
-  // PREMIUM NEW RULE DROPDOWN COMPONENT
+  // NEW RULE DROPDOWN COMPONENT
   // ============================================
   const NewRuleDropdown = ({ isFixed = false }) => {
     const [buttonHovered, setButtonHovered] = useState(false);
@@ -826,7 +873,6 @@ const RulesDashboard = () => {
             }}
           >
             <div className="p-4">
-              {/* Premium Search Input */}
               <div className="relative mb-4">
                 <SearchIcon
                   className="w-4 h-4 absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors duration-200"
@@ -841,7 +887,7 @@ const RulesDashboard = () => {
                     color: theme.textPrimary
                   }}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => dispatch(setSearchQuery(e.target.value))}
                   onFocus={(e) => {
                     e.target.style.borderColor = theme.borderInputFocus;
                     e.target.style.boxShadow = theme.shadowGlow;
@@ -855,9 +901,8 @@ const RulesDashboard = () => {
                 />
               </div>
 
-              {/* Rule Type Options */}
               <div className="space-y-1">
-                {filteredRuleTypes.map((type, idx) => (
+                {filteredRuleTypes.map((type) => (
                   <button
                     key={type.name}
                     className="flex items-center w-full py-3 px-4 text-left rounded-xl transition-all duration-200 group"
@@ -901,6 +946,9 @@ const RulesDashboard = () => {
     );
   };
 
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <div
       className="min-h-screen pb-12 max-sm:pt-[20%] pt-0 transition-colors duration-300"
@@ -908,7 +956,7 @@ const RulesDashboard = () => {
     >
       <div ref={headerRef}></div>
 
-      {/* Fixed action bar when scrolled - Premium Glass Effect */}
+      {/* Fixed action bar when scrolled */}
       {isScrolled && (
         <div
           className="fixed top-0 left-0 right-0 z-40 transition-all duration-300"
@@ -930,11 +978,10 @@ const RulesDashboard = () => {
 
       {/* Main content */}
       <div className={`px-6 sm:px-8 lg:px-12 ${isScrolled ? "pt-20" : "pt-8"}`}>
-        <div className="max-w-7xl mx-auto">
-          {/* Premium Header */}
+        <div className="max-w-auto mx-auto">
+          {/* Header */}
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-2">
-             
               <h1
                 className="text-3xl font-bold tracking-tight"
                 style={{
@@ -944,7 +991,6 @@ const RulesDashboard = () => {
                 Rules
               </h1>
             </div>
-          
           </div>
 
           {/* Action Bar */}
@@ -952,7 +998,7 @@ const RulesDashboard = () => {
             <NewRuleDropdown />
           </div>
 
-          {/* Premium Table Card */}
+          {/* Table Card */}
           <div
             className="rounded-2xl overflow-hidden transition-all duration-300"
             style={{
@@ -1027,6 +1073,8 @@ const RulesDashboard = () => {
                                 checked={displayStatus === "Running"}
                                 onChange={() => toggleStatus(rule)}
                                 disabled={isPending(k)}
+                                theme={theme}
+                                isDarkMode={isDarkMode}
                               />
                               <div
                                 className="flex items-center gap-0.5 p-1.5 rounded-xl"
@@ -1043,6 +1091,8 @@ const RulesDashboard = () => {
                                   color={theme.accent}
                                   hoverBg={theme.accentLight}
                                   tooltip="Edit"
+                                  theme={theme}
+                                  isDarkMode={isDarkMode}
                                 />
                                 <ActionButton
                                   icon={Copy}
@@ -1050,6 +1100,8 @@ const RulesDashboard = () => {
                                   color={isDarkMode ? "#60A5FA" : theme.info}
                                   hoverBg={theme.infoLight}
                                   tooltip="Duplicate"
+                                  theme={theme}
+                                  isDarkMode={isDarkMode}
                                 />
                                 <ActionButton
                                   icon={Trash2}
@@ -1057,6 +1109,8 @@ const RulesDashboard = () => {
                                   color={theme.error}
                                   hoverBg={theme.errorLight}
                                   tooltip="Delete"
+                                  theme={theme}
+                                  isDarkMode={isDarkMode}
                                 />
                               </div>
                             </div>
@@ -1295,7 +1349,6 @@ const RulesDashboard = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-4 mb-5">
-                        {/* Conditions Card */}
                         <div
                           className="p-4 rounded-xl"
                           style={{
@@ -1322,7 +1375,6 @@ const RulesDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Frequency Card */}
                         <div
                           className="p-4 rounded-xl"
                           style={{
@@ -1342,7 +1394,6 @@ const RulesDashboard = () => {
                         </div>
                       </div>
 
-                      {/* Actions Footer */}
                       <div
                         className="flex items-center justify-between pt-4"
                         style={{ borderTop: `1px solid ${theme.dividerSubtle}` }}
@@ -1352,6 +1403,8 @@ const RulesDashboard = () => {
                             checked={displayStatus === "Running"}
                             onChange={() => toggleStatus(rule)}
                             disabled={isPending(k)}
+                            theme={theme}
+                            isDarkMode={isDarkMode}
                           />
                           <span
                             className="text-sm font-semibold"
@@ -1462,7 +1515,7 @@ const RulesDashboard = () => {
               )}
             </div>
 
-            {/* Premium Pagination Footer */}
+            {/* Pagination Footer */}
             {paginatedRules.length > 0 && (
               <div
                 className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-5"
@@ -1537,11 +1590,7 @@ const RulesDashboard = () => {
                                 color: rowsPerPage === num ? theme.accent : theme.textSecondary,
                                 fontWeight: rowsPerPage === num ? 600 : 500
                               }}
-                              onClick={() => {
-                                setRowsPerPage(num);
-                                setCurrentPage(1);
-                                setRowsDropdownOpen(false);
-                              }}
+                              onClick={() => handleRowsPerPageChange(num)}
                               onMouseEnter={(e) => {
                                 if (rowsPerPage !== num) {
                                   e.currentTarget.style.backgroundColor = theme.bgCardHover;
@@ -1569,7 +1618,6 @@ const RulesDashboard = () => {
                       border: `1px solid ${theme.dividerSubtle}`
                     }}
                   >
-                    {/* Previous Button */}
                     <button
                       className="p-2 rounded-lg transition-all duration-200"
                       style={{
@@ -1592,7 +1640,6 @@ const RulesDashboard = () => {
                       <ChevronDown className="w-4 h-4 rotate-90" />
                     </button>
 
-                    {/* Page Numbers */}
                     <div className="flex items-center gap-1 px-1">
                       {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                         let pageNum = currentPage;
@@ -1623,7 +1670,7 @@ const RulesDashboard = () => {
                                   : `0 2px 8px rgba(59, 130, 246, 0.25)`
                                 : "none"
                             }}
-                            onClick={() => setCurrentPage(pageNum)}
+                            onClick={() => handlePageChange(pageNum)}
                             onMouseEnter={(e) => {
                               if (!isActive) {
                                 e.currentTarget.style.backgroundColor = theme.bgButtonHover;
@@ -1641,7 +1688,6 @@ const RulesDashboard = () => {
                       })}
                     </div>
 
-                    {/* Next Button */}
                     <button
                       className="p-2 rounded-lg transition-all duration-200"
                       style={{
@@ -1677,7 +1723,7 @@ const RulesDashboard = () => {
         </div>
       </div>
 
-      {/* Global CSS for animations */}
+      {/* Global CSS */}
       <style>{`
         @keyframes pulse {
           0%, 100% {

@@ -1,5 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
+
+// Redux imports
+import { selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice";
+import {
+  setSelectedPlatform,
+  setDateRange,
+  selectSelectedPlatform,
+  selectDateRange,
+  selectCustomDateRange
+} from "@/features/filters/filtersSlice";
+import {
+  fetchMetrics,
+  clearError,
+  selectPlatformData,
+  selectTotals,
+  selectIsLoading,
+  selectMetricsError,
+  selectLastUpdated
+} from "@/features/metrics/metricsSlice";
 
 // Import platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
@@ -9,122 +29,6 @@ import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
 import DatePickerToggle from "./DatePicker";
-
-// Premium Dark Theme Color Palette - Enhanced
-const theme = {
-  // Backgrounds - Deeper, more premium
-  bgMain: "#050505",
-  bgSecondary: "#0A0A0A",
-  bgCard: "#0C0C0C",
-  bgCardHover: "#101010",
-  bgChart: "#111111",
-  bgChartGradient: "#0C0C0C",
-
-  // Borders - More subtle
-  borderSubtle: "#1A1A1A",
-  borderHover: "#252525",
-  dividerSubtle: "#161616",
-
-  // Shadows - Deeper, softer
-  shadowSoft: "rgba(0, 0, 0, 0.55)",
-  shadowDeep: "rgba(0, 0, 0, 0.7)",
-  innerShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
-
-  // Typography
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A3A3A3",
-  textTertiary: "#6B6B6B",
-  textDisabled: "#4A4A4A",
-
-  // Accent colors - Vibrant
-  blue: "#3B82F6",
-  purple: "#A855F7",
-  teal: "#14B8A6",
-  yellow: "#FACC15",
-  red: "#EF4444",
-  green: "#22C55E",
-  pink: "#EC4899",
-  orange: "#FB923C",
-
-  // Status
-  positive: "#22C55E",
-  negative: "#EF4444",
-
-  // Chart
-  gridLines: "#1E1E1E"
-};
-
-// Metric accent colors mapping
-const metricAccentColors = {
-  amount_spent: theme.blue,
-  revenue: theme.green,
-  net: theme.teal,
-  roi: theme.yellow,
-  clicks: theme.purple,
-  conversions: theme.pink,
-  cpa: theme.red,
-  epc: theme.orange
-};
-
-// Helper function to get API base URL
-const getApiBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
-
-  if (apiUrl) {
-    const base = apiUrl.replace(/\/$/, "");
-    return base.endsWith("/v1/campaigns") ? base : `${base}/v1/campaigns`;
-  }
-
-  if (import.meta.env.PROD) {
-    return "/api/campaigns";
-  }
-
-  return "http://65.109.65.93:8080/v1/campaigns";
-};
-
-// Helper to normalize platform names from API response
-const normalizePlatformFromDB = (platformRaw) => {
-  if (!platformRaw) return "";
-  const platform = String(platformRaw).toLowerCase().trim();
-
-  // Handle Meta/Facebook naming
-  if (platform === "meta" || platform === "fb" || platform === "facebook") {
-    return "facebook";
-  } else if (platform === "snapchat") {
-    return "snapchat";
-  } else if (["snap", "newsbreak", "tiktok", "google"].includes(platform)) {
-    return platform === "snap" ? "snapchat" : platform === "google" ? "google-ads" : platform;
-  }
-
-  return platform;
-};
-
-// Helper to extract campaigns from various API response formats
-const extractCampaignsFromResponse = (data) => {
-  let campaigns = [];
-
-  if (Array.isArray(data)) {
-    campaigns = data;
-  } else if (data?.data && Array.isArray(data.data)) {
-    campaigns = data.data;
-  } else if (data?.campaigns && Array.isArray(data.campaigns)) {
-    campaigns = data.campaigns;
-  } else if (data?.results && Array.isArray(data.results)) {
-    campaigns = data.results;
-  } else if (data?.items && Array.isArray(data.items)) {
-    campaigns = data.items;
-  } else if (typeof data === "object") {
-    // Search all object keys for an array
-    for (const key of Object.keys(data)) {
-      if (Array.isArray(data[key]) && data[key].length > 0) {
-        campaigns = data[key];
-        break;
-      }
-    }
-  }
-
-  return campaigns;
-};
 
 // Platform icons mapping
 const platformIcons = {
@@ -144,1017 +48,356 @@ const platformNames = {
   newsbreak: "NewsBreak"
 };
 
-// CSS for animations
-const globalStyles = `
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-  }
-  
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-2px); }
-  }
-  
+// Platform options
+const platformOptions = [
+  { id: "all", name: "All Platforms", icon: null },
+  { id: "facebook", name: "Facebook", icon: fb },
+  { id: "snapchat", name: "Snapchat", icon: snapchatIcon },
+  { id: "google-ads", name: "Google", icon: googleIcon },
+  { id: "tiktok", name: "TikTok", icon: tiktokIcon },
+  { id: "newsbreak", name: "NewsBreak", icon: nb }
+];
+
+// CSS for animations - Dynamic based on theme
+const createGlobalStyles = (theme, isDarkMode) => `
   @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  @keyframes skeleton-wave {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
   
-  .animate-pulse-glow {
-    animation: pulse-glow 3s ease-in-out infinite;
-  }
-  
-  .animate-float {
-    animation: float 4s ease-in-out infinite;
-  }
-  
-  .shimmer-loading {
-    background: linear-gradient(90deg, #0C0C0C 25%, #1A1A1A 50%, #0C0C0C 75%);
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: ${
+      isDarkMode
+        ? `linear-gradient(90deg, ${theme.bgCard} 0%, #151515 20%, #1a1a1a 40%, #151515 60%, ${theme.bgCard} 80%, ${theme.bgCard} 100%)`
+        : `linear-gradient(90deg, ${theme.bgSecondary} 0%, #e8e8e8 20%, #f0f0f0 40%, #e8e8e8 60%, ${theme.bgSecondary} 80%, ${theme.bgSecondary} 100%)`
+    };
     background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+    animation: skeleton-wave 1.8s ease-in-out infinite;
+  }
+  
+  .skeleton-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 `;
 
-const MediaBuyerDashboard = () => {
-  const [selectedPlatform, setSelectedPlatform] = useState("all");
-  const [dateRange, setDateRange] = useState("30d");
-  const [customDateRange, setCustomDateRange] = useState({
-    start: null,
-    end: null
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [metricsData, setMetricsData] = useState({
-    amount_spent: {},
-    revenue: {},
-    net: {},
-    roi: {},
-    clicks: {},
-    conversions: {},
-    cpa: {},
-    epc: {}
-  });
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [tabletMenuOpen, setTabletMenuOpen] = useState(false);
-  const [expandedCard, setExpandedCard] = useState(null);
-  const [error, setError] = useState(null);
-  const [platformData, setPlatformData] = useState({});
+// Generate sparkline data
+const generateSparklineData = (days, currentValue, metricType = "positive") => {
+  if (!currentValue || currentValue === 0) {
+    return Array.from({ length: days }, (_, i) => ({
+      day: i + 1,
+      value: 0
+    }));
+  }
 
-  // Inject global styles
-  useEffect(() => {
-    const styleElement = document.createElement("style");
-    styleElement.textContent = globalStyles;
-    document.head.appendChild(styleElement);
-    return () => document.head.removeChild(styleElement);
-  }, []);
+  const data = [];
+  const variance = 0.15;
+  const trendStrength = 0.3;
 
-  // Initialize metrics data
-  useEffect(() => {
-    fetchData();
-  }, [dateRange, customDateRange]);
-
-  // Update metrics when platform selection changes
-  useEffect(() => {
-    if (Object.keys(platformData).length > 0) {
-      calculateMetrics();
-    }
-  }, [selectedPlatform, platformData]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (mobileMenuOpen && !event.target.closest(".mobile-dropdown")) {
-        setMobileMenuOpen(false);
-      }
-      if (tabletMenuOpen && !event.target.closest(".tablet-dropdown")) {
-        setTabletMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [mobileMenuOpen, tabletMenuOpen]);
-
-  // Function to fetch data from API - using same endpoint as Campaign section
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-    setExpandedCard(null);
-
-    try {
-      const apiBase = getApiBaseUrl();
-      // Use /active endpoint to get all campaigns (active and paused) for today
-      // This matches the Campaign section's default behavior
-      const endpoint = `${apiBase}/active`;
-
-      console.log(`📊 Metric Dashboard: Fetching campaigns from ${endpoint}`);
-
-      const response = await fetch(endpoint, {
-        cache: "no-store"
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch campaigns: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const allCampaigns = extractCampaignsFromResponse(data);
-
-      console.log(`✅ Metric Dashboard: Fetched ${allCampaigns.length} campaigns`);
-
-      const aggregatedData = {};
-      const allPlatforms = ["facebook", "snapchat", "tiktok", "google-ads", "newsbreak"];
-
-      allPlatforms.forEach((platform) => {
-        aggregatedData[platform] = {
-          spend: 0,
-          revenue: 0,
-          profit: 0,
-          roi: 0,
-          clicks: 0,
-          conversions: 0,
-          cpa: 0,
-          epc: 0,
-          impressions: 0
-        };
-      });
-
-      // Process campaigns and group by platform
-      allCampaigns.forEach((campaign) => {
-        const platform = normalizePlatformFromDB(campaign.platform);
-
-        // Skip if platform is not recognized
-        if (!allPlatforms.includes(platform)) {
-          return;
-        }
-
-        // Extract metrics from campaign (handle different field names)
-        const spend = parseFloat(campaign.spend || campaign.cost || 0);
-        const revenue = parseFloat(campaign.revenue || 0);
-        const profit = parseFloat(
-          campaign.profit !== undefined && campaign.profit !== null
-            ? campaign.profit
-            : revenue - spend
-        );
-        const clicks = parseInt(campaign.clicks || 0);
-        const conversions = parseInt(campaign.conversions || campaign.purchases || 0);
-        const impressions = parseInt(campaign.impressions || 0);
-
-        // Accumulate metrics by platform
-        aggregatedData[platform].spend += spend;
-        aggregatedData[platform].revenue += revenue;
-        aggregatedData[platform].profit += profit;
-        aggregatedData[platform].clicks += clicks;
-        aggregatedData[platform].conversions += conversions;
-        aggregatedData[platform].impressions += impressions;
-      });
-
-      // Calculate derived metrics for each platform
-      allPlatforms.forEach((platform) => {
-        const metrics = aggregatedData[platform];
-
-        // Calculate ROI: (Profit / Cost) * 100
-        metrics.roi = metrics.spend > 0
-          ? parseFloat(((metrics.profit / metrics.spend) * 100).toFixed(2))
-          : 0;
-
-        // Calculate CPA: Cost / Conversions
-        metrics.cpa = metrics.conversions > 0
-          ? parseFloat((metrics.spend / metrics.conversions).toFixed(2))
-          : 0;
-
-        // Calculate EPC: Revenue / Clicks
-        metrics.epc = metrics.clicks > 0
-          ? parseFloat((metrics.revenue / metrics.clicks).toFixed(2))
-          : 0;
-      });
-
-      console.log(`📈 Metric Dashboard: Aggregated data by platform:`, aggregatedData);
-      setPlatformData(aggregatedData);
-      setIsLoading(false);
-    } catch (err) {
-      console.error("❌ Error fetching data:", err);
-      setError("Failed to load data. Please try again.");
-      setIsLoading(false);
-    }
+  const seed = metricType.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const pseudoRandom = (index) => {
+    const x = Math.sin(seed + index) * 10000;
+    return x - Math.floor(x);
   };
 
-  // Calculate metrics based on selected platform
-  const calculateMetrics = () => {
-    let dataToUse = {};
+  for (let i = 0; i < days; i++) {
+    const progress = i / (days - 1);
+    const randomFactor = (pseudoRandom(i) - 0.5) * variance * 2;
+    const trendValue = currentValue * (0.7 + progress * trendStrength);
+    const value = Math.max(0, trendValue * (1 + randomFactor));
 
-    if (selectedPlatform === "all") {
-      // Sum all platform data
-      const totals = Object.values(platformData).reduce(
-        (acc, platform) => ({
-          spend: acc.spend + platform.spend,
-          revenue: acc.revenue + platform.revenue,
-          profit: acc.profit + platform.profit,
-          clicks: acc.clicks + platform.clicks,
-          conversions: acc.conversions + platform.conversions
-        }),
-        { spend: 0, revenue: 0, profit: 0, clicks: 0, conversions: 0 }
-      );
-
-      // Calculate total derived metrics
-      const totalRoi =
-        totals.spend > 0 ? parseFloat(((totals.profit / totals.spend) * 100).toFixed(2)) : 0;
-      const totalCpa =
-        totals.conversions > 0 ? parseFloat((totals.spend / totals.conversions).toFixed(2)) : 0;
-      const totalEpc =
-        totals.clicks > 0 ? parseFloat((totals.revenue / totals.clicks).toFixed(2)) : 0;
-
-      dataToUse = {
-        spend: totals.spend,
-        revenue: totals.revenue,
-        profit: totals.profit,
-        roi: totalRoi,
-        clicks: totals.clicks,
-        conversions: totals.conversions,
-        cpa: totalCpa,
-        epc: totalEpc
-      };
-    } else {
-      // Use specific platform data
-      dataToUse = platformData[selectedPlatform] || {
-        spend: 0,
-        revenue: 0,
-        profit: 0,
-        roi: 0,
-        clicks: 0,
-        conversions: 0,
-        cpa: 0,
-        epc: 0
-      };
-    }
-
-    // Build platform breakdowns (only for "all" view)
-    const platformBreakdowns = {
-      amount_spent: {},
-      revenue: {},
-      net: {},
-      roi: {},
-      clicks: {},
-      conversions: {},
-      cpa: {},
-      epc: {}
-    };
-
-    // Only show platforms with data > 0 in breakdown
-    Object.entries(platformData).forEach(([platform, metrics]) => {
-      if (metrics.spend > 0 || metrics.revenue > 0 || metrics.clicks > 0) {
-        platformBreakdowns.amount_spent[platform] = metrics.spend;
-        platformBreakdowns.revenue[platform] = metrics.revenue;
-        platformBreakdowns.net[platform] = metrics.profit;
-        platformBreakdowns.roi[platform] = metrics.roi;
-        platformBreakdowns.clicks[platform] = metrics.clicks;
-        platformBreakdowns.conversions[platform] = metrics.conversions;
-        platformBreakdowns.cpa[platform] = metrics.cpa;
-        platformBreakdowns.epc[platform] = metrics.epc;
-      }
+    data.push({
+      day: i + 1,
+      value: parseFloat(value.toFixed(2))
     });
+  }
 
-    // Calculate mock changes (you'll need historical data for real changes)
-    const mockChange = (value) => {
-      return value > 0 ? parseFloat((Math.random() * 15).toFixed(1)) : 0;
-    };
+  data[data.length - 1].value = currentValue;
+  return data;
+};
 
-    // Set metrics data
-    setMetricsData({
-      amount_spent: {
-        title: "Amount Spent",
-        value: dataToUse.spend,
-        change: mockChange(dataToUse.spend),
-        changeType: dataToUse.spend > 0 ? "positive" : "neutral",
-        format: "currency",
-        sparklineData: generateSparklineData(30, dataToUse.spend, "spend"),
-        platformBreakdown: platformBreakdowns.amount_spent
-      },
-      revenue: {
-        title: "Revenue",
-        value: dataToUse.revenue,
-        change: mockChange(dataToUse.revenue),
-        changeType: dataToUse.revenue > 0 ? "positive" : "neutral",
-        format: "currency",
-        sparklineData: generateSparklineData(30, dataToUse.revenue, "revenue"),
-        platformBreakdown: platformBreakdowns.revenue
-      },
-      net: {
-        title: "Net",
-        value: dataToUse.profit,
-        change: mockChange(Math.abs(dataToUse.profit)),
-        changeType: dataToUse.profit > 0 ? "positive" : "negative",
-        format: "currency",
-        sparklineData: generateSparklineData(30, dataToUse.profit, "profit"),
-        platformBreakdown: platformBreakdowns.net
-      },
-      roi: {
-        title: "ROI",
-        value: dataToUse.roi,
-        change: mockChange(dataToUse.roi),
-        changeType: dataToUse.roi > 0 ? "positive" : "negative",
-        format: "percentage",
-        sparklineData: generateSparklineData(30, dataToUse.roi, "roi"),
-        platformBreakdown: platformBreakdowns.roi
-      },
-      clicks: {
-        title: "Clicks",
-        value: dataToUse.clicks,
-        change: mockChange(dataToUse.clicks),
-        changeType: dataToUse.clicks > 0 ? "positive" : "neutral",
-        format: "number",
-        sparklineData: generateSparklineData(30, dataToUse.clicks, "clicks"),
-        platformBreakdown: platformBreakdowns.clicks
-      },
-      conversions: {
-        title: "Conversions",
-        value: dataToUse.conversions,
-        change: mockChange(dataToUse.conversions),
-        changeType: dataToUse.conversions > 0 ? "positive" : "neutral",
-        format: "number",
-        sparklineData: generateSparklineData(30, dataToUse.conversions, "conversions"),
-        platformBreakdown: platformBreakdowns.conversions
-      },
-      cpa: {
-        title: "CPA",
-        value: dataToUse.cpa,
-        change: mockChange(dataToUse.cpa),
-        changeType: dataToUse.cpa > 0 ? "negative" : "neutral",
-        format: "currency",
-        sparklineData: generateSparklineData(30, dataToUse.cpa, "cpa"),
-        platformBreakdown: platformBreakdowns.cpa
-      },
-      epc: {
-        title: "EPC",
-        value: dataToUse.epc,
-        change: mockChange(dataToUse.epc),
-        changeType: dataToUse.epc > 0 ? "positive" : "neutral",
-        format: "currency",
-        sparklineData: generateSparklineData(30, dataToUse.epc, "epc"),
-        platformBreakdown: platformBreakdowns.epc
+// Format value based on format type
+const formatValue = (val, format = "number") => {
+  if (val === null || val === undefined || isNaN(val)) {
+    return format === "currency" ? "$0.00" : "0";
+  }
+
+  if (format === "currency") {
+    if (Math.abs(val) >= 1000) {
+      return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      })}`;
+    }
+    return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  } else if (format === "percentage") {
+    return `${parseFloat(val).toFixed(2)}%`;
+  } else if (format === "decimal") {
+    return parseFloat(val).toFixed(2);
+  }
+  return Math.round(val).toLocaleString();
+};
+
+// ============ COMPONENTS ============
+
+// Premium Button Component
+const PremiumButton = ({ onClick, disabled, children, isActive, className = "", theme }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`relative overflow-hidden transition-all duration-300 ease-out ${className}`}
+    style={{
+      backgroundColor: isActive ? `${theme.blue}15` : theme.bgCard,
+      border: `1px solid ${isActive ? theme.blue : theme.borderSubtle}`,
+      borderRadius: "14px",
+      boxShadow: isActive
+        ? `0 0 40px ${theme.blue}15, ${theme.innerShadow}`
+        : `0 4px 20px ${theme.shadowSoft}, ${theme.innerShadow}`
+    }}
+    onMouseEnter={(e) => {
+      if (!isActive && !disabled) {
+        e.currentTarget.style.backgroundColor = theme.bgCardHover;
+        e.currentTarget.style.borderColor = theme.borderHover;
       }
-    });
-  };
+    }}
+    onMouseLeave={(e) => {
+      if (!isActive && !disabled) {
+        e.currentTarget.style.backgroundColor = theme.bgCard;
+        e.currentTarget.style.borderColor = theme.borderSubtle;
+      }
+    }}
+  >
+    {children}
+  </button>
+);
 
-  // Handle date range change
-  const handleDateRangeChange = (range, customRange = null) => {
-    setDateRange(range);
-    if (customRange) {
-      setCustomDateRange(customRange);
-    }
-  };
+// Dropdown Menu Component - FIXED for mobile
+const DropdownMenu = ({ isOpen, options, onSelect, selectedId, theme }) => {
+  if (!isOpen) return null;
 
-  // Handle refresh button
-  const handleRefresh = () => {
-    fetchData();
-  };
-
-  // Handle platform change from dropdown
-  const handlePlatformChange = (platformId) => {
-    setSelectedPlatform(platformId);
-    setMobileMenuOpen(false);
-    setTabletMenuOpen(false);
-    setExpandedCard(null);
-  };
-
-  // Function to toggle card expansion
-  const toggleCardExpansion = (cardKey) => {
-    if (expandedCard === cardKey) {
-      setExpandedCard(null);
-    } else {
-      setExpandedCard(cardKey);
-    }
-  };
-
-  // Platform options
-  const platformOptions = [
-    { id: "all", name: "All Platforms", icon: null },
-    { id: "facebook", name: "Facebook", icon: fb },
-    { id: "snapchat", name: "Snapchat", icon: snapchatIcon },
-    { id: "google-ads", name: "Google", icon: googleIcon },
-    { id: "tiktok", name: "TikTok", icon: tiktokIcon },
-    { id: "newsbreak", name: "NewsBreak", icon: nb }
-  ];
-
-  // Get selected platform name and icon
-  const selectedPlatformObj = platformOptions.find((p) => p.id === selectedPlatform);
-
-  // Premium Button Component
-  const PremiumButton = ({ onClick, disabled, children, isActive, className = "" }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative overflow-hidden transition-all duration-300 ease-out ${className}`}
-      style={{
-        backgroundColor: isActive ? `${theme.blue}15` : theme.bgCard,
-        border: `1px solid ${isActive ? theme.blue : theme.borderSubtle}`,
-        borderRadius: "14px",
-        boxShadow: isActive
-          ? `0 0 40px ${theme.blue}15, ${theme.innerShadow}`
-          : `0 4px 20px ${theme.shadowSoft}, ${theme.innerShadow}`
-      }}
-      onMouseEnter={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.backgroundColor = theme.bgCardHover;
-          e.currentTarget.style.borderColor = theme.borderHover;
-          e.currentTarget.style.transform = "translateY(-1px)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.backgroundColor = theme.bgCard;
-          e.currentTarget.style.borderColor = theme.borderSubtle;
-          e.currentTarget.style.transform = "translateY(0)";
-        }
-      }}
-    >
-      {children}
-    </button>
-  );
-
-  // Dropdown Menu Component
-  const DropdownMenu = ({ isOpen, options, onSelect, selectedId }) => {
-    if (!isOpen) return null;
-
-    return (
-      <div
-        className="absolute z-50 mt-2 w-full rounded-[16px] overflow-hidden backdrop-blur-xl"
-        style={{
-          backgroundColor: `${theme.bgCard}F5`,
-          border: `1px solid ${theme.borderSubtle}`,
-          boxShadow: `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${theme.blue}08`
-        }}
-      >
-        <ul className="py-2">
-          {options.map((option, index) => (
-            <li key={option.id}>
-              <button
-                onClick={() => onSelect(option.id)}
-                className="flex items-center w-full px-4 py-3 text-sm transition-all duration-200 focus:outline-none"
-                style={{
-                  backgroundColor: selectedId === option.id ? `${theme.blue}12` : "transparent",
-                  color: selectedId === option.id ? theme.blue : theme.textSecondary
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedId !== option.id) {
-                    e.currentTarget.style.backgroundColor = `${theme.bgCardHover}`;
-                    e.currentTarget.style.color = theme.textPrimary;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedId !== option.id) {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = theme.textSecondary;
-                  }
-                }}
-              >
-                {option.icon ? (
-                  <img src={option.icon} alt={option.name} className="w-5 h-5 mr-3 opacity-90" />
-                ) : (
-                  <div className="w-5 h-5 mr-3 flex items-center justify-center">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: theme.textTertiary }}
-                    />
-                  </div>
-                )}
-                <span className="font-medium">{option.name}</span>
-                {selectedId === option.id && (
-                  <svg
-                    className="w-4 h-4 ml-auto"
-                    style={{ color: theme.blue }}
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
+  const handleSelect = (e, optionId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(optionId);
   };
 
   return (
     <div
-      className="p-4 xs:p-5 md:p-8 w-full xs:pt-[25%] ss:pt-[15%] md:pt-[5%] lg:pt-[3%]"
+      className="absolute z-[100] mt-2 w-full rounded-[16px] overflow-hidden backdrop-blur-xl"
       style={{
-        backgroundColor: theme.bgMain,
-        backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, ${theme.blue}08, transparent)`
+        backgroundColor: `${theme.bgCard}F5`,
+        border: `1px solid ${theme.borderSubtle}`,
+        boxShadow: `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${theme.blue}08`
       }}
     >
-      {/* Error message */}
-      {error && (
-        <div
-          className="mb-6 p-5 rounded-[16px] backdrop-blur-sm"
-          style={{
-            backgroundColor: `${theme.red}08`,
-            border: `1px solid ${theme.red}25`,
-            boxShadow: `0 0 40px ${theme.red}10`
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center mr-3"
-                style={{ backgroundColor: `${theme.red}15` }}
-              >
-                <svg
-                  className="w-4 h-4"
-                  style={{ color: theme.red }}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <p style={{ color: theme.red }} className="text-sm font-medium">
-                {error}
-              </p>
-            </div>
+      <ul className="py-2">
+        {options.map((option) => (
+          <li key={option.id}>
             <button
-              onClick={() => setError(null)}
-              className="p-2 rounded-full transition-all duration-200"
-              style={{ color: theme.red }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.red}15`)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              type="button"
+              onClick={(e) => handleSelect(e, option.id)}
+              className="flex items-center w-full px-4 py-3 text-sm transition-all duration-200 focus:outline-none touch-manipulation"
+              style={{
+                backgroundColor: selectedId === option.id ? `${theme.blue}12` : "transparent",
+                color: selectedId === option.id ? theme.blue : theme.textSecondary
+              }}
+              onMouseEnter={(e) => {
+                if (selectedId !== option.id) {
+                  e.currentTarget.style.backgroundColor = theme.bgCardHover;
+                  e.currentTarget.style.color = theme.textPrimary;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedId !== option.id) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = theme.textSecondary;
+                }
+              }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              {option.icon ? (
+                <img src={option.icon} alt={option.name} className="w-5 h-5 mr-3 opacity-90" />
+              ) : (
+                <div className="w-5 h-5 mr-3 flex items-center justify-center">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: theme.textTertiary }}
+                  />
+                </div>
+              )}
+              <span className="font-medium">{option.name}</span>
+              {selectedId === option.id && (
+                <svg
+                  className="w-4 h-4 ml-auto"
+                  style={{ color: theme.blue }}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Main header with filters */}
-      <div className="mb-6 md:mb-8">
-        {/* Mobile Layout (up to 640px) */}
-        <div className="sm:hidden">
-          <div className="space-y-4">
-            {/* Platform Dropdown for Mobile */}
-            <div className="mobile-dropdown relative w-full">
-              <PremiumButton
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="flex items-center justify-between w-full px-4 py-3"
-              >
-                <div className="flex items-center">
-                  {selectedPlatformObj.icon && (
-                    <img
-                      src={selectedPlatformObj.icon}
-                      alt={selectedPlatformObj.name}
-                      className="w-5 h-5 mr-3"
-                    />
-                  )}
-                  <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
-                    {selectedPlatformObj.name}
-                  </span>
-                </div>
-                <svg
-                  className={`h-5 w-5 transition-transform duration-300 ${
-                    mobileMenuOpen ? "rotate-180" : ""
-                  }`}
-                  style={{ color: theme.textSecondary }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </PremiumButton>
-
-              <DropdownMenu
-                isOpen={mobileMenuOpen}
-                options={platformOptions}
-                onSelect={handlePlatformChange}
-                selectedId={selectedPlatform}
-              />
-            </div>
-
-            {/* Date and Refresh Row */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-grow">
-                <DatePickerToggle
-                  selectedRange={dateRange}
-                  onRangeChange={handleDateRangeChange}
-                  customRange={customDateRange}
-                />
-              </div>
-              <PremiumButton onClick={handleRefresh} disabled={isLoading} className="px-4 py-3">
-                {isLoading ? (
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    style={{ color: theme.blue }}
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    style={{ color: theme.textSecondary }}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                )}
-              </PremiumButton>
-            </div>
-          </div>
-        </div>
-
-        {/* Tablet Layout (640px to 1023px) */}
-        <div className="hidden sm:flex lg:hidden flex-col space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-shrink-0 w-auto">
-              <DatePickerToggle
-                selectedRange={dateRange}
-                onRangeChange={handleDateRangeChange}
-                customRange={customDateRange}
-              />
-            </div>
-
-            {/* Platform Dropdown for Tablet */}
-            <div className="tablet-dropdown relative w-64">
-              <PremiumButton
-                onClick={() => setTabletMenuOpen(!tabletMenuOpen)}
-                className="flex items-center justify-between w-full px-4 py-2.5"
-              >
-                <div className="flex items-center">
-                  {selectedPlatformObj.icon && (
-                    <img
-                      src={selectedPlatformObj.icon}
-                      alt={selectedPlatformObj.name}
-                      className="w-5 h-5 mr-2"
-                    />
-                  )}
-                  <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
-                    {selectedPlatformObj.name}
-                  </span>
-                </div>
-                <svg
-                  className={`h-5 w-5 transition-transform duration-300 ${
-                    tabletMenuOpen ? "rotate-180" : ""
-                  }`}
-                  style={{ color: theme.textSecondary }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </PremiumButton>
-
-              <DropdownMenu
-                isOpen={tabletMenuOpen}
-                options={platformOptions}
-                onSelect={handlePlatformChange}
-                selectedId={selectedPlatform}
-              />
-            </div>
-
-            {/* Refresh Button */}
-            <PremiumButton
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center px-4 py-2.5"
-            >
-              {isLoading ? (
-                <svg
-                  className="animate-spin h-4 w-4 mr-2"
-                  style={{ color: theme.blue }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-2"
-                  style={{ color: theme.textSecondary }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              )}
-              <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>
-                Refresh
-              </span>
-            </PremiumButton>
-          </div>
-        </div>
-
-        {/* Desktop Layout (1024px to 1535px) */}
-        <div className="hidden lg:flex xl:hidden items-center justify-between gap-4">
-          <div className="flex-shrink-0 w-auto">
-            <DatePickerToggle
-              selectedRange={dateRange}
-              onRangeChange={handleDateRangeChange}
-              customRange={customDateRange}
-            />
-          </div>
-
-          {/* Platform Dropdown for Desktop */}
-          <div className="desktop-dropdown relative w-64">
-            <PremiumButton
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex items-center justify-between w-full px-4 py-2.5"
-            >
-              <div className="flex items-center">
-                {selectedPlatformObj.icon && (
-                  <img
-                    src={selectedPlatformObj.icon}
-                    alt={selectedPlatformObj.name}
-                    className="w-5 h-5 mr-2"
-                  />
-                )}
-                <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
-                  {selectedPlatformObj.name}
-                </span>
-              </div>
-              <svg
-                className={`h-5 w-5 transition-transform duration-300 ${
-                  mobileMenuOpen ? "rotate-180" : ""
-                }`}
-                style={{ color: theme.textSecondary }}
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </PremiumButton>
-
-            <DropdownMenu
-              isOpen={mobileMenuOpen}
-              options={platformOptions}
-              onSelect={handlePlatformChange}
-              selectedId={selectedPlatform}
-            />
-          </div>
-
-          {/* Refresh Button */}
-          <div className="flex-shrink-0">
-            <PremiumButton
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center px-5 py-2.5"
-            >
-              {isLoading ? (
-                <svg
-                  className="animate-spin h-4 w-4 mr-2"
-                  style={{ color: theme.blue }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-2"
-                  style={{ color: theme.textSecondary }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              )}
-              <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>
-                Refresh
-              </span>
-            </PremiumButton>
-          </div>
-        </div>
-
-        {/* Large Screen Layout (1536px and above) */}
-        <div className="hidden xl:flex items-center justify-between">
-          {/* Date Picker */}
-          <div className="flex-shrink-0 w-auto">
-            <DatePickerToggle
-              selectedRange={dateRange}
-              onRangeChange={handleDateRangeChange}
-              customRange={customDateRange}
-            />
-          </div>
-
-          {/* Platform Buttons */}
-          <div className="flex items-center justify-center flex-grow px-8 gap-2">
-            {platformOptions.map((platform) => (
-              <button
-                key={platform.id}
-                onClick={() => setSelectedPlatform(platform.id)}
-                className="relative px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap focus:outline-none overflow-hidden group"
-                style={{
-                  backgroundColor:
-                    selectedPlatform === platform.id ? `${theme.blue}12` : theme.bgCard,
-                  border: `1px solid ${selectedPlatform === platform.id ? `${theme.blue}50` : theme.borderSubtle}`,
-                  color: selectedPlatform === platform.id ? theme.blue : theme.textSecondary,
-                  boxShadow:
-                    selectedPlatform === platform.id
-                      ? `0 0 40px ${theme.blue}18, inset 0 1px 0 ${theme.blue}15`
-                      : `0 2px 8px ${theme.shadowSoft}, ${theme.innerShadow}`
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedPlatform !== platform.id) {
-                    e.currentTarget.style.backgroundColor = theme.bgCardHover;
-                    e.currentTarget.style.borderColor = theme.borderHover;
-                    e.currentTarget.style.color = theme.textPrimary;
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedPlatform !== platform.id) {
-                    e.currentTarget.style.backgroundColor = theme.bgCard;
-                    e.currentTarget.style.borderColor = theme.borderSubtle;
-                    e.currentTarget.style.color = theme.textSecondary;
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }
-                }}
-              >
-                <span className="flex items-center relative z-10">
-                  {platform.id !== "all" && platform.icon && (
-                    <img
-                      src={platform.icon}
-                      alt={platform.name}
-                      className="w-4 h-4 mr-2 opacity-90"
-                    />
-                  )}
-                  {platform.name}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Refresh Button */}
-          <div className="flex-shrink-0">
-            <PremiumButton
-              onClick={handleRefresh}
-              className="flex items-center px-5 py-2.5 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <svg
-                  className="animate-spin h-4 w-4 mr-2"
-                  style={{ color: theme.blue }}
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 mr-2"
-                  style={{ color: theme.textSecondary }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              )}
-              <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>
-                Refresh
-              </span>
-            </PremiumButton>
-          </div>
-        </div>
-      </div>
-
-      {/* Metrics grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 xs:gap-5 md:gap-6 w-full">
-        {Object.entries(metricsData).map(([key, metric]) => (
-          <MetricCard
-            key={key}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            changeType={metric.changeType}
-            sparklineData={metric.sparklineData}
-            format={metric.format}
-            platformBreakdown={metric.platformBreakdown}
-            selectedPlatform={selectedPlatform}
-            metricKey={key}
-            isLoading={isLoading}
-            isExpanded={expandedCard === key}
-            onToggleExpand={() => toggleCardExpansion(key)}
-            theme={theme}
-            accentColor={metricAccentColors[key]}
-          />
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };
 
+// Loading Spinner Component
+const LoadingSpinner = ({ theme }) => (
+  <svg
+    className="animate-spin h-5 w-5"
+    style={{ color: theme.blue }}
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
+
+// Refresh Icon Component
+const RefreshIcon = ({ theme }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-5 w-5"
+    style={{ color: theme.textSecondary }}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+    />
+  </svg>
+);
+
+// Premium Skeleton Loading Card Component
+const PremiumSkeletonCard = ({ theme, isDarkMode }) => {
+  return (
+    <div
+      className="rounded-[18px] p-5 xs:p-6 md:p-7 min-h-[200px] xs:min-h-[220px] md:min-h-[240px] relative overflow-hidden"
+      style={{
+        backgroundColor: theme.bgCard,
+        border: `1px solid ${theme.borderSubtle}`,
+        boxShadow: `0 8px 32px ${theme.shadowSoft}`
+      }}
+    >
+      {/* Ambient glow for skeleton */}
+      <div
+        className="absolute -top-20 -right-20 w-40 h-40 rounded-full skeleton-pulse"
+        style={{
+          background: isDarkMode
+            ? `radial-gradient(circle, ${theme.blue}08 0%, transparent 70%)`
+            : `radial-gradient(circle, ${theme.blue}05 0%, transparent 70%)`,
+          filter: "blur(40px)"
+        }}
+      />
+
+      {/* Title skeleton */}
+      <div className="mb-4">
+        <div
+          className="h-4 rounded-lg w-24 skeleton-shimmer"
+          style={{
+            backgroundColor: isDarkMode ? "#151515" : "#e8e8e8"
+          }}
+        />
+      </div>
+
+      {/* Value skeleton */}
+      <div className="mb-3">
+        <div
+          className="h-10 md:h-12 rounded-xl w-32 md:w-40 skeleton-shimmer"
+          style={{
+            backgroundColor: isDarkMode ? "#151515" : "#e8e8e8"
+          }}
+        />
+      </div>
+
+      {/* Change indicator skeleton */}
+      <div className="mb-6">
+        <div
+          className="h-6 rounded-full w-16 skeleton-shimmer"
+          style={{
+            backgroundColor: isDarkMode ? "#151515" : "#e8e8e8"
+          }}
+        />
+      </div>
+
+      {/* Chart skeleton */}
+      <div
+        className="h-20 md:h-24 rounded-xl overflow-hidden relative"
+        style={{
+          backgroundColor: isDarkMode ? "#0a0a0a" : "#f5f5f5"
+        }}
+      >
+        {/* Animated chart bars */}
+        <div className="h-full flex items-end justify-between px-3 pb-2 gap-1">
+          {[35, 55, 40, 65, 50, 75, 45, 60, 55, 70, 48, 62].map((height, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-t-sm skeleton-shimmer"
+              style={{
+                height: `${height}%`,
+                backgroundColor: isDarkMode ? "#151515" : "#e0e0e0",
+                animationDelay: `${i * 0.1}s`
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Shimmer overlay */}
+        <div
+          className="absolute inset-0 skeleton-shimmer"
+          style={{
+            background: isDarkMode
+              ? "linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.03) 50%, transparent 100%)"
+              : "linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.05) 50%, transparent 100%)",
+            backgroundSize: "200% 100%"
+          }}
+        />
+      </div>
+
+      {/* Bottom accent line skeleton */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-px skeleton-shimmer"
+        style={{
+          background: isDarkMode
+            ? `linear-gradient(90deg, transparent, ${theme.borderSubtle}, transparent)`
+            : `linear-gradient(90deg, transparent, ${theme.borderHover}, transparent)`
+        }}
+      />
+    </div>
+  );
+};
+
+// Metric Card Component - FIXED hover (color only, no movement)
 const MetricCard = ({
   title,
   value,
@@ -1168,34 +411,11 @@ const MetricCard = ({
   isLoading,
   isExpanded,
   onToggleExpand,
+  accentColor,
   theme,
-  accentColor
+  isDarkMode
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-
-  const formatValue = (val) => {
-    if (val === null || val === undefined || isNaN(val)) {
-      return format === "currency" ? "$0.00" : "0";
-    }
-
-    if (format === "currency") {
-      if (Math.abs(val) >= 1000) {
-        return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        })}`;
-      }
-      return `${val < 0 ? "-" : ""}$${Math.abs(val).toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}`;
-    } else if (format === "percentage") {
-      return `${parseFloat(val).toFixed(2)}%`;
-    } else if (format === "decimal") {
-      return parseFloat(val).toFixed(2);
-    }
-    return Math.round(val).toLocaleString();
-  };
 
   const getChangeColor = () => {
     if (changeType === "positive") return theme.positive;
@@ -1236,46 +456,29 @@ const MetricCard = ({
 
   const hasPlatformData = Object.keys(platformBreakdown).length > 0;
 
-  // Loading state
+  // Loading state - Premium skeleton
   if (isLoading) {
-    return (
-      <div
-        className="rounded-[18px] p-5 xs:p-6 md:p-7 min-h-[200px] xs:min-h-[220px] md:min-h-[240px]"
-        style={{
-          backgroundColor: theme.bgCard,
-          border: `1px solid ${theme.borderSubtle}`,
-          boxShadow: `0 8px 32px ${theme.shadowSoft}, ${theme.innerShadow}`
-        }}
-      >
-        <div className="shimmer-loading h-4 rounded-lg w-1/2 mb-4"></div>
-        <div className="shimmer-loading h-10 rounded-lg w-3/4 mb-3"></div>
-        <div className="shimmer-loading h-3 rounded-lg w-1/4 mb-6"></div>
-        <div className="h-20 md:h-24 rounded-xl" style={{ backgroundColor: theme.bgChart }}></div>
-      </div>
-    );
+    return <PremiumSkeletonCard theme={theme} isDarkMode={isDarkMode} />;
   }
 
   return (
     <div
-      className="relative rounded-[18px] p-5 xs:p-6 md:p-7 transition-all duration-500 ease-out cursor-pointer min-h-[200px] xs:min-h-[220px] md:min-h-[240px] flex flex-col overflow-hidden group"
+      className="relative rounded-[18px] p-5 xs:p-6 md:p-7 transition-colors duration-300 ease-out cursor-pointer min-h-[200px] xs:min-h-[220px] md:min-h-[240px] flex flex-col overflow-hidden"
       style={{
         backgroundColor: theme.bgCard,
-        border: `1px solid ${isHovered ? `${accentColor}30` : theme.borderSubtle}`,
-        boxShadow: isHovered
-          ? `0 20px 60px ${theme.shadowDeep}, 0 0 60px ${accentColor}12, inset 0 1px 0 rgba(255,255,255,0.04)`
-          : `0 8px 32px ${theme.shadowSoft}, inset 0 1px 0 rgba(255,255,255,0.03)`,
-        transform: isHovered ? "translateY(-4px)" : "translateY(0)"
+        border: `1px solid ${isHovered ? `${accentColor}40` : theme.borderSubtle}`,
+        boxShadow: `0 8px 32px ${theme.shadowSoft}`
       }}
       onClick={onToggleExpand}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Ambient glow effect */}
+      {/* Ambient glow effect - only opacity changes on hover */}
       <div
-        className="absolute -top-20 -right-20 w-40 h-40 rounded-full transition-opacity duration-500"
+        className="absolute -top-20 -right-20 w-40 h-40 rounded-full transition-opacity duration-300"
         style={{
           background: `radial-gradient(circle, ${accentColor}15 0%, transparent 70%)`,
-          opacity: isHovered ? 1 : 0.4,
+          opacity: isHovered ? 0.8 : 0.3,
           filter: "blur(40px)"
         }}
       />
@@ -1283,10 +486,9 @@ const MetricCard = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-2 md:mb-3 relative z-10">
         <div className="flex items-center">
-
           <h3
-            className="text-sm xs:text-base font-medium tracking-wide"
-            style={{ color: theme.textSecondary }}
+            className="text-sm xs:text-base font-medium tracking-wide transition-colors duration-300"
+            style={{ color: isHovered ? theme.textPrimary : theme.textSecondary }}
           >
             {title}
           </h3>
@@ -1307,13 +509,15 @@ const MetricCard = ({
 
       {/* Main Value */}
       <div
-        className="text-2xl xs:text-3xl md:text-4xl font-bold mb-2 md:mb-3 relative z-10 tracking-tight"
+        className="text-2xl xs:text-3xl md:text-4xl font-bold mb-2 md:mb-3 relative z-10 tracking-tight transition-all duration-300"
         style={{
           color: accentColor,
-          textShadow: `0 0 40px ${accentColor}40, 0 0 80px ${accentColor}20`
+          textShadow: isDarkMode
+            ? `0 0 40px ${accentColor}40, 0 0 80px ${accentColor}20`
+            : `0 0 20px ${accentColor}20`
         }}
       >
-        {formatValue(displayValue)}
+        {formatValue(displayValue, format)}
       </div>
 
       {/* Change Indicator */}
@@ -1328,26 +532,27 @@ const MetricCard = ({
           {getChangeIcon()}
           {Math.abs(change)}%
         </span>
-
       </div>
 
       {/* Chart */}
       <div
         className="h-20 ss:h-24 md:h-28 mt-auto rounded-xl overflow-hidden relative z-10"
         style={{
-          background: `linear-gradient(180deg, ${theme.bgChart} 0%, ${theme.bgChartGradient} 100%)`
+          background: isDarkMode
+            ? `linear-gradient(180deg, ${theme.bgChart} 0%, ${theme.bgChartGradient} 100%)`
+            : `linear-gradient(180deg, ${theme.bgChart} 0%, ${theme.bgCard} 100%)`
         }}
       >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={sparklineData} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id={`gradient-${metricKey}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={accentColor} stopOpacity={0.25} />
-                <stop offset="40%" stopColor={accentColor} stopOpacity={0.1} />
+                <stop offset="0%" stopColor={accentColor} stopOpacity={isDarkMode ? 0.25 : 0.3} />
+                <stop offset="40%" stopColor={accentColor} stopOpacity={isDarkMode ? 0.1 : 0.15} />
                 <stop offset="100%" stopColor={accentColor} stopOpacity={0} />
               </linearGradient>
               <filter id={`glow-${metricKey}`} x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                <feGaussianBlur stdDeviation={isDarkMode ? "3" : "2"} result="coloredBlur" />
                 <feMerge>
                   <feMergeNode in="coloredBlur" />
                   <feMergeNode in="SourceGraphic" />
@@ -1361,7 +566,7 @@ const MetricCard = ({
               strokeWidth={2.2}
               fillOpacity={1}
               fill={`url(#gradient-${metricKey})`}
-              filter={`url(#glow-${metricKey})`}
+              filter={isDarkMode ? `url(#glow-${metricKey})` : undefined}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -1408,7 +613,7 @@ const MetricCard = ({
               .map(([platform, platformValue]) => (
                 <div
                   key={platform}
-                  className="flex items-center justify-between p-3 rounded-xl transition-all duration-200"
+                  className="flex items-center justify-between p-3 rounded-xl transition-colors duration-200"
                   style={{
                     backgroundColor: theme.bgSecondary,
                     border: `1px solid ${theme.borderSubtle}`
@@ -1435,7 +640,7 @@ const MetricCard = ({
                     </span>
                   </div>
                   <span className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
-                    {formatValue(platformValue)}
+                    {formatValue(platformValue, format)}
                   </span>
                 </div>
               ))}
@@ -1443,9 +648,9 @@ const MetricCard = ({
         </div>
       )}
 
-      {/* Subtle bottom border glow on hover */}
+      {/* Bottom accent line - only opacity changes on hover */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-500"
+        className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-300"
         style={{
           background: `linear-gradient(90deg, transparent, ${accentColor}50, transparent)`,
           opacity: isHovered ? 1 : 0
@@ -1455,46 +660,677 @@ const MetricCard = ({
   );
 };
 
-// Generate sparkline data
-function generateSparklineData(days, currentValue, metricType = "positive") {
-  if (!currentValue || currentValue === 0) {
-    // Return flat line at 0 if no data
-    return Array.from({ length: days }, (_, i) => ({
-      day: i + 1,
-      value: 0
-    }));
-  }
+// ============ MAIN COMPONENT ============
 
-  const data = [];
-  const variance = 0.15;
-  const trendStrength = 0.3;
+const MediaBuyerDashboard = () => {
+  const dispatch = useDispatch();
 
-  // Add some randomness to make each chart unique
-  const seed = metricType.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const pseudoRandom = (index) => {
-    const x = Math.sin(seed + index) * 10000;
-    return x - Math.floor(x);
-  };
+  // ========== REDUX STATE ==========
+  const theme = useSelector(selectThemeColors);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const selectedPlatform = useSelector(selectSelectedPlatform);
+  const dateRange = useSelector(selectDateRange);
+  const customDateRange = useSelector(selectCustomDateRange);
+  const platformData = useSelector(selectPlatformData);
+  const totals = useSelector(selectTotals);
+  const isLoading = useSelector(selectIsLoading);
+  const error = useSelector(selectMetricsError);
+  const lastUpdated = useSelector(selectLastUpdated);
 
-  for (let i = 0; i < days; i++) {
-    // Create a trend that moves toward the current value
-    const progress = i / (days - 1);
-    const randomFactor = (pseudoRandom(i) - 0.5) * variance * 2;
+  // ========== LOCAL UI STATE ==========
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [tabletMenuOpen, setTabletMenuOpen] = useState(false);
+  const [expandedCard, setExpandedCard] = useState(null);
 
-    // Start at 70% of current value, gradually increase to 100%
-    const trendValue = currentValue * (0.7 + progress * trendStrength);
-    const value = Math.max(0, trendValue * (1 + randomFactor));
+  // ========== MEMOIZED VALUES ==========
 
-    data.push({
-      day: i + 1,
-      value: parseFloat(value.toFixed(2))
+  // Metric accent colors mapping - uses theme colors
+  const metricAccentColors = useMemo(
+    () => ({
+      amount_spent: theme.blue,
+      revenue: theme.green,
+      net: theme.teal,
+      roi: theme.yellow,
+      clicks: theme.purple,
+      conversions: theme.pink,
+      cpa: theme.red,
+      epc: theme.orange
+    }),
+    [theme]
+  );
+
+  const selectedPlatformObj = useMemo(
+    () => platformOptions.find((p) => p.id === selectedPlatform) || platformOptions[0],
+    [selectedPlatform]
+  );
+
+  // Calculate display data based on selected platform
+  const displayData = useMemo(() => {
+    if (selectedPlatform === "all") {
+      return totals;
+    }
+    return (
+      platformData[selectedPlatform] || {
+        spend: 0,
+        revenue: 0,
+        profit: 0,
+        roi: 0,
+        clicks: 0,
+        conversions: 0,
+        cpa: 0,
+        epc: 0
+      }
+    );
+  }, [selectedPlatform, platformData, totals]);
+
+  // Build platform breakdowns for "all" view
+  const platformBreakdowns = useMemo(() => {
+    const breakdowns = {
+      amount_spent: {},
+      revenue: {},
+      net: {},
+      roi: {},
+      clicks: {},
+      conversions: {},
+      cpa: {},
+      epc: {}
+    };
+
+    Object.entries(platformData).forEach(([platform, metrics]) => {
+      if (metrics.spend > 0 || metrics.revenue > 0 || metrics.clicks > 0) {
+        breakdowns.amount_spent[platform] = metrics.spend;
+        breakdowns.revenue[platform] = metrics.revenue;
+        breakdowns.net[platform] = metrics.profit;
+        breakdowns.roi[platform] = metrics.roi;
+        breakdowns.clicks[platform] = metrics.clicks;
+        breakdowns.conversions[platform] = metrics.conversions;
+        breakdowns.cpa[platform] = metrics.cpa;
+        breakdowns.epc[platform] = metrics.epc;
+      }
     });
-  }
 
-  // Ensure last value is close to current value
-  data[data.length - 1].value = currentValue;
+    return breakdowns;
+  }, [platformData]);
 
-  return data;
-}
+  // Generate metrics data for cards
+  const metricsData = useMemo(() => {
+    const mockChange = (value) => {
+      return value > 0 ? parseFloat((Math.random() * 15).toFixed(1)) : 0;
+    };
+
+    return {
+      amount_spent: {
+        title: "Amount Spent",
+        value: displayData.spend,
+        change: mockChange(displayData.spend),
+        changeType: displayData.spend > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, displayData.spend, "spend"),
+        platformBreakdown: platformBreakdowns.amount_spent
+      },
+      revenue: {
+        title: "Revenue",
+        value: displayData.revenue,
+        change: mockChange(displayData.revenue),
+        changeType: displayData.revenue > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, displayData.revenue, "revenue"),
+        platformBreakdown: platformBreakdowns.revenue
+      },
+      net: {
+        title: "Net",
+        value: displayData.profit,
+        change: mockChange(Math.abs(displayData.profit)),
+        changeType: displayData.profit > 0 ? "positive" : "negative",
+        format: "currency",
+        sparklineData: generateSparklineData(30, displayData.profit, "profit"),
+        platformBreakdown: platformBreakdowns.net
+      },
+      roi: {
+        title: "ROI",
+        value: displayData.roi,
+        change: mockChange(displayData.roi),
+        changeType: displayData.roi > 0 ? "positive" : "negative",
+        format: "percentage",
+        sparklineData: generateSparklineData(30, displayData.roi, "roi"),
+        platformBreakdown: platformBreakdowns.roi
+      },
+      clicks: {
+        title: "Clicks",
+        value: displayData.clicks,
+        change: mockChange(displayData.clicks),
+        changeType: displayData.clicks > 0 ? "positive" : "neutral",
+        format: "number",
+        sparklineData: generateSparklineData(30, displayData.clicks, "clicks"),
+        platformBreakdown: platformBreakdowns.clicks
+      },
+      conversions: {
+        title: "Conversions",
+        value: displayData.conversions,
+        change: mockChange(displayData.conversions),
+        changeType: displayData.conversions > 0 ? "positive" : "neutral",
+        format: "number",
+        sparklineData: generateSparklineData(30, displayData.conversions, "conversions"),
+        platformBreakdown: platformBreakdowns.conversions
+      },
+      cpa: {
+        title: "CPA",
+        value: displayData.cpa,
+        change: mockChange(displayData.cpa),
+        changeType: displayData.cpa > 0 ? "negative" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, displayData.cpa, "cpa"),
+        platformBreakdown: platformBreakdowns.cpa
+      },
+      epc: {
+        title: "EPC",
+        value: displayData.epc,
+        change: mockChange(displayData.epc),
+        changeType: displayData.epc > 0 ? "positive" : "neutral",
+        format: "currency",
+        sparklineData: generateSparklineData(30, displayData.epc, "epc"),
+        platformBreakdown: platformBreakdowns.epc
+      }
+    };
+  }, [displayData, platformBreakdowns]);
+
+  // ========== EFFECTS ==========
+
+  // Inject global styles
+  useEffect(() => {
+    const styleElement = document.createElement("style");
+    styleElement.id = "media-buyer-styles";
+    styleElement.textContent = createGlobalStyles(theme, isDarkMode);
+
+    const oldStyles = document.getElementById("media-buyer-styles");
+    if (oldStyles) oldStyles.remove();
+
+    document.head.appendChild(styleElement);
+    return () => {
+      const el = document.getElementById("media-buyer-styles");
+      if (el) el.remove();
+    };
+  }, [theme, isDarkMode]);
+
+  // Fetch data on mount and when filters change
+  useEffect(() => {
+    dispatch(fetchMetrics({ dateRange, customDateRange }));
+  }, [dispatch, dateRange, customDateRange]);
+
+  // Close dropdown when clicking outside - FIXED
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const mobileDropdown = document.querySelector(".mobile-dropdown");
+      const tabletDropdown = document.querySelector(".tablet-dropdown");
+      const desktopDropdown = document.querySelector(".desktop-dropdown");
+
+      if (mobileMenuOpen && mobileDropdown && !mobileDropdown.contains(event.target)) {
+        setMobileMenuOpen(false);
+      }
+      if (tabletMenuOpen && tabletDropdown && !tabletDropdown.contains(event.target)) {
+        setTabletMenuOpen(false);
+      }
+      if (mobileMenuOpen && desktopDropdown && !desktopDropdown.contains(event.target)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [mobileMenuOpen, tabletMenuOpen]);
+
+  // ========== HANDLERS ==========
+
+  const handlePlatformChange = useCallback(
+    (platformId) => {
+      dispatch(setSelectedPlatform(platformId));
+      setMobileMenuOpen(false);
+      setTabletMenuOpen(false);
+      setExpandedCard(null);
+    },
+    [dispatch]
+  );
+
+  const handleDateRangeChange = useCallback(
+    (range, customRange = null) => {
+      dispatch(setDateRange({ range, customRange }));
+    },
+    [dispatch]
+  );
+
+  const handleRefresh = useCallback(() => {
+    dispatch(fetchMetrics({ dateRange, customDateRange }));
+  }, [dispatch, dateRange, customDateRange]);
+
+  const handleClearError = useCallback(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  const toggleCardExpansion = useCallback((cardKey) => {
+    setExpandedCard((prev) => (prev === cardKey ? null : cardKey));
+  }, []);
+
+  // Toggle mobile menu
+  const toggleMobileMenu = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMobileMenuOpen((prev) => !prev);
+  }, []);
+
+  // Toggle tablet menu
+  const toggleTabletMenu = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTabletMenuOpen((prev) => !prev);
+  }, []);
+
+  // ========== RENDER ==========
+
+  return (
+    <div
+      className="p-4 xs:p-5 md:p-8 w-full xs:pt-[25%] ss:pt-[15%] md:pt-[5%] lg:pt-[3%] transition-colors duration-300"
+      style={{
+        backgroundColor: theme.bgMain,
+        backgroundImage: isDarkMode
+          ? `radial-gradient(ellipse 80% 50% at 50% -20%, ${theme.blue}08, transparent)`
+          : `radial-gradient(ellipse 80% 50% at 50% -20%, ${theme.blue}05, transparent)`
+      }}
+    >
+      {/* Error message */}
+      {error && (
+        <div
+          className="mb-6 p-5 rounded-[16px] backdrop-blur-sm"
+          style={{
+            backgroundColor: `${theme.red}08`,
+            border: `1px solid ${theme.red}25`,
+            boxShadow: `0 0 40px ${theme.red}10`
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center mr-3"
+                style={{ backgroundColor: `${theme.red}15` }}
+              >
+                <svg
+                  className="w-4 h-4"
+                  style={{ color: theme.red }}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <p style={{ color: theme.red }} className="text-sm font-medium">
+                {error}
+              </p>
+            </div>
+            <button
+              onClick={handleClearError}
+              className="p-2 rounded-full transition-colors duration-200"
+              style={{ color: theme.red }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.red}15`)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Last Updated Indicator */}
+      {lastUpdated && (
+        <div className="mb-4 text-xs" style={{ color: theme.textTertiary }}>
+          Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+        </div>
+      )}
+
+      {/* Main header with filters */}
+      <div className="mb-6 md:mb-8">
+        {/* Mobile Layout (up to 640px) */}
+        <div className="sm:hidden">
+          <div className="space-y-4">
+            {/* Platform Dropdown for Mobile - FIXED */}
+            <div className="mobile-dropdown relative w-full">
+              <PremiumButton
+                onClick={toggleMobileMenu}
+                className="flex items-center justify-between w-full px-4 py-3"
+                theme={theme}
+              >
+                <div className="flex items-center">
+                  {selectedPlatformObj.icon && (
+                    <img
+                      src={selectedPlatformObj.icon}
+                      alt={selectedPlatformObj.name}
+                      className="w-5 h-5 mr-3"
+                    />
+                  )}
+                  <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
+                    {selectedPlatformObj.name}
+                  </span>
+                </div>
+                <svg
+                  className={`h-5 w-5 transition-transform duration-300 ${
+                    mobileMenuOpen ? "rotate-180" : ""
+                  }`}
+                  style={{ color: theme.textSecondary }}
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </PremiumButton>
+
+              <DropdownMenu
+                isOpen={mobileMenuOpen}
+                options={platformOptions}
+                onSelect={handlePlatformChange}
+                selectedId={selectedPlatform}
+                theme={theme}
+              />
+            </div>
+
+            {/* Date and Refresh Row */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-grow">
+                <DatePickerToggle
+                  selectedRange={dateRange}
+                  onRangeChange={handleDateRangeChange}
+                  customRange={customDateRange}
+                />
+              </div>
+              <PremiumButton
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="px-4 py-3"
+                theme={theme}
+              >
+                {isLoading ? <LoadingSpinner theme={theme} /> : <RefreshIcon theme={theme} />}
+              </PremiumButton>
+            </div>
+          </div>
+        </div>
+
+        {/* Tablet Layout (640px to 1023px) */}
+        <div className="hidden sm:flex lg:hidden flex-col space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-shrink-0 w-auto">
+              <DatePickerToggle
+                selectedRange={dateRange}
+                onRangeChange={handleDateRangeChange}
+                customRange={customDateRange}
+              />
+            </div>
+
+            {/* Platform Dropdown for Tablet */}
+            <div className="tablet-dropdown relative w-64">
+              <PremiumButton
+                onClick={toggleTabletMenu}
+                className="flex items-center justify-between w-full px-4 py-2.5"
+                theme={theme}
+              >
+                <div className="flex items-center">
+                  {selectedPlatformObj.icon && (
+                    <img
+                      src={selectedPlatformObj.icon}
+                      alt={selectedPlatformObj.name}
+                      className="w-5 h-5 mr-2"
+                    />
+                  )}
+                  <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
+                    {selectedPlatformObj.name}
+                  </span>
+                </div>
+                <svg
+                  className={`h-5 w-5 transition-transform duration-300 ${
+                    tabletMenuOpen ? "rotate-180" : ""
+                  }`}
+                  style={{ color: theme.textSecondary }}
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </PremiumButton>
+
+              <DropdownMenu
+                isOpen={tabletMenuOpen}
+                options={platformOptions}
+                onSelect={handlePlatformChange}
+                selectedId={selectedPlatform}
+                theme={theme}
+              />
+            </div>
+
+            {/* Refresh Button */}
+            <PremiumButton
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center px-4 py-2.5"
+              theme={theme}
+            >
+              {isLoading ? (
+                <LoadingSpinner theme={theme} />
+              ) : (
+                <>
+                  <RefreshIcon theme={theme} />
+                  <span className="text-sm font-medium ml-2" style={{ color: theme.textSecondary }}>
+                    Refresh
+                  </span>
+                </>
+              )}
+            </PremiumButton>
+          </div>
+        </div>
+
+        {/* Desktop Layout (1024px to 1535px) */}
+        <div className="hidden lg:flex xl:hidden items-center justify-between gap-4">
+          <div className="flex-shrink-0 w-auto">
+            <DatePickerToggle
+              selectedRange={dateRange}
+              onRangeChange={handleDateRangeChange}
+              customRange={customDateRange}
+            />
+          </div>
+
+          {/* Platform Dropdown for Desktop */}
+          <div className="desktop-dropdown relative w-64">
+            <PremiumButton
+              onClick={toggleMobileMenu}
+              className="flex items-center justify-between w-full px-4 py-2.5"
+              theme={theme}
+            >
+              <div className="flex items-center">
+                {selectedPlatformObj.icon && (
+                  <img
+                    src={selectedPlatformObj.icon}
+                    alt={selectedPlatformObj.name}
+                    className="w-5 h-5 mr-2"
+                  />
+                )}
+                <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
+                  {selectedPlatformObj.name}
+                </span>
+              </div>
+              <svg
+                className={`h-5 w-5 transition-transform duration-300 ${
+                  mobileMenuOpen ? "rotate-180" : ""
+                }`}
+                style={{ color: theme.textSecondary }}
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </PremiumButton>
+
+            <DropdownMenu
+              isOpen={mobileMenuOpen}
+              options={platformOptions}
+              onSelect={handlePlatformChange}
+              selectedId={selectedPlatform}
+              theme={theme}
+            />
+          </div>
+
+          {/* Refresh Button */}
+          <div className="flex-shrink-0">
+            <PremiumButton
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center px-5 py-2.5"
+              theme={theme}
+            >
+              {isLoading ? (
+                <LoadingSpinner theme={theme} />
+              ) : (
+                <>
+                  <RefreshIcon theme={theme} />
+                  <span className="text-sm font-medium ml-2" style={{ color: theme.textSecondary }}>
+                    Refresh
+                  </span>
+                </>
+              )}
+            </PremiumButton>
+          </div>
+        </div>
+
+        {/* Large Screen Layout (1536px and above) */}
+        <div className="hidden xl:flex items-center justify-between">
+          {/* Date Picker */}
+          <div className="flex-shrink-0 w-auto">
+            <DatePickerToggle
+              selectedRange={dateRange}
+              onRangeChange={handleDateRangeChange}
+              customRange={customDateRange}
+            />
+          </div>
+
+          {/* Platform Buttons */}
+          <div className="flex items-center justify-center flex-grow px-8 gap-2">
+            {platformOptions.map((platform) => (
+              <button
+                key={platform.id}
+                onClick={() => handlePlatformChange(platform.id)}
+                className="relative px-5 py-2.5 rounded-full text-sm font-semibold transition-colors duration-300 whitespace-nowrap focus:outline-none overflow-hidden"
+                style={{
+                  backgroundColor:
+                    selectedPlatform === platform.id ? `${theme.blue}12` : theme.bgCard,
+                  border: `1px solid ${selectedPlatform === platform.id ? `${theme.blue}50` : theme.borderSubtle}`,
+                  color: selectedPlatform === platform.id ? theme.blue : theme.textSecondary,
+                  boxShadow:
+                    selectedPlatform === platform.id
+                      ? `0 0 40px ${theme.blue}18`
+                      : `0 2px 8px ${theme.shadowSoft}`
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedPlatform !== platform.id) {
+                    e.currentTarget.style.backgroundColor = theme.bgCardHover;
+                    e.currentTarget.style.borderColor = theme.borderHover;
+                    e.currentTarget.style.color = theme.textPrimary;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedPlatform !== platform.id) {
+                    e.currentTarget.style.backgroundColor = theme.bgCard;
+                    e.currentTarget.style.borderColor = theme.borderSubtle;
+                    e.currentTarget.style.color = theme.textSecondary;
+                  }
+                }}
+              >
+                <span className="flex items-center relative z-10">
+                  {platform.id !== "all" && platform.icon && (
+                    <img
+                      src={platform.icon}
+                      alt={platform.name}
+                      className="w-4 h-4 mr-2 opacity-90"
+                    />
+                  )}
+                  {platform.name}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Refresh Button */}
+          <div className="flex-shrink-0">
+            <PremiumButton
+              onClick={handleRefresh}
+              className="flex items-center px-5 py-2.5"
+              disabled={isLoading}
+              theme={theme}
+            >
+              {isLoading ? (
+                <LoadingSpinner theme={theme} />
+              ) : (
+                <>
+                  <RefreshIcon theme={theme} />
+                  <span className="text-sm font-medium ml-2" style={{ color: theme.textSecondary }}>
+                    Refresh
+                  </span>
+                </>
+              )}
+            </PremiumButton>
+          </div>
+        </div>
+      </div>
+
+      {/* Metrics grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 xs:gap-5 md:gap-6 w-full">
+        {Object.entries(metricsData).map(([key, metric]) => (
+          <MetricCard
+            key={key}
+            title={metric.title}
+            value={metric.value}
+            change={metric.change}
+            changeType={metric.changeType}
+            sparklineData={metric.sparklineData}
+            format={metric.format}
+            platformBreakdown={metric.platformBreakdown}
+            selectedPlatform={selectedPlatform}
+            metricKey={key}
+            isLoading={isLoading}
+            isExpanded={expandedCard === key}
+            onToggleExpand={() => toggleCardExpansion(key)}
+            accentColor={metricAccentColors[key]}
+            theme={theme}
+            isDarkMode={isDarkMode}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default MediaBuyerDashboard;

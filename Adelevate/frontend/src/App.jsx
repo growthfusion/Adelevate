@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import React from "react";
-
-// Import ThemeProvider
-import { ThemeProvider } from "@/context/ThemeContext";
+import React, { useEffect } from "react";
+import { Provider, useSelector } from "react-redux";
+import { store } from "@/app/store";
+import { selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice";
 
 // Components
 import SlideSidebar from "./components/slide-sidebar";
@@ -40,17 +40,81 @@ function AuthEventLogger() {
   return null;
 }
 
-// Protected Layout Component (includes sidebar)
-function ProtectedLayout({ children }) {
+// Theme Provider Component - Syncs theme to DOM
+function ThemeProvider({ children }) {
+  const theme = useSelector(selectThemeColors);
+  const isDarkMode = useSelector(selectIsDarkMode);
+
+  useEffect(() => {
+    // Apply theme class to document
+    const root = document.documentElement;
+
+    // Remove old theme classes
+    root.classList.remove("light", "dark");
+
+    // Add new theme class
+    root.classList.add(isDarkMode ? "dark" : "light");
+
+    // Set data attribute
+    root.setAttribute("data-theme", isDarkMode ? "dark" : "light");
+
+    // Update body styles
+    document.body.style.backgroundColor = theme.bgMain;
+    document.body.style.color = theme.textPrimary;
+
+    // Update meta theme-color for mobile browsers
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement("meta");
+      metaThemeColor.name = "theme-color";
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute("content", theme.bgMain);
+  }, [isDarkMode, theme]);
+
+  // Listen for storage changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key === "app-theme-mode" && event.newValue) {
+        // Force re-render by dispatching action
+        // This is handled in themeSlice
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   return (
-    <div className="flex h-screen overflow-hidden">
-      <SlideSidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
+    <div
+      className="min-h-screen transition-colors duration-300"
+      style={{
+        backgroundColor: theme.bgMain,
+        color: theme.textPrimary
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-function App() {
+// Protected Layout Component (includes sidebar)
+function ProtectedLayout({ children }) {
+  const theme = useSelector(selectThemeColors);
+
+  return (
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: theme.bgMain }}>
+      <SlideSidebar />
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: theme.bgSecondary }}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
+// Inner App Component (needs access to Redux)
+function AppContent() {
   return (
     <ThemeProvider>
       <BrowserRouter>
@@ -223,6 +287,14 @@ function App() {
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
   );
 }
 

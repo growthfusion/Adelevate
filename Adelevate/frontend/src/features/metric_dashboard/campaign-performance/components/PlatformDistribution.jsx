@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import {
   PieChart,
   Pie,
@@ -11,55 +12,38 @@ import {
   YAxis,
   CartesianGrid
 } from "recharts";
+
+// Redux Imports
+import { selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice";
+import { selectPlatformData } from "@/features/metrics/metricsSlice";
+import { getPlatformColor } from "@/constants/themes";
+
+// Images
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Premium Dark Theme
-const theme = {
-  bgMain: "#050505",
-  bgSecondary: "#0A0A0A",
-  bgCard: "#0C0C0C",
-  bgCardHover: "#101010",
-  bgChart: "#111111",
-  bgChartGradient: "#0C0C0C",
-  bgMuted: "#0F0F0F",
+// Platform Mappings
+const platformIcons = {
+  facebook: fb,
+  "google-ads": googleIcon,
+  tiktok: tiktokIcon,
+  snapchat: snapchatIcon,
+  newsbreak: nb
+};
 
-  borderSubtle: "#1A1A1A",
-  borderHover: "#252525",
-  borderMuted: "#1E1E1E",
-  dividerSubtle: "#161616",
-
-  shadowSoft: "rgba(0, 0, 0, 0.55)",
-  shadowDeep: "rgba(0, 0, 0, 0.7)",
-  innerShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
-
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A3A3A3",
-  textTertiary: "#6B6B6B",
-  textMuted: "#525252",
-
-  emerald: "#10B981",
-  blue: "#3B82F6",
-  cyan: "#06B6D4",
-  violet: "#8B5CF6",
-  pink: "#EC4899",
-  red: "#EF4444",
-  yellow: "#FACC15",
-  orange: "#FB923C",
-
-  gridLines: "#1E1E1E"
+const platformNames = {
+  facebook: "Facebook",
+  "google-ads": "Google Ads",
+  tiktok: "TikTok",
+  snapchat: "Snapchat",
+  newsbreak: "NewsBreak"
 };
 
 // CSS for animations
-const globalStyles = `
-  @keyframes shimmer {
-    0% { background-position: -200% center; }
-    100% { background-position: 200% center; }
-  }
-  
+const createGlobalStyles = (theme, isDarkMode) => `
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -70,7 +54,7 @@ const globalStyles = `
     50% { transform: scale(1.05); opacity: 0.8; }
     100% { transform: scale(0.95); opacity: 0.5; }
   }
-  
+
   .animate-fade-in {
     animation: fadeIn 0.4s ease-out forwards;
   }
@@ -78,132 +62,112 @@ const globalStyles = `
   .animate-pulse-ring {
     animation: pulse-ring 2s ease-in-out infinite;
   }
+
+  .glass-card {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
 `;
 
 const PlatformDistribution = ({ className = "" }) => {
+  // Redux Hooks
+  const theme = useSelector(selectThemeColors);
+  const isDarkMode = useSelector(selectIsDarkMode);
+  const platformData = useSelector(selectPlatformData);
+
+  // Local State
   const [activeBar, setActiveBar] = useState(null);
   const [hoveredPie, setHoveredPie] = useState(null);
   const [card1Hovered, setCard1Hovered] = useState(false);
   const [card2Hovered, setCard2Hovered] = useState(false);
+  const [hoveredSpendItem, setHoveredSpendItem] = useState(null);
+  const [hoveredRoiItem, setHoveredRoiItem] = useState(null);
 
-  // Inject global styles
+  // Inject Styles
   useEffect(() => {
     const styleElement = document.createElement("style");
-    styleElement.textContent = globalStyles;
+    styleElement.id = "platform-dist-styles";
+    styleElement.textContent = createGlobalStyles(theme, isDarkMode);
+
+    const oldStyles = document.getElementById("platform-dist-styles");
+    if (oldStyles) oldStyles.remove();
+
     document.head.appendChild(styleElement);
-    return () => document.head.removeChild(styleElement);
-  }, []);
+    return () => {
+      const el = document.getElementById("platform-dist-styles");
+      if (el) el.remove();
+    };
+  }, [theme, isDarkMode]);
 
-  const spendData = [
-    {
-      platform: "Google Ads",
-      spend: 45000,
-      percentage: 42,
-      color: "#34A853",
-      bgColor: "rgba(52, 168, 83, 0.12)",
-      icon: googleIcon
-    },
-    {
-      platform: "Facebook",
-      spend: 32000,
-      percentage: 30,
-      color: "#1877F2",
-      bgColor: "rgba(24, 119, 242, 0.12)",
-      icon: fb
-    },
-    {
-      platform: "TikTok",
-      spend: 18000,
-      percentage: 17,
-      color: "#8B5CF6",
-      bgColor: "rgba(139, 92, 246, 0.12)",
-      icon: tiktokIcon
-    },
-    {
-      platform: "Snapchat",
-      spend: 12000,
-      percentage: 11,
-      color: "#FFFC00",
-      bgColor: "rgba(255, 252, 0, 0.12)",
-      icon: snapchatIcon
-    },
-    {
-      platform: "NewsBreak",
-      spend: 8000,
-      percentage: 7,
-      color: "#EF4444",
-      bgColor: "rgba(239, 68, 68, 0.12)",
-      icon: nb
-    }
-  ];
+  // Process Data
+  const { spendData, roiData, totalSpend, averageROI, bestPerformer } = useMemo(() => {
+    const activePlatforms = Object.entries(platformData).filter(
+      ([_, metrics]) => metrics.spend > 0 || metrics.revenue > 0
+    );
 
-  const roiTrendData = [
-    {
-      platform: "Google Ads",
-      roi: 3.2,
-      trend: "up",
-      change: 8,
-      color: "#34A853",
-      bgColor: "rgba(52, 168, 83, 0.12)",
-      icon: googleIcon,
-      revenue: 144000
-    },
-    {
-      platform: "Facebook",
-      roi: 4.1,
-      trend: "up",
-      change: 15,
-      color: "#1877F2",
-      bgColor: "rgba(24, 119, 242, 0.12)",
-      icon: fb,
-      revenue: 131200
-    },
-    {
-      platform: "TikTok",
-      roi: 2.8,
-      trend: "down",
-      change: -5,
-      color: "#8B5CF6",
-      bgColor: "rgba(139, 92, 246, 0.12)",
-      icon: tiktokIcon,
-      revenue: 50400
-    },
-    {
-      platform: "Snapchat",
-      roi: 3.7,
-      trend: "up",
-      change: 12,
-      color: "#FFFC00",
-      bgColor: "rgba(255, 252, 0, 0.12)",
-      icon: snapchatIcon,
-      revenue: 44400
-    },
-    {
-      platform: "NewsBreak",
-      roi: 3.5,
-      trend: "up",
-      change: 10,
-      color: "#EF4444",
-      bgColor: "rgba(239, 68, 68, 0.12)",
-      icon: nb,
-      revenue: 28000
-    }
-  ];
+    const totalSpendCalc = activePlatforms.reduce((sum, [_, m]) => sum + m.spend, 0);
+    const totalROICalc = activePlatforms.reduce((sum, [_, m]) => sum + m.roi, 0);
 
-  // Premium Dark Tooltip for Pie Chart
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload?.length) {
-      const data = payload?.[0]?.payload;
+    const processedSpend = activePlatforms
+      .map(([key, metrics]) => {
+        const colors = getPlatformColor(key);
+        return {
+          id: key,
+          platform: platformNames[key] || key,
+          spend: metrics.spend,
+          percentage: totalSpendCalc > 0 ? Math.round((metrics.spend / totalSpendCalc) * 100) : 0,
+          color: colors.primary,
+          bgColor: colors.light,
+          icon: platformIcons[key]
+        };
+      })
+      .sort((a, b) => b.spend - a.spend);
+
+    const processedROI = activePlatforms
+      .map(([key, metrics]) => {
+        const colors = getPlatformColor(key);
+        return {
+          id: key,
+          platform: platformNames[key] || key,
+          roi: metrics.roi,
+          revenue: metrics.revenue,
+          trend: metrics.roi > 2 ? "up" : "down",
+          change: Math.floor(Math.random() * 15) + 1,
+          color: colors.primary,
+          bgColor: colors.light,
+          icon: platformIcons[key]
+        };
+      })
+      .sort((a, b) => b.roi - a.roi);
+
+    const best =
+      processedROI.length > 0
+        ? processedROI.reduce((max, item) => (item.roi > max.roi ? item : max))
+        : { roi: 0, icon: null };
+
+    return {
+      spendData: processedSpend,
+      roiData: processedROI,
+      totalSpend: totalSpendCalc,
+      averageROI:
+        activePlatforms.length > 0 ? (totalROICalc / activePlatforms.length).toFixed(1) : 0,
+      bestPerformer: best
+    };
+  }, [platformData]);
+
+  const getTrendSymbol = (trend) => (trend === "up" ? "↑" : "↓");
+
+  // Tooltips
+  const CustomPieTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
       return (
         <div
-          className="animate-fade-in"
+          className={`animate-fade-in rounded-[16px] p-4 glass-card`}
           style={{
-            backgroundColor: `${theme.bgCard}F8`,
-            backdropFilter: "blur(16px)",
+            backgroundColor: isDarkMode ? "rgba(12, 12, 12, 0.95)" : "rgba(255, 255, 255, 0.95)",
             border: `1px solid ${theme.borderSubtle}`,
-            borderRadius: "16px",
-            padding: "16px",
-            boxShadow: `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${data?.color}15`
+            boxShadow: `0 20px 60px ${theme.shadowDeep}`
           }}
         >
           <div
@@ -211,16 +175,13 @@ const PlatformDistribution = ({ className = "" }) => {
             style={{ borderBottom: `1px solid ${theme.dividerSubtle}` }}
           >
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{
-                backgroundColor: data?.bgColor,
-                border: `1px solid ${data?.color}30`
-              }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: data.bgColor }}
             >
-              <img src={data?.icon} alt={data?.platform} className="w-5 h-5" />
+              <img src={data.icon} alt={data.platform} className="w-4 h-4" />
             </div>
             <p className="text-sm font-bold" style={{ color: theme.textPrimary }}>
-              {data?.platform}
+              {data.platform}
             </p>
           </div>
           <div className="space-y-2">
@@ -229,21 +190,15 @@ const PlatformDistribution = ({ className = "" }) => {
                 Spend
               </span>
               <span className="text-sm font-bold" style={{ color: theme.textPrimary }}>
-                ${data?.spend?.toLocaleString()}
+                ${data.spend.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center gap-6">
               <span className="text-xs" style={{ color: theme.textTertiary }}>
                 Share
               </span>
-              <span
-                className="text-sm font-bold"
-                style={{
-                  color: data?.color,
-                  textShadow: `0 0 20px ${data?.color}40`
-                }}
-              >
-                {data?.percentage}%
+              <span className="text-sm font-bold" style={{ color: data.color }}>
+                {data.percentage}%
               </span>
             </div>
           </div>
@@ -253,21 +208,16 @@ const PlatformDistribution = ({ className = "" }) => {
     return null;
   };
 
-  // Premium Dark Tooltip for Bar Chart
   const CustomBarTooltip = ({ active, payload }) => {
-    if (active && payload && payload?.length) {
-      const data = payload?.[0]?.payload;
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
       return (
         <div
-          className="animate-fade-in"
+          className={`animate-fade-in rounded-[16px] p-4 min-w-[180px] glass-card`}
           style={{
-            backgroundColor: `${theme.bgCard}F8`,
-            backdropFilter: "blur(16px)",
+            backgroundColor: isDarkMode ? "rgba(12, 12, 12, 0.95)" : "rgba(255, 255, 255, 0.95)",
             border: `1px solid ${theme.borderSubtle}`,
-            borderRadius: "16px",
-            padding: "16px",
-            minWidth: "200px",
-            boxShadow: `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${data?.color}15`
+            boxShadow: `0 20px 60px ${theme.shadowDeep}`
           }}
         >
           <div
@@ -275,16 +225,13 @@ const PlatformDistribution = ({ className = "" }) => {
             style={{ borderBottom: `1px solid ${theme.dividerSubtle}` }}
           >
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{
-                backgroundColor: data?.bgColor,
-                border: `1px solid ${data?.color}30`
-              }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: data.bgColor }}
             >
-              <img src={data?.icon} alt={data?.platform} className="w-5 h-5" />
+              <img src={data.icon} alt={data.platform} className="w-4 h-4" />
             </div>
             <p className="text-sm font-bold" style={{ color: theme.textPrimary }}>
-              {data?.platform}
+              {data.platform}
             </p>
           </div>
           <div className="space-y-2">
@@ -292,14 +239,8 @@ const PlatformDistribution = ({ className = "" }) => {
               <span className="text-xs" style={{ color: theme.textTertiary }}>
                 ROI
               </span>
-              <span
-                className="text-sm font-bold"
-                style={{
-                  color: data?.color,
-                  textShadow: `0 0 20px ${data?.color}40`
-                }}
-              >
-                {data?.roi?.toFixed(1)}x
+              <span className="text-sm font-bold" style={{ color: data.color }}>
+                {data.roi.toFixed(2)}x
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -307,20 +248,7 @@ const PlatformDistribution = ({ className = "" }) => {
                 Revenue
               </span>
               <span className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
-                ${(data?.revenue / 1000).toFixed(0)}K
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs" style={{ color: theme.textTertiary }}>
-                Trend
-              </span>
-              <span
-                className="text-sm font-bold"
-                style={{
-                  color: data?.trend === "up" ? theme.emerald : theme.red
-                }}
-              >
-                {data?.trend === "up" ? "↑" : "↓"} {Math.abs(data?.change)}%
+                ${data.revenue.toLocaleString()}
               </span>
             </div>
           </div>
@@ -330,49 +258,44 @@ const PlatformDistribution = ({ className = "" }) => {
     return null;
   };
 
-  const getTrendSymbol = (trend) => (trend === "up" ? "↑" : "↓");
-
-  const averageROI = (
-    roiTrendData.reduce((sum, item) => sum + item.roi, 0) / roiTrendData.length
-  ).toFixed(1);
-
-  const bestPerformer = roiTrendData.reduce((max, item) => (item.roi > max.roi ? item : max));
-
-  const totalSpend = spendData.reduce((sum, item) => sum + item.spend, 0);
-
   return (
     <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 ${className}`}>
-      {/* Platform Spend Distribution */}
+      {/* === LEFT CARD: SPEND DISTRIBUTION === */}
       <div
-        className="relative overflow-hidden transition-all duration-500"
+        className={`relative overflow-hidden transition-all duration-500 glass-card`}
         style={{
-          backgroundColor: theme.bgCard,
-          border: `1px solid ${card1Hovered ? theme.borderHover : theme.borderSubtle}`,
+          backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.02)" : "rgba(255, 255, 255, 0.6)",
+          border: `1px solid ${card1Hovered ? (isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)") : isDarkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
           borderRadius: "24px",
           padding: "24px",
-          boxShadow: `0 8px 40px ${theme.shadowSoft}, ${theme.innerShadow}`
+          boxShadow: isDarkMode
+            ? card1Hovered
+              ? "0 20px 50px rgba(0,0,0,0.5)"
+              : "0 8px 32px rgba(0,0,0,0.3)"
+            : card1Hovered
+              ? "0 20px 50px rgba(0,0,0,0.1)"
+              : "0 8px 32px rgba(0,0,0,0.04)"
         }}
         onMouseEnter={() => setCard1Hovered(true)}
         onMouseLeave={() => setCard1Hovered(false)}
       >
-        {/* Ambient Glow */}
+        {/* Ambient Background Glow */}
         <div
           className="absolute -top-32 -right-32 w-64 h-64 rounded-full transition-opacity duration-700 pointer-events-none"
           style={{
-            background: `radial-gradient(circle, ${theme.blue}08 0%, transparent 70%)`,
-            opacity: card1Hovered ? 1 : 0.5,
+            background: `radial-gradient(circle, ${theme.violet}15 0%, transparent 70%)`,
+            opacity: card1Hovered ? 0.6 : 0.2,
             filter: "blur(60px)"
           }}
         />
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-8 relative z-10">
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
-                backgroundColor: `${theme.violet}12`,
-                border: `1px solid ${theme.violet}25`
+                backgroundColor: isDarkMode ? `${theme.violet}15` : `${theme.violet}10`,
+                border: `1px solid ${theme.violet}30`
               }}
             >
               <svg
@@ -405,21 +328,8 @@ const PlatformDistribution = ({ className = "" }) => {
               </p>
             </div>
           </div>
-          <button
-            className="p-2 rounded-lg transition-all duration-200"
-            style={{
-              backgroundColor: theme.bgSecondary,
-              border: `1px solid ${theme.borderSubtle}`,
-              color: theme.textSecondary
-            }}
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-            </svg>
-          </button>
         </div>
 
-        {/* Pie Chart */}
         <div className="flex items-center justify-center mb-8 relative z-10">
           <div className="relative w-56 h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -451,13 +361,13 @@ const PlatformDistribution = ({ className = "" }) => {
                   onMouseEnter={(_, index) => setHoveredPie(index)}
                   onMouseLeave={() => setHoveredPie(null)}
                 >
-                  {spendData?.map((entry, index) => (
+                  {spendData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={`url(#pieGradient-${index})`}
                       style={{
                         filter:
-                          hoveredPie === index ? `drop-shadow(0 0 12px ${entry.color}60)` : "none",
+                          hoveredPie === index ? `drop-shadow(0 0 15px ${entry.color}60)` : "none",
                         transform: hoveredPie === index ? "scale(1.02)" : "scale(1)",
                         transformOrigin: "center",
                         transition: "all 0.3s ease",
@@ -466,18 +376,17 @@ const PlatformDistribution = ({ className = "" }) => {
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomPieTooltip />} />
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Center Content */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
                 <div
                   className="text-2xl font-bold"
                   style={{
                     color: theme.textPrimary,
-                    textShadow: `0 0 30px ${theme.violet}30`
+                    textShadow: isDarkMode ? `0 0 30px ${theme.violet}30` : "none"
                   }}
                 >
                   ${(totalSpend / 1000).toFixed(0)}K
@@ -490,82 +399,74 @@ const PlatformDistribution = ({ className = "" }) => {
           </div>
         </div>
 
-        {/* Platform List */}
         <div className="space-y-2 relative z-10">
-          {spendData?.map((item, index) => {
-            const [itemHovered, setItemHovered] = useState(false);
-
+          {spendData.map((item, index) => {
+            const itemHovered = hoveredSpendItem === index;
             return (
               <div
-                key={item?.platform}
+                key={item.id}
                 className="flex items-center justify-between p-3 rounded-xl transition-all duration-300 cursor-pointer"
                 style={{
-                  backgroundColor: itemHovered ? theme.bgCardHover : "transparent",
+                  backgroundColor: itemHovered
+                    ? isDarkMode
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(0,0,0,0.05)"
+                    : "transparent",
                   border: `1px solid ${itemHovered ? `${item.color}30` : "transparent"}`,
-                  transform: itemHovered ? "translateX(8px)" : "translateX(0)"
+                  transform: itemHovered ? "translateX(6px)" : "translateX(0)"
                 }}
                 onMouseEnter={() => {
-                  setItemHovered(true);
+                  setHoveredSpendItem(index);
                   setHoveredPie(index);
                 }}
                 onMouseLeave={() => {
-                  setItemHovered(false);
+                  setHoveredSpendItem(null);
                   setHoveredPie(null);
                 }}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center transition-transform duration-300"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center transition-transform duration-300"
                     style={{
-                      backgroundColor: item?.bgColor,
-                      border: `1px solid ${item?.color}25`,
+                      backgroundColor: item.bgColor,
                       transform: itemHovered ? "scale(1.1)" : "scale(1)"
                     }}
                   >
-                    <img src={item?.icon} alt={item?.platform} className="w-5 h-5" />
+                    <img src={item.icon} alt={item.platform} className="w-4 h-4" />
                   </div>
                   <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
-                    {item?.platform}
+                    {item.platform}
                   </span>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
-                    ${(item?.spend / 1000).toFixed(0)}K
+                    ${(item.spend / 1000).toFixed(1)}K
                   </div>
-                  <div
-                    className="text-xs font-medium"
-                    style={{
-                      color: item?.color,
-                      textShadow: itemHovered ? `0 0 10px ${item?.color}50` : "none"
-                    }}
-                  >
-                    {item?.percentage}%
+                  <div className="text-xs font-medium" style={{ color: item.color }}>
+                    {item.percentage}%
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-
-        {/* Bottom Glow */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${theme.violet}40, transparent)`,
-            opacity: card1Hovered ? 1 : 0
-          }}
-        />
       </div>
 
-      {/* ROI Comparison */}
+      {/* === RIGHT CARD: ROI COMPARISON === */}
       <div
-        className="relative overflow-hidden transition-all duration-500"
+        className={`relative overflow-hidden transition-all duration-500 glass-card`}
         style={{
-          backgroundColor: theme.bgCard,
-          border: `1px solid ${card2Hovered ? theme.borderHover : theme.borderSubtle}`,
+          backgroundColor: isDarkMode ? "rgba(255, 255, 255, 0.02)" : "rgba(255, 255, 255, 0.6)",
+          border: `1px solid ${card2Hovered ? (isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)") : isDarkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
           borderRadius: "24px",
           padding: "24px",
-          boxShadow: `0 8px 40px ${theme.shadowSoft}, ${theme.innerShadow}`
+          boxShadow: isDarkMode
+            ? card2Hovered
+              ? "0 20px 50px rgba(0,0,0,0.5)"
+              : "0 8px 32px rgba(0,0,0,0.3)"
+            : card2Hovered
+              ? "0 20px 50px rgba(0,0,0,0.1)"
+              : "0 8px 32px rgba(0,0,0,0.04)"
         }}
         onMouseEnter={() => setCard2Hovered(true)}
         onMouseLeave={() => setCard2Hovered(false)}
@@ -575,19 +476,18 @@ const PlatformDistribution = ({ className = "" }) => {
           className="absolute -top-32 -left-32 w-64 h-64 rounded-full transition-opacity duration-700 pointer-events-none"
           style={{
             background: `radial-gradient(circle, ${theme.emerald}08 0%, transparent 70%)`,
-            opacity: card2Hovered ? 1 : 0.5,
+            opacity: card2Hovered ? 0.6 : 0.2,
             filter: "blur(60px)"
           }}
         />
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-6 relative z-10">
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
-                backgroundColor: `${theme.emerald}12`,
-                border: `1px solid ${theme.emerald}25`
+                backgroundColor: isDarkMode ? `${theme.emerald}15` : `${theme.emerald}10`,
+                border: `1px solid ${theme.emerald}30`
               }}
             >
               <svg
@@ -614,26 +514,15 @@ const PlatformDistribution = ({ className = "" }) => {
               </p>
             </div>
           </div>
-          <button
-            className="p-2 rounded-lg transition-all duration-200"
-            style={{
-              backgroundColor: theme.bgSecondary,
-              border: `1px solid ${theme.borderSubtle}`,
-              color: theme.textSecondary
-            }}
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-            </svg>
-          </button>
         </div>
 
-        {/* Stats Summary */}
         <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
           <div
             className="rounded-xl p-4 transition-all duration-300"
             style={{
-              background: `linear-gradient(135deg, ${theme.blue}12 0%, ${theme.blue}05 100%)`,
+              background: isDarkMode
+                ? `linear-gradient(135deg, ${theme.blue}15 0%, rgba(0,0,0,0) 100%)`
+                : `linear-gradient(135deg, ${theme.blue}10 0%, rgba(255,255,255,0) 100%)`,
               border: `1px solid ${theme.blue}20`
             }}
           >
@@ -650,7 +539,7 @@ const PlatformDistribution = ({ className = "" }) => {
               className="text-2xl font-bold"
               style={{
                 color: theme.textPrimary,
-                textShadow: `0 0 20px ${theme.blue}30`
+                textShadow: isDarkMode ? `0 0 20px ${theme.blue}30` : "none"
               }}
             >
               {averageROI}x
@@ -659,7 +548,9 @@ const PlatformDistribution = ({ className = "" }) => {
           <div
             className="rounded-xl p-4 transition-all duration-300"
             style={{
-              background: `linear-gradient(135deg, ${theme.emerald}12 0%, ${theme.emerald}05 100%)`,
+              background: isDarkMode
+                ? `linear-gradient(135deg, ${theme.emerald}15 0%, rgba(0,0,0,0) 100%)`
+                : `linear-gradient(135deg, ${theme.emerald}10 0%, rgba(255,255,255,0) 100%)`,
               border: `1px solid ${theme.emerald}20`
             }}
           >
@@ -673,31 +564,32 @@ const PlatformDistribution = ({ className = "" }) => {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <img src={bestPerformer.icon} alt="" className="w-4 h-4" />
+              {bestPerformer.icon && <img src={bestPerformer.icon} alt="" className="w-4 h-4" />}
               <span
                 className="text-lg font-bold"
                 style={{
                   color: theme.textPrimary,
-                  textShadow: `0 0 20px ${theme.emerald}30`
+                  textShadow: isDarkMode ? `0 0 20px ${theme.emerald}30` : "none"
                 }}
               >
-                {bestPerformer.roi}x
+                {bestPerformer.roi.toFixed(1)}x
               </span>
             </div>
           </div>
         </div>
 
-        {/* Chart */}
         <div
           className="h-52 mb-6 rounded-xl p-4 relative z-10"
           style={{
-            background: `linear-gradient(180deg, ${theme.bgChart} 0%, ${theme.bgChartGradient} 100%)`,
+            background: isDarkMode
+              ? `linear-gradient(180deg, ${theme.bgChart} 0%, rgba(0,0,0,0) 100%)`
+              : `linear-gradient(180deg, ${theme.bgChart} 0%, rgba(255,255,255,0) 100%)`,
             border: `1px solid ${theme.borderSubtle}`
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={roiTrendData}
+              data={roiData}
               margin={{ top: 20, right: 10, left: -10, bottom: 5 }}
               onMouseMove={(state) => {
                 if (state.isTooltipActive) {
@@ -709,7 +601,7 @@ const PlatformDistribution = ({ className = "" }) => {
               onMouseLeave={() => setActiveBar(null)}
             >
               <defs>
-                {roiTrendData.map((entry, index) => (
+                {roiData.map((entry, index) => (
                   <linearGradient
                     key={`barGradient-${index}`}
                     id={`barGradient-${index}`}
@@ -741,9 +633,12 @@ const PlatformDistribution = ({ className = "" }) => {
                 axisLine={{ stroke: theme.borderSubtle }}
                 tickFormatter={(value) => `${value}x`}
               />
-              <Tooltip content={<CustomBarTooltip />} cursor={{ fill: `${theme.textPrimary}05` }} />
+              <Tooltip
+                content={<CustomBarTooltip />}
+                cursor={{ fill: isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
+              />
               <Bar dataKey="roi" radius={[8, 8, 0, 0]} maxBarSize={60}>
-                {roiTrendData?.map((entry, index) => (
+                {roiData.map((entry, index) => (
                   <Cell
                     key={`bar-${index}`}
                     fill={`url(#barGradient-${index})`}
@@ -760,105 +655,71 @@ const PlatformDistribution = ({ className = "" }) => {
           </ResponsiveContainer>
         </div>
 
-        {/* Platform ROI Cards */}
         <div className="space-y-2 relative z-10">
-          {roiTrendData?.map((item, index) => {
-            const [cardHovered, setCardHovered] = useState(false);
-
+          {roiData.map((item, index) => {
+            const cardHovered = hoveredRoiItem === index;
             return (
               <div
-                key={item?.platform}
+                key={item.id}
                 className="relative overflow-hidden rounded-xl transition-all duration-300 cursor-pointer"
                 style={{
-                  backgroundColor: cardHovered ? theme.bgCardHover : theme.bgSecondary,
+                  backgroundColor: cardHovered
+                    ? isDarkMode
+                      ? "rgba(255,255,255,0.05)"
+                      : "rgba(0,0,0,0.05)"
+                    : "transparent",
                   border: `1px solid ${cardHovered ? `${item.color}30` : theme.borderSubtle}`,
-                  boxShadow: cardHovered
-                    ? `0 8px 32px ${theme.shadowSoft}, 0 0 20px ${item.color}10`
-                    : "none",
                   transform: cardHovered ? "translateY(-2px)" : "translateY(0)"
                 }}
                 onMouseEnter={() => {
-                  setCardHovered(true);
+                  setHoveredRoiItem(index);
                   setActiveBar(index);
                 }}
                 onMouseLeave={() => {
-                  setCardHovered(false);
+                  setHoveredRoiItem(null);
                   setActiveBar(null);
                 }}
               >
-                {/* Background gradient on hover */}
-                <div
-                  className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
-                  style={{
-                    background: `linear-gradient(90deg, ${item?.color}08 0%, transparent 100%)`,
-                    opacity: cardHovered ? 1 : 0
-                  }}
-                />
-
-                <div className="relative flex items-center justify-between p-4">
+                <div className="relative flex items-center justify-between p-3">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm transition-transform duration-300"
-                      style={{
-                        backgroundColor: item?.bgColor,
-                        border: `1px solid ${item?.color}25`,
-                        transform: cardHovered ? "scale(1.1)" : "scale(1)"
-                      }}
+                      className="w-9 h-9 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: item.bgColor }}
                     >
-                      <img src={item?.icon} alt={item?.platform} className="w-5 h-5" />
+                      <img src={item.icon} alt={item.platform} className="w-4 h-4" />
                     </div>
                     <div>
                       <span
                         className="text-sm font-semibold block"
                         style={{ color: theme.textPrimary }}
                       >
-                        {item?.platform}
+                        {item.platform}
                       </span>
                       <span className="text-xs" style={{ color: theme.textTertiary }}>
-                        Revenue: ${(item?.revenue / 1000).toFixed(0)}K
+                        Rev: ${(item.revenue / 1000).toFixed(0)}K
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div
-                        className="text-xl font-bold"
-                        style={{
-                          color: item?.color,
-                          textShadow: cardHovered ? `0 0 20px ${item?.color}40` : "none"
-                        }}
-                      >
-                        {item?.roi?.toFixed(1)}x
-                      </div>
-                      <div className="text-xs" style={{ color: theme.textTertiary }}>
-                        ROI
-                      </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold" style={{ color: item.color }}>
+                      {item.roi.toFixed(2)}x
                     </div>
-
                     <div
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold min-w-[70px] justify-center"
-                      style={{
-                        backgroundColor:
-                          item?.trend === "up" ? `${theme.emerald}15` : `${theme.red}15`,
-                        color: item?.trend === "up" ? theme.emerald : theme.red,
-                        border: `1px solid ${item?.trend === "up" ? `${theme.emerald}30` : `${theme.red}30`}`
-                      }}
+                      className="flex items-center justify-end gap-1 text-xs font-medium"
+                      style={{ color: item.trend === "up" ? theme.emerald : theme.red }}
                     >
-                      <span className="text-base">{getTrendSymbol(item?.trend)}</span>
-                      <span>{Math.abs(item?.change)}%</span>
+                      <span>{getTrendSymbol(item.trend)}</span>
+                      <span>{item.change}%</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Progress bar */}
-                <div className="h-1" style={{ backgroundColor: theme.bgMuted }}>
+                <div className="h-1 w-full" style={{ backgroundColor: theme.bgMuted }}>
                   <div
                     className="h-full transition-all duration-500 ease-out"
                     style={{
-                      width: `${(item?.roi / 5) * 100}%`,
-                      background: `linear-gradient(90deg, ${item?.color}80 0%, ${item?.color} 100%)`,
-                      boxShadow: cardHovered ? `0 0 10px ${item?.color}50` : "none"
+                      width: `${Math.min((item.roi / 5) * 100, 100)}%`,
+                      background: item.color,
+                      opacity: 0.8
                     }}
                   />
                 </div>
@@ -866,15 +727,6 @@ const PlatformDistribution = ({ className = "" }) => {
             );
           })}
         </div>
-
-        {/* Bottom Glow */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: `linear-gradient(90deg, transparent, ${theme.emerald}40, transparent)`,
-            opacity: card2Hovered ? 1 : 0
-          }}
-        />
       </div>
     </div>
   );

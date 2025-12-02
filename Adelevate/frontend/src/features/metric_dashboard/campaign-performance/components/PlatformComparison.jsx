@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext, createContext } from "react";
+import { useSelector } from "react-redux";
 import {
   BarChart,
   Bar,
@@ -12,116 +13,132 @@ import {
   AreaChart
 } from "recharts";
 
+// Redux selectors
+import {
+  selectPlatformData,
+  selectIsLoading,
+  selectMetricsError
+} from "@/features/metrics/metricsSlice";
+
+// Theme imports
+import { darkTheme, lightTheme } from "@/constants/themes";
+
+// Platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-// Premium Dark Theme
-const theme = {
-  bgMain: "#050505",
-  bgSecondary: "#0A0A0A",
-  bgCard: "#0C0C0C",
-  bgCardHover: "#101010",
-  bgChart: "#111111",
-  bgChartGradient: "#0C0C0C",
-  bgMuted: "#0F0F0F",
+// ============ THEME CONTEXT ============
+// If you already have a ThemeContext, import it instead
+const ThemeContext = createContext({
+  isDarkMode: true,
+  theme: darkTheme,
+  toggleTheme: () => {}
+});
 
-  borderSubtle: "#1A1A1A",
-  borderHover: "#252525",
-  borderMuted: "#1E1E1E",
-  dividerSubtle: "#161616",
+export const useTheme = () => useContext(ThemeContext);
 
-  shadowSoft: "rgba(0, 0, 0, 0.55)",
-  shadowDeep: "rgba(0, 0, 0, 0.7)",
-  innerShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.03)",
-
-  textPrimary: "#FFFFFF",
-  textSecondary: "#A3A3A3",
-  textTertiary: "#6B6B6B",
-  textMuted: "#525252",
-
-  // Accent colors
-  emerald: "#10B981",
-  blue: "#3B82F6",
-  cyan: "#06B6D4",
-  violet: "#8B5CF6",
-  pink: "#EC4899",
-  red: "#EF4444",
-  yellow: "#FACC15",
-  orange: "#FB923C",
-
-  gridLines: "#1E1E1E"
-};
-
-const PLATFORM_CONFIG = {
+// ============ PLATFORM CONFIG ============
+const getPlatformConfig = (isDarkMode) => ({
   "google-ads": {
     name: "Google Ads",
     icon: googleIcon,
     color: "#34A853",
-    bgColor: "rgba(52, 168, 83, 0.12)",
-    glowColor: "rgba(52, 168, 83, 0.25)"
+    bgColor: isDarkMode ? "rgba(52, 168, 83, 0.12)" : "rgba(52, 168, 83, 0.08)",
+    glowColor: isDarkMode ? "rgba(52, 168, 83, 0.25)" : "rgba(52, 168, 83, 0.15)"
   },
   facebook: {
     name: "Facebook",
     icon: fb,
     color: "#1877F2",
-    bgColor: "rgba(24, 119, 242, 0.12)",
-    glowColor: "rgba(24, 119, 242, 0.25)"
+    bgColor: isDarkMode ? "rgba(24, 119, 242, 0.12)" : "rgba(24, 119, 242, 0.08)",
+    glowColor: isDarkMode ? "rgba(24, 119, 242, 0.25)" : "rgba(24, 119, 242, 0.15)"
   },
   tiktok: {
     name: "TikTok",
     icon: tiktokIcon,
-    color: "#8B5CF6",
-    bgColor: "rgba(139, 92, 246, 0.12)",
-    glowColor: "rgba(139, 92, 246, 0.25)"
+    color: isDarkMode ? "#8B5CF6" : "#7C3AED",
+    bgColor: isDarkMode ? "rgba(139, 92, 246, 0.12)" : "rgba(124, 58, 237, 0.08)",
+    glowColor: isDarkMode ? "rgba(139, 92, 246, 0.25)" : "rgba(124, 58, 237, 0.15)"
   },
   snapchat: {
     name: "Snapchat",
     icon: snapchatIcon,
-    color: "#FFFC00",
-    bgColor: "rgba(255, 252, 0, 0.12)",
-    glowColor: "rgba(255, 252, 0, 0.25)"
+    color: isDarkMode ? "#FFFC00" : "#EAB308",
+    bgColor: isDarkMode ? "rgba(255, 252, 0, 0.12)" : "rgba(234, 179, 8, 0.08)",
+    glowColor: isDarkMode ? "rgba(255, 252, 0, 0.25)" : "rgba(234, 179, 8, 0.15)"
   },
   newsbreak: {
     name: "NewsBreak",
     icon: nb,
-    color: "#EF4444",
-    bgColor: "rgba(239, 68, 68, 0.12)",
-    glowColor: "rgba(239, 68, 68, 0.25)"
+    color: isDarkMode ? "#EF4444" : "#DC2626",
+    bgColor: isDarkMode ? "rgba(239, 68, 68, 0.12)" : "rgba(220, 38, 38, 0.08)",
+    glowColor: isDarkMode ? "rgba(239, 68, 68, 0.25)" : "rgba(220, 38, 38, 0.15)"
   }
-};
+});
 
-// CSS for animations
-const globalStyles = `
+// ============ DYNAMIC STYLES ============
+const getGlobalStyles = (theme, isDarkMode) => `
   @keyframes shimmer {
     0% { background-position: -200% center; }
     100% { background-position: 200% center; }
   }
-  
+
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
-  
+
   @keyframes pulse-glow {
     0%, 100% { opacity: 0.6; }
     50% { opacity: 1; }
   }
-  
-  .shimmer-dark {
-    background: linear-gradient(90deg, #0C0C0C 25%, #1A1A1A 50%, #0C0C0C 75%);
+
+  .shimmer-loading {
+    background: ${theme.skeletonShimmer};
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
-  
+
   .animate-fade-in {
     animation: fadeIn 0.4s ease-out forwards;
   }
+
+  .platform-comparison-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .platform-comparison-scrollbar::-webkit-scrollbar-track {
+    background: ${theme.scrollbarTrack};
+    border-radius: 4px;
+  }
+
+  .platform-comparison-scrollbar::-webkit-scrollbar-thumb {
+    background: ${theme.scrollbarThumb};
+    border-radius: 4px;
+  }
+
+  .platform-comparison-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: ${theme.scrollbarThumbHover};
+  }
 `;
 
-const PlatformComparison = ({ platformData = {}, isLoading = false, className = "" }) => {
+// ============ MAIN COMPONENT ============
+const PlatformComparison = ({ className = "" }) => {
+  // ========== THEME ==========
+  const { isDarkMode = true, theme: contextTheme } = useTheme();
+  const theme = contextTheme || (isDarkMode ? darkTheme : lightTheme);
+  const PLATFORM_CONFIG = getPlatformConfig(isDarkMode);
+
+  // ========== GET DATA FROM REDUX ==========
+  const platformData = useSelector(selectPlatformData);
+  const isLoading = useSelector(selectIsLoading);
+  const error = useSelector(selectMetricsError);
+
+  // ========== LOCAL STATE ==========
   const [comparisonData, setComparisonData] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState("revenue");
   const [viewMode, setViewMode] = useState("overview");
@@ -129,17 +146,29 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
 
   // Inject global styles
   useEffect(() => {
-    const styleElement = document.createElement("style");
-    styleElement.textContent = globalStyles;
-    document.head.appendChild(styleElement);
-    return () => document.head.removeChild(styleElement);
-  }, []);
+    const styleId = "platform-comparison-styles";
+    let styleElement = document.getElementById(styleId);
 
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    styleElement.textContent = getGlobalStyles(theme, isDarkMode);
+
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) document.head.removeChild(el);
+    };
+  }, [theme, isDarkMode]);
+
+  // Process platform data when Redux data changes
   useEffect(() => {
     if (Object.keys(platformData).length > 0) {
       generateComparisonData();
     }
-  }, [platformData]);
+  }, [platformData, isDarkMode]);
 
   const generateComparisonData = () => {
     const platforms = ["google-ads", "facebook", "tiktok", "snapchat", "newsbreak"];
@@ -200,7 +229,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
 
   const currentMetric = metricOptions.find((m) => m.value === selectedMetric);
 
-  // Premium Dark Tooltip
+  // ========== CUSTOM TOOLTIP ==========
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -208,12 +237,14 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
         <div
           className="animate-fade-in"
           style={{
-            backgroundColor: `${theme.bgCard}F8`,
+            backgroundColor: isDarkMode ? `${theme.bgCard}F8` : theme.bgCard,
             backdropFilter: "blur(16px)",
             border: `1px solid ${theme.borderSubtle}`,
             borderRadius: "16px",
             padding: "16px",
-            boxShadow: `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${data.color}15`
+            boxShadow: isDarkMode
+              ? `0 20px 60px ${theme.shadowDeep}, 0 0 40px ${data.color}15`
+              : `0 10px 40px ${theme.shadowDeep}`
           }}
         >
           <div
@@ -241,7 +272,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
               className="text-sm font-bold"
               style={{
                 color: data.color,
-                textShadow: `0 0 20px ${data.color}40`
+                textShadow: isDarkMode ? `0 0 20px ${data.color}40` : "none"
               }}
             >
               {formatValue(payload[0].value, currentMetric.format)}
@@ -253,7 +284,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
     return null;
   };
 
-  // Loading State
+  // ========== LOADING STATE ==========
   if (isLoading) {
     return (
       <div
@@ -262,7 +293,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
           backgroundColor: theme.bgCard,
           border: `1px solid ${theme.borderSubtle}`,
           borderRadius: "24px",
-          boxShadow: `0 8px 40px ${theme.shadowSoft}, ${theme.innerShadow}`
+          boxShadow: theme.shadowCard
         }}
       >
         <div
@@ -272,11 +303,11 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
             background: `linear-gradient(135deg, ${theme.blue}08 0%, transparent 100%)`
           }}
         >
-          <div className="shimmer-dark h-6 rounded-lg w-1/3 mb-2"></div>
-          <div className="shimmer-dark h-4 rounded-lg w-1/2"></div>
+          <div className="shimmer-loading h-6 rounded-lg w-1/3 mb-2"></div>
+          <div className="shimmer-loading h-4 rounded-lg w-1/2"></div>
         </div>
         <div className="p-6">
-          <div className="shimmer-dark h-64 rounded-xl"></div>
+          <div className="shimmer-loading h-64 rounded-xl"></div>
         </div>
       </div>
     );
@@ -284,7 +315,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
 
   const hasData = comparisonData.some((p) => p.revenue > 0 || p.spend > 0 || p.clicks > 0);
 
-  // Empty State
+  // ========== EMPTY STATE ==========
   if (!hasData) {
     return (
       <div
@@ -293,7 +324,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
           backgroundColor: theme.bgCard,
           border: `1px solid ${theme.borderSubtle}`,
           borderRadius: "24px",
-          boxShadow: `0 8px 40px ${theme.shadowSoft}, ${theme.innerShadow}`
+          boxShadow: theme.shadowCard
         }}
       >
         <div
@@ -337,7 +368,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
     (p) => p.revenue > 0 || p.spend > 0 || p.clicks > 0
   );
 
-  // View Mode Button Component
+  // ========== VIEW MODE BUTTON ==========
   const ViewModeButton = ({ mode, label }) => {
     const [buttonHovered, setButtonHovered] = useState(false);
     const isActive = viewMode === mode;
@@ -354,12 +385,12 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
             : buttonHovered
               ? theme.bgCardHover
               : "transparent",
-          color: isActive
-            ? theme.textPrimary
-            : buttonHovered
-              ? theme.textPrimary
-              : theme.textSecondary,
-          boxShadow: isActive ? `0 0 20px ${theme.blue}30` : "none"
+          color: isActive ? "#FFFFFF" : buttonHovered ? theme.textPrimary : theme.textSecondary,
+          boxShadow: isActive
+            ? isDarkMode
+              ? `0 0 20px ${theme.blue}30`
+              : `0 4px 12px ${theme.blue}25`
+            : "none"
         }}
       >
         {label}
@@ -367,6 +398,257 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
     );
   };
 
+  // ========== PLATFORM CARD ==========
+  const PlatformCard = ({ platform }) => {
+    const [cardHovered, setCardHovered] = useState(false);
+
+    return (
+      <div
+        className="rounded-xl p-5 transition-all duration-300"
+        style={{
+          backgroundColor: cardHovered ? theme.bgCardHover : theme.bgSecondary,
+          border: `1px solid ${cardHovered ? `${platform.color}30` : theme.borderSubtle}`,
+          boxShadow: cardHovered
+            ? isDarkMode
+              ? `0 8px 32px ${theme.shadowSoft}, 0 0 30px ${platform.color}15`
+              : `0 8px 24px ${theme.shadowSoft}`
+            : "none",
+          transform: cardHovered ? "translateY(-4px)" : "translateY(0)"
+        }}
+        onMouseEnter={() => setCardHovered(true)}
+        onMouseLeave={() => setCardHovered(false)}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            style={{
+              backgroundColor: platform.bgColor,
+              border: `1px solid ${platform.color}25`
+            }}
+          >
+            <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
+          </div>
+          <span className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
+            {platform.name}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
+              Revenue
+            </p>
+            <p
+              className="font-bold text-lg"
+              style={{
+                color: platform.color,
+                textShadow: isDarkMode ? `0 0 20px ${platform.color}30` : "none"
+              }}
+            >
+              ${(platform.revenue / 1000).toFixed(1)}k
+            </p>
+          </div>
+
+          <div
+            className="grid grid-cols-2 gap-3 pt-3"
+            style={{ borderTop: `1px solid ${theme.dividerSubtle}` }}
+          >
+            <div>
+              <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
+                ROI
+              </p>
+              <p
+                className="text-sm font-bold"
+                style={{ color: platform.roi > 0 ? theme.positive : theme.negative }}
+              >
+                {platform.roi.toFixed(0)}%
+              </p>
+            </div>
+            <div>
+              <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
+                Conv
+              </p>
+              <p className="text-sm font-bold" style={{ color: theme.textPrimary }}>
+                {platform.conversions}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ========== TABLE ROW ==========
+  const TableRow = ({ platform }) => {
+    const [rowHovered, setRowHovered] = useState(false);
+
+    return (
+      <tr
+        className="transition-all duration-200"
+        style={{
+          borderBottom: `1px solid ${theme.dividerSubtle}`,
+          backgroundColor: rowHovered ? theme.tableRowHover : theme.tableRowBg
+        }}
+        onMouseEnter={() => setRowHovered(true)}
+        onMouseLeave={() => setRowHovered(false)}
+      >
+        <td className="p-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{
+                backgroundColor: platform.bgColor,
+                border: `1px solid ${platform.color}25`
+              }}
+            >
+              <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
+            </div>
+            <span className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
+              {platform.name}
+            </span>
+          </div>
+        </td>
+        <td className="p-4 text-right text-sm font-medium" style={{ color: theme.textSecondary }}>
+          {formatValue(platform.spend, "currency")}
+        </td>
+        <td className="p-4 text-right text-sm font-semibold" style={{ color: theme.textPrimary }}>
+          {formatValue(platform.revenue, "currency")}
+        </td>
+        <td className="p-4 text-right text-sm font-semibold">
+          <span style={{ color: platform.profit > 0 ? theme.positive : theme.negative }}>
+            {formatValue(platform.profit, "currency")}
+          </span>
+        </td>
+        <td className="p-4 text-right">
+          <span
+            className="inline-flex px-3 py-1 rounded-full text-xs font-semibold"
+            style={{
+              backgroundColor: platform.roi > 0 ? `${theme.positive}15` : `${theme.negative}15`,
+              color: platform.roi > 0 ? theme.positive : theme.negative,
+              border: `1px solid ${platform.roi > 0 ? `${theme.positive}30` : `${theme.negative}30`}`
+            }}
+          >
+            {platform.roi.toFixed(1)}%
+          </span>
+        </td>
+        <td className="p-4 text-right text-sm font-medium" style={{ color: theme.textSecondary }}>
+          {formatValue(platform.clicks, "number")}
+        </td>
+        <td className="p-4 text-right text-sm font-semibold" style={{ color: theme.textPrimary }}>
+          {formatValue(platform.conversions, "number")}
+        </td>
+        <td className="p-4 text-right text-sm font-medium" style={{ color: theme.textSecondary }}>
+          {formatValue(platform.cpa, "currency")}
+        </td>
+      </tr>
+    );
+  };
+
+  // ========== REVENUE BAR ==========
+  const RevenueBar = ({ platform, maxRevenue }) => {
+    const [barHovered, setBarHovered] = useState(false);
+
+    return (
+      <div
+        className="flex items-center gap-3"
+        onMouseEnter={() => setBarHovered(true)}
+        onMouseLeave={() => setBarHovered(false)}
+      >
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200"
+          style={{
+            backgroundColor: platform.bgColor,
+            border: `1px solid ${platform.color}25`,
+            transform: barHovered ? "scale(1.1)" : "scale(1)"
+          }}
+        >
+          <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
+        </div>
+        <span className="text-sm font-semibold w-24" style={{ color: theme.textPrimary }}>
+          {platform.name}
+        </span>
+        <div
+          className="flex-1 rounded-full h-8 relative overflow-hidden"
+          style={{ backgroundColor: theme.bgSecondary }}
+        >
+          <div
+            className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+            style={{
+              width: `${(platform.revenue / maxRevenue) * 100}%`,
+              background: `linear-gradient(90deg, ${platform.color}${isDarkMode ? "90" : "CC"} 0%, ${platform.color} 100%)`,
+              boxShadow: barHovered
+                ? isDarkMode
+                  ? `0 0 20px ${platform.color}50`
+                  : `0 0 12px ${platform.color}30`
+                : isDarkMode
+                  ? `0 0 10px ${platform.color}30`
+                  : "none"
+            }}
+          >
+            <span
+              className="text-xs font-bold drop-shadow-lg"
+              style={{ color: isDarkMode ? "#FFFFFF" : "#FFFFFF" }}
+            >
+              ${(platform.revenue / 1000).toFixed(1)}k
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ========== ROI BAR ==========
+  const ROIBar = ({ platform }) => {
+    const [barHovered, setBarHovered] = useState(false);
+    const roiColor = platform.roi > 0 ? theme.positive : theme.negative;
+
+    return (
+      <div
+        className="flex items-center gap-3"
+        onMouseEnter={() => setBarHovered(true)}
+        onMouseLeave={() => setBarHovered(false)}
+      >
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200"
+          style={{
+            backgroundColor: platform.bgColor,
+            border: `1px solid ${platform.color}25`,
+            transform: barHovered ? "scale(1.1)" : "scale(1)"
+          }}
+        >
+          <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
+        </div>
+        <span className="text-sm font-semibold w-24" style={{ color: theme.textPrimary }}>
+          {platform.name}
+        </span>
+        <div
+          className="flex-1 rounded-full h-8 relative overflow-hidden"
+          style={{ backgroundColor: theme.bgSecondary }}
+        >
+          <div
+            className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+            style={{
+              width: `${Math.min(100, Math.max(0, platform.roi))}%`,
+              background: `linear-gradient(90deg, ${roiColor}${isDarkMode ? "90" : "CC"} 0%, ${roiColor} 100%)`,
+              boxShadow: barHovered
+                ? isDarkMode
+                  ? `0 0 20px ${roiColor}50`
+                  : `0 0 12px ${roiColor}30`
+                : isDarkMode
+                  ? `0 0 10px ${roiColor}30`
+                  : "none"
+            }}
+          >
+            <span className="text-xs font-bold drop-shadow-lg" style={{ color: "#FFFFFF" }}>
+              {platform.roi.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ========== MAIN RENDER ==========
   return (
     <div
       className={`overflow-hidden relative transition-all duration-500 ${className}`}
@@ -374,27 +656,29 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
         backgroundColor: theme.bgCard,
         border: `1px solid ${isHovered ? theme.borderHover : theme.borderSubtle}`,
         borderRadius: "24px",
-        boxShadow: `0 8px 40px ${theme.shadowSoft}, ${theme.innerShadow}`
+        boxShadow: isHovered ? theme.shadowCardHover : theme.shadowCard
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Ambient Glow */}
-      <div
-        className="absolute -top-32 -right-32 w-64 h-64 rounded-full transition-opacity duration-700 pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, ${theme.blue}08 0%, transparent 70%)`,
-          opacity: isHovered ? 1 : 0.5,
-          filter: "blur(60px)"
-        }}
-      />
+      {/* Ambient Glow - Only visible in dark mode */}
+      {isDarkMode && (
+        <div
+          className="absolute -top-32 -right-32 w-64 h-64 rounded-full transition-opacity duration-700 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${theme.blue}08 0%, transparent 70%)`,
+            opacity: isHovered ? 1 : 0.5,
+            filter: "blur(60px)"
+          }}
+        />
+      )}
 
       {/* Header */}
       <div
         className="p-6 relative z-10"
         style={{
           borderBottom: `1px solid ${theme.dividerSubtle}`,
-          background: `linear-gradient(135deg, ${theme.blue}08 0%, transparent 100%)`
+          background: `linear-gradient(135deg, ${theme.blue}${isDarkMode ? "08" : "05"} 0%, transparent 100%)`
         }}
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -402,7 +686,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
-                backgroundColor: `${theme.blue}12`,
+                backgroundColor: `${theme.blue}${isDarkMode ? "12" : "10"}`,
                 border: `1px solid ${theme.blue}25`
               }}
             >
@@ -465,16 +749,16 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                 onChange={(e) => setSelectedMetric(e.target.value)}
                 className="px-4 py-2 rounded-lg text-sm font-medium focus:outline-none transition-all cursor-pointer"
                 style={{
-                  backgroundColor: theme.bgCard,
-                  border: `1px solid ${theme.borderSubtle}`,
-                  color: theme.textPrimary
+                  backgroundColor: theme.inputBg,
+                  border: `1px solid ${theme.inputBorder}`,
+                  color: theme.inputText
                 }}
               >
                 {metricOptions.map((option) => (
                   <option
                     key={option.value}
                     value={option.value}
-                    style={{ backgroundColor: theme.bgCard }}
+                    style={{ backgroundColor: theme.bgDropdown, color: theme.textPrimary }}
                   >
                     {option.label}
                   </option>
@@ -503,7 +787,11 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                         y2="1"
                       >
                         <stop offset="0%" stopColor={platform.color} stopOpacity={1} />
-                        <stop offset="100%" stopColor={platform.color} stopOpacity={0.6} />
+                        <stop
+                          offset="100%"
+                          stopColor={platform.color}
+                          stopOpacity={isDarkMode ? 0.6 : 0.8}
+                        />
                       </linearGradient>
                     ))}
                   </defs>
@@ -527,7 +815,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                   />
                   <Tooltip
                     content={<CustomTooltip />}
-                    cursor={{ fill: `${theme.textPrimary}05` }}
+                    cursor={{ fill: `${theme.textPrimary}${isDarkMode ? "05" : "08"}` }}
                   />
                   <Bar dataKey={selectedMetric} radius={[8, 8, 0, 0]} maxBarSize={60}>
                     {activePlatforms.map((entry, index) => (
@@ -535,7 +823,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                         key={`cell-${index}`}
                         fill={`url(#barGradient-${entry.platform})`}
                         style={{
-                          filter: `drop-shadow(0 4px 12px ${entry.color}40)`
+                          filter: isDarkMode ? `drop-shadow(0 4px 12px ${entry.color}40)` : "none"
                         }}
                       />
                     ))}
@@ -546,97 +834,23 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
 
             {/* Platform Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {activePlatforms.map((platform) => {
-                const [cardHovered, setCardHovered] = useState(false);
-
-                return (
-                  <div
-                    key={platform.platform}
-                    className="rounded-xl p-5 transition-all duration-300"
-                    style={{
-                      backgroundColor: cardHovered ? theme.bgCardHover : theme.bgSecondary,
-                      border: `1px solid ${cardHovered ? `${platform.color}30` : theme.borderSubtle}`,
-                      boxShadow: cardHovered
-                        ? `0 8px 32px ${theme.shadowSoft}, 0 0 30px ${platform.color}15`
-                        : "none",
-                      transform: cardHovered ? "translateY(-4px)" : "translateY(0)"
-                    }}
-                    onMouseEnter={() => setCardHovered(true)}
-                    onMouseLeave={() => setCardHovered(false)}
-                  >
-                    <div className="flex items-center gap-2 mb-4">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{
-                          backgroundColor: platform.bgColor,
-                          border: `1px solid ${platform.color}25`
-                        }}
-                      >
-                        <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
-                      </div>
-                      <span className="font-semibold text-sm" style={{ color: theme.textPrimary }}>
-                        {platform.name}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
-                          Revenue
-                        </p>
-                        <p
-                          className="font-bold text-lg"
-                          style={{
-                            color: platform.color,
-                            textShadow: `0 0 20px ${platform.color}30`
-                          }}
-                        >
-                          ${(platform.revenue / 1000).toFixed(1)}k
-                        </p>
-                      </div>
-
-                      <div
-                        className="grid grid-cols-2 gap-3 pt-3"
-                        style={{ borderTop: `1px solid ${theme.dividerSubtle}` }}
-                      >
-                        <div>
-                          <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
-                            ROI
-                          </p>
-                          <p
-                            className="text-sm font-bold"
-                            style={{ color: platform.roi > 0 ? theme.emerald : theme.red }}
-                          >
-                            {platform.roi.toFixed(0)}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs mb-1" style={{ color: theme.textTertiary }}>
-                            Conv
-                          </p>
-                          <p className="text-sm font-bold" style={{ color: theme.textPrimary }}>
-                            {platform.conversions}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {activePlatforms.map((platform) => (
+                <PlatformCard key={platform.platform} platform={platform} />
+              ))}
             </div>
           </div>
         )}
 
         {viewMode === "detailed" && (
           <div
-            className="overflow-x-auto rounded-xl animate-fade-in"
+            className="overflow-x-auto rounded-xl animate-fade-in platform-comparison-scrollbar"
             style={{ border: `1px solid ${theme.borderSubtle}` }}
           >
             <table className="w-full">
               <thead>
                 <tr
                   style={{
-                    background: `linear-gradient(135deg, ${theme.bgSecondary} 0%, ${theme.bgMuted} 100%)`
+                    background: `linear-gradient(135deg, ${theme.tableHeaderBg} 0%, ${theme.bgMuted} 100%)`
                   }}
                 >
                   <th
@@ -689,91 +903,10 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                   </th>
                 </tr>
               </thead>
-              <tbody style={{ backgroundColor: theme.bgCard }}>
-                {activePlatforms.map((platform, index) => {
-                  const [rowHovered, setRowHovered] = useState(false);
-
-                  return (
-                    <tr
-                      key={platform.platform}
-                      className="transition-all duration-200"
-                      style={{
-                        borderBottom: `1px solid ${theme.dividerSubtle}`,
-                        backgroundColor: rowHovered ? theme.bgCardHover : "transparent"
-                      }}
-                      onMouseEnter={() => setRowHovered(true)}
-                      onMouseLeave={() => setRowHovered(false)}
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center"
-                            style={{
-                              backgroundColor: platform.bgColor,
-                              border: `1px solid ${platform.color}25`
-                            }}
-                          >
-                            <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
-                          </div>
-                          <span
-                            className="font-semibold text-sm"
-                            style={{ color: theme.textPrimary }}
-                          >
-                            {platform.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td
-                        className="p-4 text-right text-sm font-medium"
-                        style={{ color: theme.textSecondary }}
-                      >
-                        {formatValue(platform.spend, "currency")}
-                      </td>
-                      <td
-                        className="p-4 text-right text-sm font-semibold"
-                        style={{ color: theme.textPrimary }}
-                      >
-                        {formatValue(platform.revenue, "currency")}
-                      </td>
-                      <td className="p-4 text-right text-sm font-semibold">
-                        <span style={{ color: platform.profit > 0 ? theme.emerald : theme.red }}>
-                          {formatValue(platform.profit, "currency")}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <span
-                          className="inline-flex px-3 py-1 rounded-full text-xs font-semibold"
-                          style={{
-                            backgroundColor:
-                              platform.roi > 0 ? `${theme.emerald}15` : `${theme.red}15`,
-                            color: platform.roi > 0 ? theme.emerald : theme.red,
-                            border: `1px solid ${platform.roi > 0 ? `${theme.emerald}30` : `${theme.red}30`}`
-                          }}
-                        >
-                          {platform.roi.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td
-                        className="p-4 text-right text-sm font-medium"
-                        style={{ color: theme.textSecondary }}
-                      >
-                        {formatValue(platform.clicks, "number")}
-                      </td>
-                      <td
-                        className="p-4 text-right text-sm font-semibold"
-                        style={{ color: theme.textPrimary }}
-                      >
-                        {formatValue(platform.conversions, "number")}
-                      </td>
-                      <td
-                        className="p-4 text-right text-sm font-medium"
-                        style={{ color: theme.textSecondary }}
-                      >
-                        {formatValue(platform.cpa, "currency")}
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody style={{ backgroundColor: theme.tableRowBg }}>
+                {activePlatforms.map((platform) => (
+                  <TableRow key={platform.platform} platform={platform} />
+                ))}
               </tbody>
             </table>
           </div>
@@ -798,54 +931,12 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                     .sort((a, b) => b.revenue - a.revenue)
                     .map((platform) => {
                       const maxRevenue = Math.max(...activePlatforms.map((p) => p.revenue));
-                      const [barHovered, setBarHovered] = useState(false);
-
                       return (
-                        <div
+                        <RevenueBar
                           key={platform.platform}
-                          className="flex items-center gap-3"
-                          onMouseEnter={() => setBarHovered(true)}
-                          onMouseLeave={() => setBarHovered(false)}
-                        >
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200"
-                            style={{
-                              backgroundColor: platform.bgColor,
-                              border: `1px solid ${platform.color}25`,
-                              transform: barHovered ? "scale(1.1)" : "scale(1)"
-                            }}
-                          >
-                            <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
-                          </div>
-                          <span
-                            className="text-sm font-semibold w-24"
-                            style={{ color: theme.textPrimary }}
-                          >
-                            {platform.name}
-                          </span>
-                          <div
-                            className="flex-1 rounded-full h-8 relative overflow-hidden"
-                            style={{ backgroundColor: theme.bgSecondary }}
-                          >
-                            <div
-                              className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                              style={{
-                                width: `${(platform.revenue / maxRevenue) * 100}%`,
-                                background: `linear-gradient(90deg, ${platform.color}90 0%, ${platform.color} 100%)`,
-                                boxShadow: barHovered
-                                  ? `0 0 20px ${platform.color}50`
-                                  : `0 0 10px ${platform.color}30`
-                              }}
-                            >
-                              <span
-                                className="text-xs font-bold drop-shadow-lg"
-                                style={{ color: theme.textPrimary }}
-                              >
-                                ${(platform.revenue / 1000).toFixed(1)}k
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                          platform={platform}
+                          maxRevenue={maxRevenue}
+                        />
                       );
                     })}
                 </div>
@@ -865,58 +956,9 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                 <div className="space-y-4">
                   {activePlatforms
                     .sort((a, b) => b.roi - a.roi)
-                    .map((platform) => {
-                      const [barHovered, setBarHovered] = useState(false);
-                      const roiColor = platform.roi > 0 ? theme.emerald : theme.red;
-
-                      return (
-                        <div
-                          key={platform.platform}
-                          className="flex items-center gap-3"
-                          onMouseEnter={() => setBarHovered(true)}
-                          onMouseLeave={() => setBarHovered(false)}
-                        >
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200"
-                            style={{
-                              backgroundColor: platform.bgColor,
-                              border: `1px solid ${platform.color}25`,
-                              transform: barHovered ? "scale(1.1)" : "scale(1)"
-                            }}
-                          >
-                            <img src={platform.icon} alt={platform.name} className="w-5 h-5" />
-                          </div>
-                          <span
-                            className="text-sm font-semibold w-24"
-                            style={{ color: theme.textPrimary }}
-                          >
-                            {platform.name}
-                          </span>
-                          <div
-                            className="flex-1 rounded-full h-8 relative overflow-hidden"
-                            style={{ backgroundColor: theme.bgSecondary }}
-                          >
-                            <div
-                              className="h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                              style={{
-                                width: `${Math.min(100, Math.max(0, platform.roi))}%`,
-                                background: `linear-gradient(90deg, ${roiColor}90 0%, ${roiColor} 100%)`,
-                                boxShadow: barHovered
-                                  ? `0 0 20px ${roiColor}50`
-                                  : `0 0 10px ${roiColor}30`
-                              }}
-                            >
-                              <span
-                                className="text-xs font-bold drop-shadow-lg"
-                                style={{ color: theme.textPrimary }}
-                              >
-                                {platform.roi.toFixed(1)}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    .map((platform) => (
+                      <ROIBar key={platform.platform} platform={platform} />
+                    ))}
                 </div>
               </div>
             </div>
@@ -936,12 +978,20 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                 <AreaChart data={activePlatforms}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme.emerald} stopOpacity={0.4} />
-                      <stop offset="100%" stopColor={theme.emerald} stopOpacity={0} />
+                      <stop
+                        offset="0%"
+                        stopColor={theme.positive}
+                        stopOpacity={isDarkMode ? 0.4 : 0.3}
+                      />
+                      <stop offset="100%" stopColor={theme.positive} stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={theme.red} stopOpacity={0.4} />
-                      <stop offset="100%" stopColor={theme.red} stopOpacity={0} />
+                      <stop
+                        offset="0%"
+                        stopColor={theme.negative}
+                        stopOpacity={isDarkMode ? 0.4 : 0.3}
+                      />
+                      <stop offset="100%" stopColor={theme.negative} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" stroke={theme.gridLines} opacity={0.5} />
@@ -959,10 +1009,13 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: `${theme.bgCard}F8`,
+                      backgroundColor: isDarkMode
+                        ? `${theme.chartTooltipBg}F8`
+                        : theme.chartTooltipBg,
                       border: `1px solid ${theme.borderSubtle}`,
                       borderRadius: "12px",
-                      backdropFilter: "blur(16px)"
+                      backdropFilter: "blur(16px)",
+                      boxShadow: theme.shadowCard
                     }}
                     labelStyle={{ color: theme.textPrimary, fontWeight: "bold" }}
                     itemStyle={{ color: theme.textSecondary }}
@@ -970,7 +1023,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke={theme.emerald}
+                    stroke={theme.positive}
                     strokeWidth={2.5}
                     fill="url(#revenueGradient)"
                     name="Revenue"
@@ -978,7 +1031,7 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
                   <Area
                     type="monotone"
                     dataKey="spend"
-                    stroke={theme.red}
+                    stroke={theme.negative}
                     strokeWidth={2.5}
                     fill="url(#spendGradient)"
                     name="Spend"
@@ -990,14 +1043,16 @@ const PlatformComparison = ({ platformData = {}, isLoading = false, className = 
         )}
       </div>
 
-      {/* Bottom Glow */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-500 pointer-events-none"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${theme.blue}40, transparent)`,
-          opacity: isHovered ? 1 : 0
-        }}
-      />
+      {/* Bottom Glow - Only visible in dark mode */}
+      {isDarkMode && (
+        <div
+          className="absolute bottom-0 left-0 right-0 h-px transition-opacity duration-500 pointer-events-none"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${theme.blue}40, transparent)`,
+            opacity: isHovered ? 1 : 0
+          }}
+        />
+      )}
     </div>
   );
 };

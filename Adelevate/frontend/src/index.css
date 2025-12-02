@@ -140,12 +140,81 @@
   }
 }
 
-/* Smooth theme transitions */
+/* ============ THEME TRANSITIONS ============ */
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
 }
 
-/* Custom scrollbar */
+/* Disable transitions on initial load */
+.no-transitions,
+.no-transitions * {
+  transition: none !important;
+}
+
+/* ============ DARK THEME BASE ============ */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #050505;
+  color: #FFFFFF;
+}
+
+/* ============ LIGHT THEME BASE ============ */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #FFFFFF;
+  color: #111827;
+}
+
+/* ============ SCROLLBAR STYLES ============ */
+/* Custom scrollbar - Dark */
+html.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0A0A0A;
+  border-radius: 4px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #1A1A1A;
+  border-radius: 4px;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #252525;
+}
+
+/* Custom scrollbar - Light */
+html.light ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 4px;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* Component specific scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -164,7 +233,38 @@
   background: hsl(var(--sidebar-muted));
 }
 
-/* Animations */
+/* ============ SELECTION STYLES ============ */
+html.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: #FFFFFF;
+}
+
+html.light ::selection {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #111827;
+}
+
+/* ============ FOCUS STYLES ============ */
+html.dark *:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+html.light *:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
+
+/* ============ PLACEHOLDER STYLES ============ */
+html.dark ::placeholder {
+  color: #4A4A4A;
+}
+
+html.light ::placeholder {
+  color: #9CA3AF;
+}
+
+/* ============ ANIMATIONS ============ */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -181,6 +281,35 @@
   }
 }
 
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
 }
@@ -189,7 +318,21 @@
   animation: slideIn 0.3s ease-out forwards;
 }
 
-/* Noise texture overlay */
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 1000px 100%;
+}
+
+/* ============ NOISE TEXTURE ============ */
 .noise-texture {
   position: relative;
 }
@@ -205,4 +348,36 @@
   z-index: 1;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* ============ GLASS EFFECT ============ */
+.glass-effect {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-effect-strong {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ============ UTILITY CLASSES ============ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
