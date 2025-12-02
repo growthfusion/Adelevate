@@ -29,48 +29,25 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-// ClickHouse Configuration
-const CH_HOST = "65.109.65.93";
-const CH_PORT = 8123;
-const CH_USER = "adelevate_user";
-const CH_PASS = "Growthfusion@9012";
-const CH_DB = "default";
-const CH_SECURE = false;
-
-// ClickHouse Query Helper
-async function queryClickHouse(sqlQuery) {
-  const protocol = CH_SECURE ? "https" : "http";
-  const url = `${protocol}://${CH_HOST}:${CH_PORT}/?database=${CH_DB}&default_format=JSONEachRow`;
+// API Configuration - Helper function to get correct API URL
+const getApiUrl = () => {
+  // Check for environment variable first (for production)
+  const apiUrl = import.meta.env.VITE_REPORTS_API_URL;
   
-  const auth = btoa(`${CH_USER}:${CH_PASS}`);
+  if (apiUrl) {
+    // Use environment variable if set
+    return apiUrl.endsWith('/daily') ? apiUrl : `${apiUrl}/daily`;
+  }
   
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Basic ${auth}`,
-      "Content-Type": "text/plain",
-    },
-    body: sqlQuery,
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ClickHouse error: ${response.status} - ${errorText}`);
+  if (import.meta.env.PROD) {
+    // In production, use relative path that goes through proxy/backend
+    // Your web server (nginx/Apache/Cloudflare) must proxy /api/reports/* to http://65.109.65.93:8080/v1/reports/*
+    return "/api/reports/daily";
   }
-
-  const text = await response.text();
-  if (!text.trim()) {
-    return [];
-  }
-
-  // Parse JSONEachRow format (one JSON object per line)
-  return text
-    .trim()
-    .split("\n")
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line));
-}
+  
+  // In development, use the proxy we set up in vite.config.js
+  return "/reports-api/daily";
+};
 
 // Platform icon mapping
 const platformIcons = {
@@ -132,16 +109,12 @@ export default function ReportPage() {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [detectingSchema, setDetectingSchema] = useState(true);
   const [error, setError] = useState("");
 
-  // Date filter states
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  // Search and filter states
+  // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState("all");
+  const [selectedPlatform, setSelectedPlatform] = useState("meta");
+  const [selectedPeriod, setSelectedPeriod] = useState("7days");
   const [selectedCampaign, setSelectedCampaign] = useState("all");
 
   // Pagination states
@@ -149,194 +122,223 @@ export default function ReportPage() {
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
   // Sorting states
-  const [sortColumn, setSortColumn] = useState("date");
+  const [sortColumn, setSortColumn] = useState("report_date");
   const [sortDirection, setSortDirection] = useState("desc");
 
   // UI states
   const [showFilters, setShowFilters] = useState(true);
 
-  // Initialize date range (default to yesterday)
-  useEffect(() => {
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    
-    setEndDate(yesterday.toISOString().split("T")[0]);
-    setStartDate(yesterday.toISOString().split("T")[0]);
-  }, []);
+  // Period options
+  const periodOptions = [
+    { value: "7days", label: "Last 7 Days" },
+    { value: "30days", label: "Last 30 Days" },
+    { value: "yesterday", label: "Yesterday" },
+    { value: "today", label: "Today" }
+  ];
 
-  // Fetch table structure to find date column
-  const [dateColumnName, setDateColumnName] = useState(null);
-
-  useEffect(() => {
-    const detectDateColumn = async () => {
-      setDetectingSchema(true);
-      try {
-        // Query one row to see the structure
-        const sampleQuery = "SELECT * FROM campaign_daily_aggregate LIMIT 1";
-        const sample = await queryClickHouse(sampleQuery);
-        
-        if (sample.length > 0) {
-          const row = sample[0];
-          const keys = Object.keys(row);
-          
-          // Look for date-related column names
-          const dateCol = keys.find(key => {
-            const lowerKey = key.toLowerCase();
-            return (
-              lowerKey.includes("date") || 
-              lowerKey.includes("day") || 
-              lowerKey === "timestamp" ||
-              lowerKey === "created_at"
-            );
-          });
-
-          if (dateCol) {
-            console.log("Detected date column:", dateCol);
-            setDateColumnName(dateCol);
-          } else {
-            console.warn("No date column found. Available columns:", keys);
-            // Try common alternatives
-            const commonNames = ["date", "report_date", "day", "timestamp"];
-            let found = false;
-            for (const name of commonNames) {
-              if (keys.includes(name)) {
-                setDateColumnName(name);
-                found = true;
-                break;
-              }
-            }
-            // If still not found, use first column that looks like a date value
-            if (!found) {
-              // Check if any column value looks like a date
-              for (const key of keys) {
-                const value = row[key];
-                if (value && typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-                  setDateColumnName(key);
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (!found) {
-              console.error("Could not detect date column. Please check table structure.");
-              setError("Could not detect date column in table. Available columns: " + keys.join(", "));
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error detecting date column:", err);
-        setError(`Failed to detect table structure: ${err.message}`);
-      } finally {
-        setDetectingSchema(false);
-      }
-    };
-
-    detectDateColumn();
-  }, []);
-
-  // Fetch data from ClickHouse
+  // Fetch data from API
   const fetchData = async () => {
-    if (!dateColumnName && startDate && endDate) {
-      // Wait for date column to be detected
-      return;
-    }
-
     setLoading(true);
     setError("");
 
     try {
-      let query = "SELECT * FROM campaign_daily_aggregate WHERE 1=1";
+      const apiUrl = getApiUrl();
+      console.log("Fetching from API:", apiUrl);
 
-       // Add date filters (use detected column name, default to report_date)
-       const dateCol = dateColumnName || "report_date";
-       if (startDate) {
-         query += ` AND ${dateCol} >= '${startDate}'`;
-       }
-       if (endDate) {
-         query += ` AND ${dateCol} <= '${endDate}'`;
-       }
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platform: selectedPlatform,
+          period: selectedPeriod
+        }),
+        cache: "no-store"
+      });
 
-      // Add platform filter
-      if (selectedPlatform !== "all") {
-        query += ` AND platform = '${selectedPlatform}'`;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error: ${response.status} - ${errorText}`);
       }
 
-       // Add campaign filter
-       if (selectedCampaign !== "all") {
-         query += ` AND campaign_name = '${selectedCampaign}'`;
-       }
+      const responseData = await response.json();
+      console.log("API Response:", responseData);
 
-       // Add search query (search in campaign_name)
-       if (searchQuery && searchQuery.trim()) {
-         const searchTerm = searchQuery.trim().replace(/'/g, "''"); // Escape single quotes
-         query += ` AND campaign_name LIKE '%${searchTerm}%'`;
-       }
+      // Extract array from response - handle different response formats
+      let results = [];
+      if (Array.isArray(responseData)) {
+        results = responseData;
+      } else if (responseData && Array.isArray(responseData.data)) {
+        results = responseData.data;
+      } else if (responseData && Array.isArray(responseData.results)) {
+        results = responseData.results;
+      } else if (responseData && Array.isArray(responseData.campaigns)) {
+        results = responseData.campaigns;
+      } else if (responseData && typeof responseData === 'object') {
+        // If response is an object, try to find an array property
+        const values = Object.values(responseData);
+        const arrayValue = values.find(val => Array.isArray(val));
+        if (arrayValue) {
+          results = arrayValue;
+        }
+      }
 
-       // Add sorting (handle date column name and cost/spend)
-       let sortCol = sortColumn === "date" ? (dateColumnName || "report_date") : sortColumn;
-       if (sortCol === "spend" || sortCol === "cost") {
-         sortCol = "cost";
-       }
-       query += ` ORDER BY ${sortCol} ${sortDirection.toUpperCase()}`;
+      console.log("Extracted data:", results.length, "rows");
 
-      // Add limit for performance
-      query += ` LIMIT 10000`;
+      // Apply search filter on client side if needed
+      let filteredResults = [...results];
+      if (searchQuery && searchQuery.trim()) {
+        const searchTerm = searchQuery.trim().toLowerCase();
+        filteredResults = results.filter((row) =>
+          (row.campaign_name || "").toLowerCase().includes(searchTerm)
+        );
+      }
 
-      console.log("Executing ClickHouse query:", query);
-      const results = await queryClickHouse(query);
-      console.log("Fetched data:", results.length, "rows");
+      // Apply campaign filter on client side if needed
+      if (selectedCampaign !== "all") {
+        filteredResults = filteredResults.filter(
+          (row) => row.campaign_name === selectedCampaign
+        );
+      }
+
+      // Apply sorting on client side
+      filteredResults.sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Handle numeric values
+        if (typeof aVal === "string" && !isNaN(parseFloat(aVal))) {
+          aVal = parseFloat(aVal);
+        }
+        if (typeof bVal === "string" && !isNaN(parseFloat(bVal))) {
+          bVal = parseFloat(bVal);
+        }
+
+        if (sortDirection === "asc") {
+          return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        } else {
+          return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+        }
+      });
 
       setData(results);
-      setFilteredData(results);
+      setFilteredData(filteredResults);
     } catch (err) {
       console.error("Error fetching data:", err);
-      setError(err.message || "Failed to fetch data from database");
+      setError(err.message || "Failed to fetch data from API");
     } finally {
       setLoading(false);
     }
   };
 
-  // Debounce search query
+  // Fetch data when filters change
   useEffect(() => {
-    if (!startDate || !endDate || !dateColumnName) return;
-    
-    const timeoutId = setTimeout(() => {
-      fetchData();
-    }, searchQuery ? 500 : 0); // Debounce search by 500ms, no debounce for other filters
+    fetchData();
+  }, [selectedPlatform, selectedPeriod]);
 
-     return () => clearTimeout(timeoutId);
-   }, [startDate, endDate, selectedPlatform, selectedCampaign, sortColumn, sortDirection, searchQuery, dateColumnName]);
+  // Apply client-side filtering and sorting when these change
+  useEffect(() => {
+    let filteredResults = [...data];
 
-  // Get unique values for filters
-  const uniquePlatforms = useMemo(() => {
-    const platforms = [...new Set(data.map((row) => row.platform).filter(Boolean))];
-    return platforms.sort();
-  }, [data]);
+    // Apply search filter
+    if (searchQuery && searchQuery.trim()) {
+      const searchTerm = searchQuery.trim().toLowerCase();
+      filteredResults = filteredResults.filter((row) =>
+        (row.campaign_name || "").toLowerCase().includes(searchTerm)
+      );
+    }
 
-   const uniqueCampaigns = useMemo(() => {
+    // Apply campaign filter
+    if (selectedCampaign !== "all") {
+      filteredResults = filteredResults.filter(
+        (row) => row.campaign_name === selectedCampaign
+      );
+    }
+
+    // Apply sorting
+    filteredResults.sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+
+      // Handle numeric values
+      if (typeof aVal === "string" && !isNaN(parseFloat(aVal))) {
+        aVal = parseFloat(aVal);
+      }
+      if (typeof bVal === "string" && !isNaN(parseFloat(bVal))) {
+        bVal = parseFloat(bVal);
+      }
+
+      if (sortDirection === "asc") {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    });
+
+    setFilteredData(filteredResults);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [searchQuery, selectedCampaign, sortColumn, sortDirection, data]);
+
+  // Get unique campaigns for filter
+  const uniqueCampaigns = useMemo(() => {
      const campaigns = [...new Set(data.map((row) => row.campaign_name).filter(Boolean))];
      return campaigns.sort();
    }, [data]);
 
   // Calculate metrics
   const metrics = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) {
+      return {
+        total: 0,
+        totalSpend: 0,
+        totalRevenue: 0,
+        totalProfit: 0,
+        avgROI: 0,
+        totalClicks: 0,
+        totalConversions: 0,
+        totalImpressions: 0,
+        totalUniqueClicks: 0,
+        totalLpViews: 0,
+        totalLpClicks: 0,
+        avgCPC: 0,
+        avgCPA: 0,
+        avgEPC: 0
+      };
+    }
+
     const total = filteredData.length;
-    const totalCost = filteredData.reduce((sum, row) => sum + (parseFloat(row.cost) || 0), 0);
+    const totalSpend = filteredData.reduce((sum, row) => sum + (parseFloat(row.spend || row.cost) || 0), 0);
     const totalRevenue = filteredData.reduce((sum, row) => sum + (parseFloat(row.revenue) || 0), 0);
-    const totalProfit = totalRevenue - totalCost;
-    const avgROI = totalCost > 0 ? ((totalRevenue - totalCost) / totalCost * 100) : 0;
+    const totalProfit = totalRevenue - totalSpend;
+    const avgROI = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend * 100) : 0;
     const totalClicks = filteredData.reduce((sum, row) => sum + (parseFloat(row.clicks) || 0), 0);
     const totalConversions = filteredData.reduce((sum, row) => sum + (parseFloat(row.conversions) || 0), 0);
+    const totalImpressions = filteredData.reduce((sum, row) => sum + (parseFloat(row.impressions) || 0), 0);
+    const totalUniqueClicks = filteredData.reduce((sum, row) => sum + (parseFloat(row.unique_clicks) || 0), 0);
+    const totalLpViews = filteredData.reduce((sum, row) => sum + (parseFloat(row.lp_views) || 0), 0);
+    const totalLpClicks = filteredData.reduce((sum, row) => sum + (parseFloat(row.lp_clicks) || 0), 0);
+    
+    // Calculate averages
+    const avgCPC = totalClicks > 0 ? totalSpend / totalClicks : 0;
+    const avgCPA = totalConversions > 0 ? totalSpend / totalConversions : 0;
+    const avgEPC = totalClicks > 0 ? totalRevenue / totalClicks : 0;
 
     return {
       total,
-      totalCost,
+      totalSpend,
       totalRevenue,
       totalProfit,
       avgROI,
       totalClicks,
-      totalConversions
+      totalConversions,
+      totalImpressions,
+      totalUniqueClicks,
+      totalLpViews,
+      totalLpClicks,
+      avgCPC,
+      avgCPA,
+      avgEPC
     };
   }, [filteredData]);
 
@@ -377,7 +379,7 @@ export default function ReportPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `campaign_report_${startDate}_to_${endDate}.csv`;
+    a.download = `campaign_report_${selectedPlatform}_${selectedPeriod}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -440,7 +442,7 @@ export default function ReportPage() {
           </div>
 
            {/* Metrics Cards */}
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
              <MetricCard
                icon={FileText}
                label="Total Records"
@@ -449,8 +451,8 @@ export default function ReportPage() {
              />
              <MetricCard
                icon={DollarSign}
-               label="Total Cost"
-               value={`$${formatNumber(metrics.totalCost)}`}
+               label="Total Spend"
+               value={`$${formatNumber(metrics.totalSpend)}`}
                color="#ef4444"
              />
              <MetricCard
@@ -473,9 +475,21 @@ export default function ReportPage() {
              />
              <MetricCard
                icon={Eye}
+               label="Total Impressions"
+               value={metrics.totalImpressions.toLocaleString()}
+               color="#a855f7"
+             />
+             <MetricCard
+               icon={Eye}
                label="Total Clicks"
                value={metrics.totalClicks.toLocaleString()}
                color="#3b82f6"
+             />
+             <MetricCard
+               icon={Eye}
+               label="Unique Clicks"
+               value={metrics.totalUniqueClicks.toLocaleString()}
+               color="#06b6d4"
              />
              <MetricCard
                icon={TrendingUp}
@@ -483,119 +497,124 @@ export default function ReportPage() {
                value={metrics.totalConversions.toLocaleString()}
                color="#8b5cf6"
              />
+             <MetricCard
+               icon={Eye}
+               label="LP Views"
+               value={metrics.totalLpViews.toLocaleString()}
+               color="#ec4899"
+             />
+             <MetricCard
+               icon={Eye}
+               label="LP Clicks"
+               value={metrics.totalLpClicks.toLocaleString()}
+               color="#f97316"
+             />
+             <MetricCard
+               icon={DollarSign}
+               label="Avg CPC"
+               value={`$${formatNumber(metrics.avgCPC)}`}
+               color="#14b8a6"
+             />
+             <MetricCard
+               icon={DollarSign}
+               label="Avg CPA"
+               value={`$${formatNumber(metrics.avgCPA)}`}
+               color="#f59e0b"
+             />
+             <MetricCard
+               icon={DollarSign}
+               label="Avg EPC"
+               value={`$${formatNumber(metrics.avgEPC)}`}
+               color="#10b981"
+             />
            </div>
         </div>
 
-        {/* Filters Section */}
-        {showFilters && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Date Range */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Start Date
-                </label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  End Date
-                </label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full"
-                />
-              </div>
+         {/* Filters Section */}
+         {showFilters && (
+           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+               {/* Platform Filter */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                   Platform
+                 </label>
+                 <select
+                   value={selectedPlatform}
+                   onChange={(e) => setSelectedPlatform(e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                 >
+                   <option value="meta">Meta</option>
+                   <option value="snap">Snap</option>
+                 </select>
+               </div>
 
-              {/* Search */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Search (Name/ID)
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search campaigns..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        fetchData();
-                      }
-                    }}
-                    className="pl-10 pr-10"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
+               {/* Period Filter */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                   Period
+                 </label>
+                 <select
+                   value={selectedPeriod}
+                   onChange={(e) => setSelectedPeriod(e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                 >
+                   {periodOptions.map((option) => (
+                     <option key={option.value} value={option.value}>
+                       {option.label}
+                     </option>
+                   ))}
+                 </select>
+               </div>
 
-              {/* Platform Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Platform
-                </label>
-                <select
-                  value={selectedPlatform}
-                  onChange={(e) => setSelectedPlatform(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="all">All Platforms</option>
-                  {uniquePlatforms.map((platform) => (
-                    <option key={platform} value={platform}>
-                      {platform}
-                    </option>
-                  ))}
-                </select>
-              </div>
+               {/* Search */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                   Search Campaign
+                 </label>
+                 <div className="relative">
+                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                   <Input
+                     type="text"
+                     placeholder="Search campaigns..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="pl-10 pr-10"
+                   />
+                   {searchQuery && (
+                     <button
+                       onClick={() => setSearchQuery("")}
+                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                     >
+                       <X className="w-4 h-4" />
+                     </button>
+                   )}
+                 </div>
+               </div>
 
                {/* Campaign Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Campaign
-                </label>
-                <select
-                  value={selectedCampaign}
-                  onChange={(e) => setSelectedCampaign(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="all">All Campaigns</option>
-                  {uniqueCampaigns.map((campaign) => (
-                    <option key={campaign} value={campaign}>
-                      {campaign}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                   Campaign
+                 </label>
+                 <select
+                   value={selectedCampaign}
+                   onChange={(e) => setSelectedCampaign(e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                 >
+                   <option value="all">All Campaigns</option>
+                   {uniqueCampaigns.map((campaign) => (
+                     <option key={campaign} value={campaign}>
+                       {campaign}
+                     </option>
+                   ))}
+                 </select>
+               </div>
+             </div>
+           </div>
+         )}
 
-        {/* Schema Detection Message */}
-        {detectingSchema && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              <p className="text-blue-800 dark:text-blue-200">Detecting table structure...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error Message */}
+         {/* Error Message */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
             <p className="text-red-800 dark:text-red-200">{error}</p>
@@ -620,17 +639,17 @@ export default function ReportPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
                     <tr>
-                      <th
-                        className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => handleSort("date")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Date
-                          {sortColumn === "date" && (
+                      {/* <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("report_date")}
+                       >
+                         <div className="flex items-center gap-2">
+                           Date
+                           {sortColumn === "report_date" && (
                             <ArrowUpDown className="w-4 h-4" />
                           )}
                         </div>
-                      </th>
+                      </th> */}
                       <th
                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                         onClick={() => handleSort("platform")}
@@ -647,11 +666,11 @@ export default function ReportPage() {
                        </th>
                        <th
                          className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
-                         onClick={() => handleSort("cost")}
+                         onClick={() => handleSort("spend")}
                        >
                          <div className="flex items-center gap-2">
-                           Cost
-                           {sortColumn === "cost" && (
+                           Spend
+                           {sortColumn === "spend" && (
                              <ArrowUpDown className="w-4 h-4" />
                            )}
                          </div>
@@ -707,29 +726,115 @@ export default function ReportPage() {
                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                          Impressions
                        </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("cpm")}
+                       >
+                         <div className="flex items-center gap-2">
+                           CPM
+                           {sortColumn === "cpm" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("cpc")}
+                       >
+                         <div className="flex items-center gap-2">
+                           CPC
+                           {sortColumn === "cpc" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("ctr")}
+                       >
+                         <div className="flex items-center gap-2">
+                           CTR
+                           {sortColumn === "ctr" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("cpa")}
+                       >
+                         <div className="flex items-center gap-2">
+                           CPA
+                           {sortColumn === "cpa" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("lpctr")}
+                       >
+                         <div className="flex items-center gap-2">
+                           LP CTR
+                           {sortColumn === "lpctr" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("epc")}
+                       >
+                         <div className="flex items-center gap-2">
+                           EPC
+                           {sortColumn === "epc" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
+                       <th
+                         className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                         onClick={() => handleSort("lpcpc")}
+                       >
+                         <div className="flex items-center gap-2">
+                           LP CPC
+                           {sortColumn === "lpcpc" && (
+                             <ArrowUpDown className="w-4 h-4" />
+                           )}
+                         </div>
+                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                      {paginatedData.map((row, index) => {
-                       const cost = parseFloat(row.cost) || 0;
+                       const spend = parseFloat(row.spend || row.cost) || 0;
                        const revenue = parseFloat(row.revenue) || 0;
-                       const profit = revenue - cost;
-                       const roi = cost > 0 ? ((profit / cost) * 100) : 0;
+                       const profit = revenue - spend;
+                       const roi = row.roi !== null && row.roi !== undefined ? parseFloat(row.roi) * 100 : (spend > 0 ? ((profit / spend) * 100) : 0);
                        const clicks = parseFloat(row.clicks) || 0;
                        const uniqueClicks = parseFloat(row.unique_clicks) || 0;
                        const conversions = parseFloat(row.conversions) || 0;
                        const lpViews = parseFloat(row.lp_views) || 0;
                        const lpClicks = parseFloat(row.lp_clicks) || 0;
                        const impressions = parseFloat(row.impressions) || 0;
+                       
+                       // Additional metrics from API
+                       const cpm = row.cpm !== null && row.cpm !== undefined ? parseFloat(row.cpm) : null;
+                       const cpc = row.cpc !== null && row.cpc !== undefined ? parseFloat(row.cpc) : null;
+                       const ctr = row.ctr !== null && row.ctr !== undefined ? parseFloat(row.ctr) * 100 : null;
+                       const cpa = row.cpa !== null && row.cpa !== undefined ? parseFloat(row.cpa) : null;
+                       const lpctr = row.lpctr !== null && row.lpctr !== undefined ? parseFloat(row.lpctr) * 100 : null;
+                       const epc = row.epc !== null && row.epc !== undefined ? parseFloat(row.epc) : null;
+                       const lpcpc = row.lpcpc !== null && row.lpcpc !== undefined ? parseFloat(row.lpcpc) : null;
 
                        return (
                          <tr
                            key={index}
                            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                          >
-                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                             {formatDate(row[dateColumnName || "report_date"] || row.report_date || row.date)}
-                           </td>
+                           {/* <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                             {formatDate(row.report_date || row.date)}
+                           </td> */}
                            <td className="px-4 py-3">
                              <PlatformCell platform={row.platform} />
                            </td>
@@ -737,7 +842,7 @@ export default function ReportPage() {
                              {row.campaign_name || "-"}
                            </td>
                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                             ${formatNumber(cost)}
+                             ${formatNumber(spend)}
                            </td>
                            <td className="px-4 py-3 text-sm font-medium text-green-600 dark:text-green-400">
                              ${formatNumber(revenue)}
@@ -777,6 +882,27 @@ export default function ReportPage() {
                            </td>
                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                              {impressions.toLocaleString()}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {cpm !== null ? `$${formatNumber(cpm)}` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {cpc !== null ? `$${formatNumber(cpc)}` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {ctr !== null ? `${formatNumber(ctr)}%` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {cpa !== null ? `$${formatNumber(cpa)}` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {lpctr !== null ? `${formatNumber(lpctr)}%` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {epc !== null ? `$${formatNumber(epc)}` : "-"}
+                           </td>
+                           <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                             {lpcpc !== null ? `$${formatNumber(lpcpc)}` : "-"}
                            </td>
                          </tr>
                        );

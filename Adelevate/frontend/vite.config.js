@@ -22,6 +22,13 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/campaigns-api/, "/v1")
+      },
+      // Proxy for reports API
+      "/reports-api": {
+        target: "http://65.109.65.93:8080",
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/reports-api/, "/v1/reports")
       }
     }
   }
