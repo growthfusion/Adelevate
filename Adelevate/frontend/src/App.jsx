@@ -22,9 +22,18 @@ import Campaigns from "./features/campaigns/page";
 import CampaignPerformanceHub from "./features/metric_dashboard/campaign-performance/index";
 import AuthorizationPage from "@/features/authorization/AuthorizationPage.jsx";
 import Add_Acounts from "./features/addAccount/page";
-import LanderPage from "./features/lander/page";
+
 import AuthCallback from "@/pages/AuthCallback.jsx";
 import ReportPage from "./features/report/ReportPage";
+
+// Feature Pages
+import LanderDashboardPage from "./features/lander/dashboard/pages/DashboardPage";
+import LandersPage from "./features/lander/lander/pages/LandersPage";
+import LanderDetailPage from "./features/lander/lander/pages/LanderDetailPage";
+import CreateLanderPage from "./features/lander/lander/pages/CreateLanderPage";
+import ABTestsPage from "./features/lander/abtest/pages/ABTestsPage";
+import CreateABTestPage from "./features/lander/abtest/pages/CreateABTestPage";
+import OptimizationsPage from "./features/lander/optimizations/pages/OptimizationsPage";
 
 // Supabase
 import { supabase } from "@/supabaseClient";
@@ -258,22 +267,91 @@ function AppContent() {
           />
 
           <Route
-            path="/lander"
+            path="/report"
             element={
               <PrivateRoute>
                 <ProtectedLayout>
-                  <LanderPage />
+                  <ReportPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          {/* Lander Management Routes with Sidebar */}
+          <Route
+            path="/lander-dashboard"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <LanderDashboardPage />
                 </ProtectedLayout>
               </PrivateRoute>
             }
           />
 
           <Route
-            path="/report"
+            path="/lander"
             element={
               <PrivateRoute>
                 <ProtectedLayout>
-                  <ReportPage />
+                  <LandersPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/landers/:id"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <LanderDetailPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/landers/create"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <CreateLanderPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          {/* A/B Testing Routes */}
+          <Route
+            path="/ab-tests"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <ABTestsPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/ab-tests/create"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <CreateABTestPage />
+                </ProtectedLayout>
+              </PrivateRoute>
+            }
+          />
+
+          {/* Optimizations Route */}
+          <Route
+            path="/optimizations"
+            element={
+              <PrivateRoute>
+                <ProtectedLayout>
+                  <OptimizationsPage />
                 </ProtectedLayout>
               </PrivateRoute>
             }

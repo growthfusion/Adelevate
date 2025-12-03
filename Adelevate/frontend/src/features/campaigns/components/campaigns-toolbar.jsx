@@ -1,52 +1,52 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { startOfDay } from "date-fns";
-import DatePickerToggle from "./datepicker.jsx";
+import DatePickerToggle from "./datepicker";
 
+import {
+  setPlatforms,
+  setAccounts,
+  setStatus,
+  setTitle,
+  setTags,
+  setDateRange,
+  setTimeZone,
+  resetFilters,
+  fetchAllCampaigns,
+  fetchCampaignsByAccount,
+  fetchAdAccounts,
+  searchCampaignsByTitle,
+  clearTitleSuggestions,
+  setCampaigns,
+  setWarning,
+  clearError,
+  clearWarning
+} from "@/features/campaigns/campaignsSlice";
+import { selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice";
+import { supabase } from "@/supabaseClient";
+
+// Platform icons
 import nb from "@/assets/images/automation_img/NewsBreak.svg";
 import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
 
-import { supabase } from "@/supabaseClient";
-
-// Helper function to get API base URL - avoids mixed content issues in production
-const getApiBaseUrl = () => {
-  // Check for environment variable first (for production)
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_CAMPAIGNS_API_URL;
-  
-  if (apiUrl) {
-    // Remove trailing slash and ensure it ends with /v1/campaigns
-    const base = apiUrl.replace(/\/$/, '');
-    return base.endsWith('/v1/campaigns') ? base : `${base}/v1/campaigns`;
-  }
-  
-  if (import.meta.env.PROD) {
-    // In production, use relative path that goes through proxy/backend
-    // IMPORTANT: Your web server (nginx/Apache/Cloudflare) must be configured to proxy
-    // /api/campaigns/* requests to http://65.109.65.93:8080/v1/campaigns/*
-    // This avoids mixed content errors (HTTPS page calling HTTP API)
-    return "/api/campaigns";
-  }
-  
-  // In development, use the direct backend URL
-  return "http://65.109.65.93:8080/v1/campaigns";
-};
-
-const PLATFORM_OPTIONS = [
-  { value: "meta", label: "Meta", icon: fb },
-  { value: "snap", label: "Snap", icon: snapchatIcon },
-  { value: "tiktok", label: "TikTok", icon: tiktokIcon },
-  { value: "google", label: "Google", icon: googleIcon },
-  { value: "newsbreak", label: "NewsBreak", icon: nb }
-];
-
+// Constants
 const platformIconsMap = {
   meta: fb,
   snap: snapchatIcon,
   tiktok: tiktokIcon,
   google: googleIcon,
   newsbreak: nb
+};
+
+const platformDisplayNames = {
+  meta: "Meta",
+  snap: "Snap",
+  tiktok: "TikTok",
+  google: "Google",
+  newsbreak: "NewsBreak"
 };
 
 const ALL_PLATFORMS = [
@@ -72,13 +72,13 @@ const PREDEFINED_TAGS = [
   "Gokulraj"
 ];
 
-const PLATFORM_API_NAMES = {
-  meta: ["meta", "facebook", "Meta", "Facebook"],
-  snap: ["snap", "snapchat", "Snap", "Snapchat"],
-  tiktok: ["tiktok", "TikTok"],
-  google: ["google", "Google"],
-  newsbreak: ["newsbreak", "NewsBreak"]
-};
+const TIME_ZONE_OPTIONS = [
+  { id: "America/Los_Angeles", name: "America/Los_Angeles" },
+  { id: "America/New_York", name: "America/New_York" },
+  { id: "Europe/London", name: "Europe/London" },
+  { id: "Asia/Tokyo", name: "Asia/Tokyo" },
+  { id: "Australia/Sydney", name: "Australia/Sydney" }
+];
 
 const normalizePlatformFromDB = (p) => {
   if (!p) return "";
@@ -88,61 +88,60 @@ const normalizePlatformFromDB = (p) => {
   return v;
 };
 
-const platformDisplayNames = {
-  meta: "Meta",
-  snap: "Snap",
-  tiktok: "TikTok",
-  google: "Google",
-  newsbreak: "NewsBreak"
-};
+function CampaignsToolbar() {
+  const dispatch = useDispatch();
 
-const formatAccountId = (id) => {
-  if (!id) return "";
-  return String(id);
-};
+  // Theme selectors
+  const theme = useSelector(selectThemeColors);
+  const isDark = useSelector(selectIsDarkMode);
 
-// ✅ Helper to extract campaigns from various API response formats
-const extractCampaignsFromResponse = (data) => {
-  let campaigns = [];
+  // Campaign state selectors
+  const {
+    adAccounts,
+    adAccountsLoading,
+    adAccountsError,
+    isLoading: campaignsLoading,
+    error: campaignsError,
+    warning: campaignsWarning,
+    filters,
+    titleSuggestions,
+    titleSearchLoading
+  } = useSelector((state) => state.campaigns);
 
-  if (Array.isArray(data)) {
-    campaigns = data;
-  } else if (data?.data && Array.isArray(data.data)) {
-    campaigns = data.data;
-  } else if (data?.campaigns && Array.isArray(data.campaigns)) {
-    campaigns = data.campaigns;
-  } else if (data?.results && Array.isArray(data.results)) {
-    campaigns = data.results;
-  } else if (typeof data === "object") {
-    // Search all object keys for an array
-    for (const key of Object.keys(data)) {
-      if (Array.isArray(data[key]) && data[key].length > 0) {
-        campaigns = data[key];
-        break;
-      }
-    }
-  }
+  const {
+    platforms: selectedPlatforms,
+    accounts: selectedAccounts,
+    status,
+    title,
+    tags,
+    dateRange,
+    timeZone
+  } = filters;
 
-  return campaigns;
-};
+  // Local UI state
+  const [myRole, setMyRole] = React.useState("user");
+  const [allowedPlatforms, setAllowedPlatforms] = React.useState([]);
+  const [accessLoaded, setAccessLoaded] = React.useState(false);
 
-export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilters = {} }) {
-  const [myRole, setMyRole] = useState("user");
-  const [allowedPlatforms, setAllowedPlatforms] = useState([]);
-  const [accessLoaded, setAccessLoaded] = useState(false);
-  const [adAccounts, setAdAccounts] = useState({});
-  const [accountsLoading, setAccountsLoading] = useState(true);
-  const [accountsError, setAccountsError] = useState(null);
-  const [campaignsLoading, setCampaignsLoading] = useState(false);
-  const [campaignsError, setCampaignsError] = useState(null);
-  const [campaignsWarning, setCampaignsWarning] = useState(null);
+  // Dropdown states
+  const [showPlatformMenu, setShowPlatformMenu] = React.useState(false);
+  const [showAccountMenu, setShowAccountMenu] = React.useState(false);
+  const [showStatusMenu, setShowStatusMenu] = React.useState(false);
+  const [showTagsMenu, setShowTagsMenu] = React.useState(false);
+  const [showTimeZoneMenu, setShowTimeZoneMenu] = React.useState(false);
+  const [showTitleSuggestions, setShowTitleSuggestions] = React.useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = React.useState(-1);
 
-  // Title search autocomplete states
-  const [title, setTitle] = useState(initialFilters.title || "");
-  const [titleSuggestions, setTitleSuggestions] = useState([]);
-  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
-  const [titleSearchLoading, setTitleSearchLoading] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  // Section expansion for accounts
+  const [expandedSections, setExpandedSections] = React.useState({
+    meta: true,
+    snap: true,
+    tiktok: true,
+    google: true,
+    newsbreak: true
+  });
+
+  // Refs
   const titleInputRef = useRef(null);
   const titleDropdownRef = useRef(null);
   const searchTimeoutRef = useRef(null);
@@ -150,6 +149,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   // Fetch user role and platform access
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
         const {
@@ -182,6 +182,11 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         setMyRole(role);
         setAllowedPlatforms(platforms);
         setAccessLoaded(true);
+
+        // Set initial platforms in Redux
+        if (platforms.length > 0 && selectedPlatforms.length === 0) {
+          dispatch(setPlatforms(platforms));
+        }
       } catch (e) {
         console.error("Error loading user role/platforms", e);
         setAccessLoaded(true);
@@ -191,83 +196,15 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [dispatch]);
 
-  // Fetch ad accounts from API
+  // Fetch ad accounts on mount
   useEffect(() => {
-    let mounted = true;
+    dispatch(fetchAdAccounts());
+  }, [dispatch]);
 
-    const fetchAdAccounts = async () => {
-      try {
-        setAccountsLoading(true);
-        setAccountsError(null);
-
-        console.log("📡 Fetching ad accounts from API...");
-
-        const apiBase = getApiBaseUrl();
-        const endpoint = `${apiBase}/all-with-status`;
-        const response = await fetch(endpoint);
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("📦 Ad accounts raw response:", data);
-
-        const campaigns = extractCampaignsFromResponse(data);
-
-        const accountsByPlatform = {};
-
-        campaigns.forEach((campaign) => {
-          const platform = normalizePlatformFromDB(campaign.platform);
-          const accountId = campaign.adAccountId;
-          const accountName = campaign.adAccountName;
-
-          if (!platform || !accountId || !accountName) return;
-
-          if (!accountsByPlatform[platform]) {
-            accountsByPlatform[platform] = {};
-          }
-
-          if (!accountsByPlatform[platform][accountId]) {
-            accountsByPlatform[platform][accountId] = {
-              id: accountId,
-              name: accountName,
-              platform: platform
-            };
-          }
-        });
-
-        const formattedAccounts = {};
-        Object.keys(accountsByPlatform).forEach((platform) => {
-          formattedAccounts[platform] = Object.values(accountsByPlatform[platform]).sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
-        });
-
-        console.log("✅ Formatted ad accounts:", formattedAccounts);
-
-        if (mounted) {
-          setAdAccounts(formattedAccounts);
-          setAccountsLoading(false);
-        }
-      } catch (error) {
-        console.error("❌ Error fetching ad accounts:", error);
-        if (mounted) {
-          setAccountsError(error.message);
-          setAccountsLoading(false);
-        }
-      }
-    };
-
-    fetchAdAccounts();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const platforms = useMemo(() => {
+  // Available platforms based on access
+  const availablePlatforms = React.useMemo(() => {
     if (!accessLoaded) return [];
     const allowedSet = new Set(allowedPlatforms);
 
@@ -278,186 +215,43 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     return ALL_PLATFORMS.filter((p) => allowedSet.has(p.id));
   }, [accessLoaded, allowedPlatforms, myRole]);
 
-  const [selectedPlatforms, setSelectedPlatforms] = useState(initialFilters.platforms || []);
+  // Title search with debounce
+  const handleTitleChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      dispatch(setTitle(value));
 
-  useEffect(() => {
-    if (!accessLoaded) return;
-    const allowedSet = new Set(allowedPlatforms);
-    setSelectedPlatforms((prev) => {
-      const filtered = prev.filter((p) => allowedSet.has(p));
-      if (filtered.length === 0 && allowedPlatforms.length > 0) {
-        return [...allowedPlatforms];
-      }
-      return filtered;
-    });
-  }, [accessLoaded, allowedPlatforms]);
-
-  const [showPlatformMenu, setShowPlatformMenu] = useState(false);
-  const [selectedAccounts, setSelectedAccounts] = useState(initialFilters.accounts || []);
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    meta: true,
-    snap: true,
-    tiktok: true,
-    google: true,
-    newsbreak: true
-  });
-
-  const [tags, setTags] = useState(initialFilters.tags || "");
-  const [showTagsMenu, setShowTagsMenu] = useState(false);
-
-  // Status filter - default to both active and paused for today's campaigns
-  const [status, setStatus] = useState(initialFilters.status || ["active", "paused"]);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-
-  const [dateRange, setDateRange] = useState(() => {
-    if (initialFilters.dateRange) return initialFilters.dateRange;
-    const today = startOfDay(new Date());
-    return { startDate: today, endDate: today, key: "today" };
-  });
-
-  const [timeZone, setTimeZone] = useState(initialFilters.timeZone || "America/Los_Angeles");
-  const [showTimeZoneMenu, setShowTimeZoneMenu] = useState(false);
-
-  const timeZoneOptions = [
-    { id: "America/Los_Angeles", name: "America/Los_Angeles" },
-    { id: "America/New_York", name: "America/New_York" },
-    { id: "Europe/London", name: "Europe/London" },
-    { id: "Asia/Tokyo", name: "Asia/Tokyo" },
-    { id: "Australia/Sydney", name: "Australia/Sydney" }
-  ];
-
-  // ====== TITLE SEARCH AUTOCOMPLETE ======
-  const searchCampaignTitles = useCallback(async (searchQuery) => {
-    if (!searchQuery || searchQuery.trim().length < 1) {
-      setTitleSuggestions([]);
-      setShowTitleSuggestions(false);
-      return;
-    }
-
-    setTitleSearchLoading(true);
-
-    try {
-      console.log(`🔍 Searching campaigns with title: "${searchQuery}"`);
-
-      const requestBody = {
-        title: searchQuery.trim()
-      };
-
-      const apiBase = getApiBaseUrl();
-      const endpoint = `${apiBase}/details`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Search API error: ${response.status}`);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
 
-      const data = await response.json();
-      const campaigns = extractCampaignsFromResponse(data);
+      if (!value || value.trim().length === 0) {
+        dispatch(clearTitleSuggestions());
+        setShowTitleSuggestions(false);
+        return;
+      }
 
-      console.log(`✅ Extracted ${campaigns.length} campaigns from response`);
-
-      const suggestionMap = new Map();
-
-      campaigns.forEach((campaign) => {
-        const campaignTitle =
-          campaign.name ||
-          campaign.title ||
-          campaign.campaignName ||
-          campaign.campaign_name ||
-          "Untitled Campaign";
-
-        const campaignId = campaign.id || campaign.campaignId || campaign.campaign_id || "";
-        const platform = normalizePlatformFromDB(campaign.platform || campaign.platformName || "");
-        const status = campaign.status || campaign.campaignStatus || "unknown";
-        const adAccountId =
-          campaign.adAccountId || campaign.ad_account_id || campaign.accountId || "";
-        const adAccountName =
-          campaign.adAccountName || campaign.ad_account_name || campaign.accountName || "";
-
-        const uniqueKey = `${campaignTitle.toLowerCase()}-${platform}`;
-
-        if (!suggestionMap.has(uniqueKey)) {
-          suggestionMap.set(uniqueKey, {
-            title: campaignTitle,
-            id: campaignId,
-            platform: platform,
-            status: status,
-            adAccountId: adAccountId,
-            adAccountName: adAccountName,
-            count: 1,
-            campaigns: [campaign]
-          });
-        } else {
-          const existing = suggestionMap.get(uniqueKey);
-          existing.count += 1;
-          existing.campaigns.push(campaign);
-        }
-      });
-
-      const suggestions = Array.from(suggestionMap.values())
-        .sort((a, b) => {
-          const aExact = a.title.toLowerCase() === searchQuery.toLowerCase();
-          const bExact = b.title.toLowerCase() === searchQuery.toLowerCase();
-          if (aExact && !bExact) return -1;
-          if (!aExact && bExact) return 1;
-          return b.count - a.count;
-        })
-        .slice(0, 15);
-
-      setTitleSuggestions(suggestions);
-      setShowTitleSuggestions(suggestions.length > 0);
-      setSelectedSuggestionIndex(-1);
-    } catch (error) {
-      console.error("❌ Error searching campaigns:", error);
-      setTitleSuggestions([]);
-      setShowTitleSuggestions(false);
-    } finally {
-      setTitleSearchLoading(false);
-    }
-  }, []);
-
-  const handleTitleChange = (e) => {
-    const value = e.target.value;
-    setTitle(value);
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (!value || value.trim().length === 0) {
-      setTitleSuggestions([]);
-      setShowTitleSuggestions(false);
-      setTitleSearchLoading(false);
-      return;
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      searchCampaignTitles(value);
-    }, 150);
-  };
+      searchTimeoutRef.current = setTimeout(() => {
+        dispatch(searchCampaignsByTitle(value));
+        setShowTitleSuggestions(true);
+      }, 150);
+    },
+    [dispatch]
+  );
 
   const selectTitleSuggestion = (suggestion) => {
-    setTitle(suggestion.title);
+    dispatch(setTitle(suggestion.title));
     setShowTitleSuggestions(false);
-    setTitleSuggestions([]);
+    dispatch(clearTitleSuggestions());
     setSelectedSuggestionIndex(-1);
-    if (titleInputRef.current) {
-      titleInputRef.current.focus();
-    }
+    titleInputRef.current?.focus();
   };
 
   const handleTitleKeyDown = (e) => {
     if (!showTitleSuggestions || titleSuggestions.length === 0) {
       if (e.key === "Enter") {
         e.preventDefault();
-        applyFilters();
+        handleApplyFilters();
       }
       return;
     }
@@ -475,11 +269,11 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         break;
       case "Enter":
         e.preventDefault();
-        if (selectedSuggestionIndex >= 0 && selectedSuggestionIndex < titleSuggestions.length) {
+        if (selectedSuggestionIndex >= 0) {
           selectTitleSuggestion(titleSuggestions[selectedSuggestionIndex]);
         } else {
           setShowTitleSuggestions(false);
-          applyFilters();
+          handleApplyFilters();
         }
         break;
       case "Escape":
@@ -487,11 +281,10 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         setShowTitleSuggestions(false);
         setSelectedSuggestionIndex(-1);
         break;
-      default:
-        break;
     }
   };
 
+  // Click outside handler for title suggestions
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -506,11 +299,10 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {
@@ -519,47 +311,19 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
     };
   }, []);
 
-  const highlightMatch = (text, query) => {
-    if (!query || !text) return text;
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
-    const parts = text.split(regex);
-    return (
-      <>
-        {parts.map((part, i) => {
-          const isMatch = part.toLowerCase() === query.toLowerCase();
-          return isMatch ? (
-            <mark key={i} className="bg-yellow-300 font-bold text-gray-900 rounded px-0.5">
-              {part}
-            </mark>
-          ) : (
-            <span key={i}>{part}</span>
-          );
-        })}
-      </>
-    );
-  };
-
+  // Handlers
   const togglePlatform = (platformId) => {
-    setSelectedPlatforms((prev) => {
-      if (prev.includes(platformId)) {
-        return prev.filter((p) => p !== platformId);
-      }
-      return [...prev, platformId];
-    });
+    const newPlatforms = selectedPlatforms.includes(platformId)
+      ? selectedPlatforms.filter((p) => p !== platformId)
+      : [...selectedPlatforms, platformId];
+    dispatch(setPlatforms(newPlatforms));
   };
 
   const toggleAccount = (accountId) => {
-    setSelectedAccounts((prev) => {
-      const newSelection = prev.includes(accountId)
-        ? prev.filter((a) => a !== accountId)
-        : [...prev, accountId];
-
-      setTimeout(() => {
-        applyFiltersWithAccounts(newSelection);
-      }, 100);
-
-      return newSelection;
-    });
+    const newAccounts = selectedAccounts.includes(accountId)
+      ? selectedAccounts.filter((a) => a !== accountId)
+      : [...selectedAccounts, accountId];
+    dispatch(setAccounts(newAccounts));
   };
 
   const toggleSection = (sectionId) => {
@@ -570,298 +334,53 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
   };
 
   const selectTag = (tag) => {
-    setTags(tag);
+    dispatch(setTags(tag));
     setShowTagsMenu(false);
   };
 
   const selectTimeZone = (zone) => {
-    setTimeZone(zone);
+    dispatch(setTimeZone(zone));
     setShowTimeZoneMenu(false);
   };
 
-  const selectStatus = (statusValue) => {
+  const handleStatusChange = (statusValue) => {
     if (statusValue === "all") {
-      setStatus([]); // Empty array means "all"
-    } else {
-      setStatus([statusValue]);
+      dispatch(setStatus([]));
+    } else if (statusValue === "active" || statusValue === "paused") {
+      const currentStatus = status || [];
+      if (currentStatus.includes(statusValue)) {
+        const newStatus = currentStatus.filter((s) => s !== statusValue);
+        dispatch(setStatus(newStatus.length > 0 ? newStatus : []));
+      } else {
+        dispatch(setStatus([...currentStatus, statusValue]));
+      }
     }
     setShowStatusMenu(false);
   };
 
-  // ✅ UPDATED: Fetch all campaigns using different endpoints based on status
-  // - Active, Paused, or Both (active+paused): /active endpoint
-  // - All (no status filter): base /v1/campaigns endpoint
-  const fetchAllCampaigns = async () => {
-    // Empty array or no status means "all"
-    const hasStatusFilter = status && status.length > 0;
-    const statusArray = hasStatusFilter ? status : [];
-    const isActiveOnly = statusArray.length === 1 && statusArray[0] === "active";
-    const isPausedOnly = statusArray.length === 1 && statusArray[0] === "paused";
-    const isBothStatuses = statusArray.length === 2 && statusArray.includes("active") && statusArray.includes("paused");
-    const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter (active, paused, or both)
-    
-    console.log(`\n🔄 Fetching ALL campaigns (no account filter)...`);
-    console.log(`   Status filter: ${hasStatusFilter ? statusArray.join(", ") : "all"}`);
-    console.log(`   Using endpoint: ${useActiveEndpoint ? "/active (active and paused campaigns)" : "base /v1/campaigns (all campaigns)"}`);
+  // Apply filters
+  const handleApplyFilters = async () => {
+    dispatch(clearError());
+    dispatch(clearWarning());
 
-    try {
-      const apiBase = getApiBaseUrl();
-      // Use /active endpoint for Active, Paused, or Both statuses
-      // Use base endpoint only for "All" (no status filter)
-      const endpoint = useActiveEndpoint 
-        ? `${apiBase}/active` 
-        : apiBase; // Base endpoint for "All" status
-      
-      const response = await fetch(endpoint, {
-        cache: "no-store"
-      });
+    if (selectedAccounts.length === 0) {
+      // Fetch all campaigns
+      dispatch(
+        fetchAllCampaigns({
+          platforms: selectedPlatforms,
+          status: status || []
+        })
+      );
+    } else {
+      // Clear existing campaigns first
+      dispatch(setCampaigns([]));
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const allCampaigns = extractCampaignsFromResponse(data);
-
-      console.log(`✅ Fetched ${allCampaigns.length} total campaigns from ${useActiveEndpoint ? "/active" : "base"} endpoint`);
-
-      // Filter by selected platforms if any
-      let filtered = allCampaigns;
-      if (selectedPlatforms.length > 0) {
-        filtered = allCampaigns.filter((c) => {
-          const campaignPlatform = normalizePlatformFromDB(c.platform);
-          return selectedPlatforms.includes(campaignPlatform);
-        });
-        console.log(`   Filtered to ${filtered.length} campaigns for selected platforms`);
-      }
-
-      // Filter by status when using /active endpoint (it returns both active and paused, so filter client-side)
-      if (hasStatusFilter && useActiveEndpoint) {
-        const statusFiltered = filtered.filter((c) => {
-          const campaignStatus = String(c.status || "").toLowerCase();
-          const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-          return statusArray.includes(normalizedStatus);
-        });
-        console.log(`   Filtered to ${statusFiltered.length} campaigns for status: ${statusArray.join(", ")}`);
-        return statusFiltered;
-      }
-
-      // If "all" is selected (no status filter), return all campaigns from base endpoint
-      if (!hasStatusFilter) {
-        console.log(`   Returning all ${filtered.length} campaigns (status: all)`);
-      }
-
-      return filtered;
-    } catch (error) {
-      console.error("❌ Error fetching all campaigns:", error);
-      throw error;
-    }
-  };
-
-  // ✅ IMPROVED: Try multiple strategies to fetch campaigns
-  const fetchCampaignsByAccount = async (accountIds, platform) => {
-    const platformVariations = PLATFORM_API_NAMES[platform] || [platform];
-
-    console.log(`\n🔄 Fetching campaigns for platform: ${platform}`);
-    console.log(`   Account IDs (${accountIds.length}):`, accountIds);
-
-    // Strategy 1: Try /v1/campaigns/by-account with different platform names
-    for (const platformName of platformVariations) {
-      try {
-        console.log(`   📤 Strategy 1: Trying /by-account with platform: "${platformName}"`);
-
-        const requestBody = {
-          ad_account_ids: accountIds,
-          platform: platformName
-        };
-
-        const apiBase = getApiBaseUrl();
-        const endpoint = `${apiBase}/by-account`;
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const campaigns = extractCampaignsFromResponse(data);
-
-          if (campaigns.length > 0) {
-            console.log(`   ✅ SUCCESS: Found ${campaigns.length} campaigns via /by-account`);
-            return campaigns;
-          }
-        }
-      } catch (error) {
-        console.error(`   ⚠️ /by-account failed for "${platformName}":`, error.message);
-      }
-    }
-
-    // Strategy 2: Try /v1/campaigns/details with account filter
-    try {
-      console.log(`   📤 Strategy 2: Trying /details endpoint`);
-
-      const requestBody = {
-        ad_account_ids: accountIds,
-        platform: platform
-      };
-
-      const apiBase = getApiBaseUrl();
-      const endpoint = `${apiBase}/details`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const campaigns = extractCampaignsFromResponse(data);
-
-        if (campaigns.length > 0) {
-          // Filter campaigns by account IDs
-          const filtered = campaigns.filter((c) =>
-            accountIds.includes(c.adAccountId || c.ad_account_id || c.accountId)
-          );
-
-          if (filtered.length > 0) {
-            console.log(`   ✅ SUCCESS: Found ${filtered.length} campaigns via /details`);
-            return filtered;
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`   ⚠️ /details endpoint failed:`, error.message);
-    }
-
-    // Strategy 3: Fetch all campaigns and filter client-side (endpoint depends on status)
-    try {
-      // Check status filter to determine endpoint
-      const hasStatusFilter = status && status.length > 0;
-      const statusArray = hasStatusFilter ? status : [];
-      const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter
-      
-      console.log(`   📤 Strategy 3: Fetching all campaigns and filtering client-side`);
-      console.log(`      Status: ${hasStatusFilter ? statusArray.join(", ") : "all"}, Using: ${useActiveEndpoint ? "/active" : "base"} endpoint`);
-
-      const apiBase = getApiBaseUrl();
-      // Use /active endpoint for Active, Paused, or Both statuses
-      // Use base endpoint only for "All" (no status filter)
-      const endpoint = useActiveEndpoint 
-        ? `${apiBase}/active` 
-        : apiBase; // Base endpoint for "All" status
-      
-      const response = await fetch(endpoint, {
-        cache: "no-store"
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const allCampaigns = extractCampaignsFromResponse(data);
-
-        // Filter by platform and account IDs
-        let filtered = allCampaigns.filter((c) => {
-          const campaignPlatform = normalizePlatformFromDB(c.platform);
-          const campaignAccountId = c.adAccountId || c.ad_account_id || c.accountId;
-          return campaignPlatform === platform && accountIds.includes(campaignAccountId);
-        });
-
-        // Apply status filter when using /active endpoint (it returns both active and paused, so filter client-side)
-        if (hasStatusFilter && useActiveEndpoint) {
-          filtered = filtered.filter((c) => {
-            const campaignStatus = String(c.status || "").toLowerCase();
-            const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-            return statusArray.includes(normalizedStatus);
-          });
-        }
-
-        if (filtered.length > 0) {
-          console.log(
-            `   ✅ SUCCESS: Found ${filtered.length} campaigns via client-side filtering`
-          );
-          return filtered;
-        }
-      }
-    } catch (error) {
-      console.error(`   ⚠️ Client-side filtering failed:`, error.message);
-    }
-
-    console.error(`   ❌ FAILED: No campaigns found after trying all strategies`);
-    return [];
-  };
-
-  // ✅ IMPROVED: Show partial results and detailed warnings
-  const applyFiltersWithAccounts = async (accountsToUse) => {
-    console.log("\n🚀 ========== APPLY FILTERS ==========");
-    console.log("Selected accounts:", accountsToUse);
-    console.log("Selected platforms:", selectedPlatforms);
-    console.log("Title filter:", title);
-    console.log("Tags filter:", tags);
-    console.log("Status filter:", status);
-
-    setCampaignsLoading(true);
-    setCampaignsError(null);
-    setCampaignsWarning(null);
-
-    const filterData = {
-      platforms: selectedPlatforms,
-      accounts: accountsToUse,
-      title,
-      tags,
-      status,
-      dateRange,
-      timeZone
-    };
-
-    // ✅ NEW: If no accounts selected, fetch all campaigns
-    if (accountsToUse.length === 0) {
-      console.log("\n📢 No accounts selected - fetching ALL campaigns");
-
-      try {
-        const allCampaigns = await fetchAllCampaigns();
-
-        if (allCampaigns.length === 0) {
-          setCampaignsWarning(
-            "⚠️ No campaigns found. The API returned an empty dataset. This could mean:\n• No campaigns exist in the system\n• All campaigns are filtered out by platform selection\n• The API service may be experiencing issues"
-          );
-        } else {
-          console.log(`✅ Successfully loaded ${allCampaigns.length} campaigns (unfiltered)`);
-        }
-
-        filterData.campaignsData = allCampaigns;
-        filterData.isUnfiltered = true; // Flag to indicate this is unfiltered data
-      } catch (error) {
-        console.error("\n❌ ERROR fetching all campaigns:", error);
-        setCampaignsError(
-          `Failed to fetch campaigns: ${error.message}\n\nPlease try again or contact support if the issue persists.`
-        );
-        filterData.campaignsData = [];
-      }
-
-      setCampaignsLoading(false);
-
-      console.log("\n📤 Calling onApplyFilters with:", filterData);
-      console.log("========================================\n");
-
-      if (onApplyFilters) {
-        onApplyFilters(filterData);
-      }
-
-      return;
-    }
-
-    // ✅ EXISTING LOGIC: Fetch campaigns by account
-    try {
+      // Group accounts by platform
       const accountsByPlatform = {};
-
-      // Map each account to its platform
-      accountsToUse.forEach((accountId) => {
-        let foundPlatform = null;
-
+      selectedAccounts.forEach((accountId) => {
         for (const [platform, accounts] of Object.entries(adAccounts)) {
           const found = accounts.find((acc) => acc.id === accountId);
           if (found) {
-            foundPlatform = platform;
             if (!accountsByPlatform[platform]) {
               accountsByPlatform[platform] = [];
             }
@@ -869,164 +388,100 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             break;
           }
         }
-
-        if (!foundPlatform) {
-          console.warn(`   ⚠️ Could not find platform for account: ${accountId}`);
-        }
       });
 
-      console.log("\n📊 Accounts grouped by platform:", accountsByPlatform);
-
-      if (Object.keys(accountsByPlatform).length === 0) {
-        throw new Error(
-          "Could not match selected accounts to platforms. Please refresh and try again."
-        );
-      }
-
-      const allCampaigns = [];
-      const platformResults = {};
-      const failedPlatforms = [];
-
-      // Fetch campaigns for each platform
-      for (const [platform, accountIds] of Object.entries(accountsByPlatform)) {
-        console.log(`\n🔄 Processing ${platform} with ${accountIds.length} account(s)...`);
-
-        let campaigns = await fetchCampaignsByAccount(accountIds, platform);
-
-         // Filter by status if status filter is set
-         const hasStatusFilter = status && status.length > 0;
-         const statusArray = hasStatusFilter ? status : [];
-         const useActiveEndpoint = hasStatusFilter; // Use /active for any status filter
-         
-         // Apply status filter when using /active endpoint (it returns both active and paused, so filter client-side)
-         if (hasStatusFilter && useActiveEndpoint) {
-           campaigns = campaigns.filter((c) => {
-             const campaignStatus = String(c.status || "").toLowerCase();
-             const normalizedStatus = campaignStatus === "active" || campaignStatus === "enabled" ? "active" : "paused";
-             return statusArray.includes(normalizedStatus);
-           });
-           console.log(`   Filtered to ${campaigns.length} campaigns for status: ${statusArray.join(", ")}`);
-         }
-
-        platformResults[platform] = {
-          accountCount: accountIds.length,
-          campaignCount: campaigns.length,
-          accountIds: accountIds
-        };
-
-        if (campaigns.length > 0) {
-          allCampaigns.push(...campaigns);
-          console.log(`   ✅ Added ${campaigns.length} campaigns from ${platform}`);
-        } else {
-          failedPlatforms.push({
+      // Fetch for each platform
+      const fetchPromises = Object.entries(accountsByPlatform).map(([platform, accountIds]) =>
+        dispatch(
+          fetchCampaignsByAccount({
+            accountIds,
             platform,
-            accountCount: accountIds.length,
-            accounts: accountIds
-          });
-          console.log(`   ⚠️ No campaigns found for ${platform}`);
-        }
-      }
+            status: status || []
+          })
+        )
+      );
 
-      console.log("\n📈 RESULTS SUMMARY:");
-      console.log(`   Total campaigns fetched: ${allCampaigns.length}`);
-      console.log(`   Platform breakdown:`, platformResults);
-
-      // ✅ Show partial results with warning instead of error
-      if (allCampaigns.length === 0) {
-        const platformSummary = Object.entries(platformResults)
-          .map(
-            ([plat, info]) =>
-              `${platformDisplayNames[plat]}: ${info.accountCount} account(s), 0 campaigns`
-          )
-          .join("; ");
-
-        const errorMessage = `No campaigns found for any selected accounts.\n\n📊 Checked: ${platformSummary}\n\n💡 Possible reasons:\n• The accounts have no active campaigns\n• Campaigns exist but API returned empty data\n• Date range filters might be too restrictive\n• API endpoint may not support this platform yet`;
-
-        setCampaignsError(errorMessage);
-      } else if (failedPlatforms.length > 0) {
-        // Some platforms succeeded, show warning for failed ones
-        const warningMessage =
-          `⚠️ Partial results: Found ${allCampaigns.length} campaigns, but ${failedPlatforms.length} platform(s) returned no data:\n\n` +
-          failedPlatforms
-            .map(
-              (fp) =>
-                `• ${platformDisplayNames[fp.platform]}: ${fp.accountCount} account(s) checked, 0 campaigns found`
-            )
-            .join("\n");
-
-        setCampaignsWarning(warningMessage);
-        console.log(`   ✅ Showing partial results: ${allCampaigns.length} campaigns`);
-      } else {
-        console.log(
-          `   ✅ Successfully loaded ${allCampaigns.length} campaigns from all platforms`
-        );
-      }
-
-      filterData.campaignsData = allCampaigns;
-      filterData.platformResults = platformResults;
-    } catch (error) {
-      console.error("\n❌ ERROR in applyFiltersWithAccounts:", error);
-      setCampaignsError(error.message);
-      filterData.campaignsData = [];
-    }
-
-    setCampaignsLoading(false);
-
-    console.log("\n📤 Calling onApplyFilters with:", filterData);
-    console.log("========================================\n");
-
-    if (onApplyFilters) {
-      onApplyFilters(filterData);
+      await Promise.all(fetchPromises);
     }
   };
 
-  const applyFilters = async () => {
-    await applyFiltersWithAccounts(selectedAccounts);
-  };
-
-  const resetForm = () => {
+  // Reset filters
+  const handleReset = () => {
     const today = startOfDay(new Date());
-    const resetPlatforms = allowedPlatforms?.length > 0 ? [...allowedPlatforms] : [];
-
-    setSelectedPlatforms(resetPlatforms);
-    setSelectedAccounts([]);
-    setTitle("");
-    setTags("");
-    setStatus(["active", "paused"]); // Reset to both active and paused by default
-    setDateRange({ startDate: today, endDate: today, key: "today" });
-    setTimeZone("America/Los_Angeles");
-    setCampaignsError(null);
-    setCampaignsWarning(null);
-    setTitleSuggestions([]);
+    dispatch(resetFilters());
+    dispatch(setPlatforms(allowedPlatforms.length > 0 ? [...allowedPlatforms] : []));
+    dispatch(setDateRange({ startDate: today, endDate: today, key: "today" }));
+    dispatch(setCampaigns([]));
     setShowTitleSuggestions(false);
-
-    if (onApplyFilters) {
-      onApplyFilters({
-        platforms: resetPlatforms,
-        accounts: [],
-        title: "",
-        tags: "",
-        status: ["active", "paused"],
-        dateRange: { startDate: today, endDate: today, key: "today" },
-        timeZone: "America/Los_Angeles",
-        campaignsData: []
-      });
-    }
-
-    if (onApplyGrouping) {
-      onApplyGrouping([]);
-    }
   };
+
+  // Highlight matching text
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    const parts = text.split(regex);
+    return (
+      <>
+        {parts.map((part, i) => {
+          const isMatch = part.toLowerCase() === query.toLowerCase();
+          return isMatch ? (
+            <mark
+              key={i}
+              className="font-bold rounded px-0.5"
+              style={{ backgroundColor: theme.warning, color: theme.textPrimary }}
+            >
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          );
+        })}
+      </>
+    );
+  };
+
+  // Get status display text
+  const getStatusDisplayText = () => {
+    if (!status || status.length === 0) return "All";
+    if (status.length === 2 && status.includes("active") && status.includes("paused")) {
+      return "Active & Paused";
+    }
+    if (status.includes("active")) return "Active";
+    if (status.includes("paused")) return "Paused";
+    return "All";
+  };
+
+  // Button styles helper
+  const getButtonStyle = (isActive = false) => ({
+    backgroundColor: isActive ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
+    color: isActive ? theme.buttonPrimaryText : theme.buttonSecondaryText,
+    borderColor: theme.borderSubtle
+  });
+
+  const getDropdownStyle = () => ({
+    backgroundColor: theme.bgDropdown,
+    borderColor: theme.borderSubtle,
+    boxShadow: theme.shadowDropdown
+  });
 
   return (
-    <section aria-label="Filters" className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <section
+      aria-label="Filters"
+      className="rounded-lg border shadow-sm"
+      style={{
+        backgroundColor: theme.bgCard,
+        borderColor: theme.borderSubtle
+      }}
+    >
       <div className="p-4 lg:p-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-6 2xl:gap-4">
+        {/* Filter Controls Grid */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:gap-4">
           {/* Date Picker */}
           <div className="sm:col-span-2 lg:col-span-1 xl:col-span-1">
             <DatePickerToggle
               initialSelection={dateRange}
-              onChange={(newRange) => setDateRange(newRange)}
+              onChange={(newRange) => dispatch(setDateRange(newRange))}
+              theme={theme}
             />
           </div>
 
@@ -1035,14 +490,23 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             <button
               type="button"
               onClick={() => setShowTimeZoneMenu(!showTimeZoneMenu)}
-              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all"
+              style={{
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.textPrimary
+              }}
             >
-              <span className="text-gray-600 font-medium">Timezone</span>
-              <span className="truncate text-xs font-semibold text-blue-600 max-w-[120px]">
+              <span style={{ color: theme.textSecondary }}>Timezone</span>
+              <span
+                className="truncate text-xs font-semibold max-w-[120px]"
+                style={{ color: theme.blue }}
+              >
                 {timeZone.split("/")[1] || timeZone}
               </span>
               <svg
-                className={`h-4 w-4 text-gray-400 transition-transform ${showTimeZoneMenu ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showTimeZoneMenu ? "rotate-180" : ""}`}
+                style={{ color: theme.textTertiary }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1055,24 +519,32 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 />
               </svg>
             </button>
+
             {showTimeZoneMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowTimeZoneMenu(false)} />
-                <div className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg bg-white shadow-2xl ring-1 ring-black ring-opacity-5 sm:right-auto sm:w-72">
+                <div
+                  className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg shadow-xl border sm:w-72"
+                  style={getDropdownStyle()}
+                >
                   <div className="p-2">
-                    <div className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <div
+                      className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                      style={{ color: theme.textSecondary }}
+                    >
                       Select Timezone
                     </div>
-                    {timeZoneOptions.map((zone) => (
+                    {TIME_ZONE_OPTIONS.map((zone) => (
                       <button
                         key={zone.id}
                         type="button"
                         onClick={() => selectTimeZone(zone.id)}
-                        className={`w-full truncate rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                          timeZone === zone.id
-                            ? "bg-blue-500 text-white font-semibold shadow-sm"
-                            : "text-gray-700 hover:bg-gray-100"
-                        }`}
+                        className="w-full truncate rounded-md px-3 py-2.5 text-left text-sm transition-colors"
+                        style={{
+                          backgroundColor:
+                            timeZone === zone.id ? theme.buttonPrimaryBg : "transparent",
+                          color: timeZone === zone.id ? theme.buttonPrimaryText : theme.textPrimary
+                        }}
                       >
                         {zone.name}
                       </button>
@@ -1083,34 +555,39 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             )}
           </div>
 
-          {/* Platform selector */}
+          {/* Platform Selector */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => {
-                if (accessLoaded && platforms.length > 0) {
-                  setShowPlatformMenu(!showPlatformMenu);
-                }
+              onClick={() =>
+                accessLoaded &&
+                availablePlatforms.length > 0 &&
+                setShowPlatformMenu(!showPlatformMenu)
+              }
+              disabled={!accessLoaded || availablePlatforms.length === 0}
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.textPrimary
               }}
-              disabled={!accessLoaded || platforms.length === 0}
-              className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
-                !accessLoaded || platforms.length === 0
-                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
-                  : "border-gray-300 bg-white hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              }`}
             >
-              <span className="text-gray-600 font-medium">Platforms</span>
+              <span style={{ color: theme.textSecondary }}>Platforms</span>
               {selectedPlatforms.length > 0 ? (
-                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  style={{ backgroundColor: `${theme.blue}20`, color: theme.blue }}
+                >
                   {selectedPlatforms.length}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400 italic">
-                  {platforms.length === 0 ? "No access" : "Select..."}
+                <span className="text-xs italic" style={{ color: theme.textTertiary }}>
+                  {availablePlatforms.length === 0 ? "No access" : "Select..."}
                 </span>
               )}
               <svg
-                className={`h-4 w-4 text-gray-400 transition-transform ${showPlatformMenu ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showPlatformMenu ? "rotate-180" : ""}`}
+                style={{ color: theme.textTertiary }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1123,60 +600,68 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 />
               </svg>
             </button>
+
             {showPlatformMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowPlatformMenu(false)} />
-                <div className="absolute left-0 right-0 z-40 mt-2 rounded-lg bg-white shadow-2xl ring-1 ring-black ring-opacity-5 sm:right-auto sm:w-64">
+                <div
+                  className="absolute left-0 right-0 z-40 mt-2 rounded-lg shadow-xl border sm:w-64"
+                  style={getDropdownStyle()}
+                >
                   <div className="p-2">
-                    <div className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <div
+                      className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                      style={{ color: theme.textSecondary }}
+                    >
                       Select Platforms
                     </div>
-                    {platforms.map((platform) => (
+                    {availablePlatforms.map((platform) => (
                       <label
                         key={platform.id}
-                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-blue-50"
+                        className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 transition-colors"
+                        style={{ color: theme.textPrimary }}
                       >
                         <input
                           type="checkbox"
                           checked={selectedPlatforms.includes(platform.id)}
                           onChange={() => togglePlatform(platform.id)}
-                          className="h-5 w-5 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                          className="h-5 w-5 rounded border-gray-300 text-blue-600"
                         />
                         <img
                           src={platformIconsMap[platform.id]}
-                          alt={`${platform.name} icon`}
+                          alt={platform.name}
                           className="h-5 w-5"
                         />
-                        <span className="text-sm font-medium text-gray-700">{platform.name}</span>
+                        <span className="text-sm font-medium">{platform.name}</span>
                       </label>
                     ))}
-                    {platforms.length === 0 && (
-                      <div className="px-3 py-4 text-center text-xs text-gray-500">
-                        No platform access configured.
-                      </div>
-                    )}
                   </div>
                 </div>
               </>
             )}
           </div>
 
-          {/* Account selector */}
+          {/* Account Selector */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowAccountMenu(!showAccountMenu)}
-              disabled={accountsLoading}
-              className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all ${
-                accountsLoading
-                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
-                  : "border-gray-300 bg-white hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              }`}
+              disabled={adAccountsLoading}
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all disabled:opacity-50"
+              style={{
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.textPrimary
+              }}
             >
-              <span className="text-gray-600 font-medium">Accounts</span>
-              {accountsLoading ? (
+              <span style={{ color: theme.textSecondary }}>Accounts</span>
+              {adAccountsLoading ? (
                 <div className="flex items-center gap-2">
-                  <svg className="h-4 w-4 animate-spin text-blue-500" viewBox="0 0 24 24">
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    style={{ color: theme.blue }}
+                    viewBox="0 0 24 24"
+                  >
                     <circle
                       className="opacity-25"
                       cx="12"
@@ -1189,20 +674,26 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     <path
                       className="opacity-75"
                       fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
                   <span className="text-xs">Loading...</span>
                 </div>
               ) : selectedAccounts.length > 0 ? (
-                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
+                <span
+                  className="rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  style={{ backgroundColor: `${theme.green}20`, color: theme.green }}
+                >
                   {selectedAccounts.length}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400 italic">All</span>
+                <span className="text-xs italic" style={{ color: theme.textTertiary }}>
+                  All
+                </span>
               )}
               <svg
-                className={`h-4 w-4 text-gray-400 transition-transform ${showAccountMenu ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showAccountMenu ? "rotate-180" : ""}`}
+                style={{ color: theme.textTertiary }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1216,14 +707,24 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               </svg>
             </button>
 
-            {showAccountMenu && !accountsLoading && (
+            {showAccountMenu && !adAccountsLoading && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowAccountMenu(false)} />
-                <div className="fixed inset-x-4 top-1/2 z-40 -translate-y-1/2 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:translate-y-0 sm:mt-2 w-auto sm:w-96 lg:w-[32rem] xl:w-[40rem] 2xl:w-[48rem] max-h-[80vh] sm:max-h-[70vh] overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-10">
-                  <div className="sticky top-0 z-10 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 sm:px-6">
+                <div
+                  className="fixed inset-x-4 top-1/2 z-40 -translate-y-1/2 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:translate-y-0 sm:mt-2 w-auto sm:w-96 lg:w-[32rem] max-h-[80vh] overflow-hidden rounded-xl shadow-xl border"
+                  style={getDropdownStyle()}
+                >
+                  {/* Account dropdown header */}
+                  <div
+                    className="sticky top-0 z-10 border-b px-4 py-3 sm:px-6"
+                    style={{ backgroundColor: theme.bgSecondary, borderColor: theme.borderSubtle }}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-blue-500 p-2 shadow-sm">
+                        <div
+                          className="rounded-lg p-2 shadow-sm"
+                          style={{ backgroundColor: theme.blue }}
+                        >
                           <svg
                             className="h-5 w-5 text-white"
                             fill="none"
@@ -1239,10 +740,13 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                           </svg>
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-gray-900 sm:text-lg">
+                          <h3
+                            className="text-base font-bold sm:text-lg"
+                            style={{ color: theme.textPrimary }}
+                          >
                             Ad Accounts
                           </h3>
-                          <p className="text-xs text-gray-600">
+                          <p className="text-xs" style={{ color: theme.textSecondary }}>
                             {selectedAccounts.length === 0
                               ? "No selection = All campaigns"
                               : "Select accounts to filter"}
@@ -1250,89 +754,58 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                         </div>
                       </div>
                       {selectedAccounts.length > 0 && (
-                        <span className="rounded-full bg-green-500 px-3 py-1.5 text-sm font-bold text-white shadow-sm">
+                        <span
+                          className="rounded-full px-3 py-1.5 text-sm font-bold text-white shadow-sm"
+                          style={{ backgroundColor: theme.green }}
+                        >
                           {selectedAccounts.length} selected
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {accountsError && (
-                    <div className="mx-4 mt-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 sm:mx-6">
-                      <div className="flex items-start gap-2">
-                        <svg
-                          className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        <div className="text-sm text-red-800">
-                          <span className="font-semibold">Error:</span> {accountsError}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {Object.keys(adAccounts).length === 0 && !accountsError && (
-                    <div className="px-4 py-12 text-center sm:px-6">
-                      <svg
-                        className="mx-auto h-16 w-16 text-gray-300"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                        />
-                      </svg>
-                      <p className="mt-4 text-base font-medium text-gray-900">
-                        No ad accounts available
-                      </p>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Check your platform access permissions
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="max-h-[calc(80vh-140px)] overflow-y-auto sm:max-h-[calc(70vh-140px)]">
+                  {/* Account list */}
+                  <div className="max-h-[calc(80vh-140px)] overflow-y-auto">
                     <div className="space-y-3 p-4 sm:p-6">
                       {Object.entries(adAccounts)
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([platform, accounts]) => (
                           <div
                             key={platform}
-                            className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                            className="overflow-hidden rounded-xl border"
+                            style={{
+                              borderColor: theme.borderSubtle,
+                              backgroundColor: theme.bgCard
+                            }}
                           >
                             <button
                               type="button"
                               onClick={() => toggleSection(platform)}
-                              className="flex w-full items-center justify-between bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 transition-all hover:from-gray-100 hover:to-gray-200"
+                              className="flex w-full items-center justify-between px-4 py-3 transition-all"
+                              style={{ backgroundColor: theme.bgSecondary }}
                             >
                               <div className="flex items-center gap-3">
                                 <img
                                   src={platformIconsMap[platform]}
-                                  alt={`${platform} icon`}
+                                  alt={platform}
                                   className="h-6 w-6"
                                 />
-                                <span className="text-sm font-bold uppercase tracking-wide text-gray-800 sm:text-base">
+                                <span
+                                  className="text-sm font-bold uppercase tracking-wide"
+                                  style={{ color: theme.textPrimary }}
+                                >
                                   {platformDisplayNames[platform] || platform}
                                 </span>
-                                <span className="rounded-full bg-blue-500 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+                                <span
+                                  className="rounded-full px-2.5 py-1 text-xs font-bold text-white"
+                                  style={{ backgroundColor: theme.blue }}
+                                >
                                   {accounts.length}
                                 </span>
                               </div>
                               <svg
-                                className={`h-5 w-5 text-gray-600 transition-transform duration-200 ${
-                                  expandedSections[platform] ? "rotate-180" : ""
-                                }`}
+                                className={`h-5 w-5 transition-transform ${expandedSections[platform] ? "rotate-180" : ""}`}
+                                style={{ color: theme.textSecondary }}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -1347,26 +820,32 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                             </button>
 
                             {expandedSections[platform] && (
-                              <div className="divide-y divide-gray-100 bg-white">
+                              <div className="divide-y" style={{ borderColor: theme.borderSubtle }}>
                                 {accounts.map((account) => (
                                   <label
                                     key={account.id}
-                                    className="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-all hover:bg-blue-50 sm:px-5"
+                                    className="group flex cursor-pointer items-start gap-3 px-4 py-3 transition-all sm:px-5"
                                   >
                                     <input
                                       type="checkbox"
                                       checked={selectedAccounts.includes(account.id)}
                                       onChange={() => toggleAccount(account.id)}
-                                      className="mt-1 h-5 w-5 flex-shrink-0 rounded border-gray-300 text-blue-600 shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                                      className="mt-1 h-5 w-5 flex-shrink-0 rounded border-gray-300 text-blue-600"
                                     />
                                     <div className="min-w-0 flex-1">
-                                      <div className="break-words text-sm font-semibold text-gray-900 group-hover:text-blue-700 sm:text-base">
+                                      <div
+                                        className="break-words text-sm font-semibold"
+                                        style={{ color: theme.textPrimary }}
+                                      >
                                         {account.name}
                                       </div>
                                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                         <code
-                                          className="break-all rounded-md bg-gray-100 px-2 py-1 text-xs font-mono text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-800 sm:text-sm"
-                                          title={`Full ID: ${account.id}`}
+                                          className="break-all rounded-md px-2 py-1 text-xs font-mono"
+                                          style={{
+                                            backgroundColor: theme.bgSecondary,
+                                            color: theme.textSecondary
+                                          }}
                                         >
                                           {account.id}
                                         </code>
@@ -1381,12 +860,21 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                     </div>
                   </div>
 
+                  {/* Clear selection button */}
                   {selectedAccounts.length > 0 && (
-                    <div className="sticky bottom-0 border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+                    <div
+                      className="sticky bottom-0 border-t px-4 py-3 sm:px-6"
+                      style={{ backgroundColor: theme.bgCard, borderColor: theme.borderSubtle }}
+                    >
                       <button
                         type="button"
-                        onClick={() => setSelectedAccounts([])}
-                        className="w-full rounded-lg border-2 border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition-all hover:border-red-400 hover:bg-red-100 hover:shadow-md"
+                        onClick={() => dispatch(setAccounts([]))}
+                        className="w-full rounded-lg border-2 px-4 py-2.5 text-sm font-bold transition-all"
+                        style={{
+                          borderColor: `${theme.negative}50`,
+                          backgroundColor: `${theme.negative}10`,
+                          color: theme.negative
+                        }}
                       >
                         Clear all ({selectedAccounts.length})
                       </button>
@@ -1402,34 +890,36 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             <button
               type="button"
               onClick={() => setShowStatusMenu(!showStatusMenu)}
-              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all"
+              style={{
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.textPrimary
+              }}
             >
-              <span className="text-gray-600 font-medium">Status</span>
-              {status && status.length > 0 ? (
-                <span
-                  className={`truncate rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                    status.length === 2 && status.includes("active") && status.includes("paused")
-                      ? "bg-blue-100 text-blue-700"
-                      : status[0] === "active"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : status[0] === "paused"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {status.length === 2 && status.includes("active") && status.includes("paused")
-                    ? "Active & Paused"
-                    : status[0] === "active"
-                      ? "Active"
-                      : status[0] === "paused"
-                        ? "Paused"
-                        : "All"}
-                </span>
-              ) : (
-                <span className="text-xs text-gray-400 italic">All</span>
-              )}
+              <span style={{ color: theme.textSecondary }}>Status</span>
+              <span
+                className="truncate rounded-full px-2.5 py-0.5 text-xs font-bold"
+                style={{
+                  backgroundColor:
+                    status?.includes("active") && !status?.includes("paused")
+                      ? `${theme.positive}20`
+                      : status?.includes("paused") && !status?.includes("active")
+                        ? `${theme.warning}20`
+                        : `${theme.blue}20`,
+                  color:
+                    status?.includes("active") && !status?.includes("paused")
+                      ? theme.positive
+                      : status?.includes("paused") && !status?.includes("active")
+                        ? theme.warning
+                        : theme.blue
+                }}
+              >
+                {getStatusDisplayText()}
+              </span>
               <svg
-                className={`h-4 w-4 text-gray-400 transition-transform ${showStatusMenu ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showStatusMenu ? "rotate-180" : ""}`}
+                style={{ color: theme.textTertiary }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1442,98 +932,55 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 />
               </svg>
             </button>
+
             {showStatusMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowStatusMenu(false)} />
-                <div className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg bg-white shadow-2xl ring-1 ring-black ring-opacity-5 sm:right-auto sm:w-56">
+                <div
+                  className="absolute left-0 right-0 z-40 mt-2 rounded-lg shadow-xl border sm:w-56"
+                  style={getDropdownStyle()}
+                >
                   <div className="p-2">
-                    <div className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <div
+                      className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                      style={{ color: theme.textSecondary }}
+                    >
                       Select Status
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Toggle active status
-                        if (status.includes("active")) {
-                          // If both are selected, remove active to leave only paused
-                          if (status.includes("paused")) {
-                            setStatus(["paused"]);
-                          } else {
-                            // If only active, clear to show all
-                            setStatus([]);
-                          }
-                        } else {
-                          // Add active
-                          if (status.includes("paused")) {
-                            setStatus(["active", "paused"]);
-                          } else {
-                            setStatus(["active"]);
-                          }
-                        }
-                        setShowStatusMenu(false);
-                      }}
-                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                        status.includes("active") && !status.includes("paused")
-                          ? "bg-emerald-500 font-semibold text-white shadow-sm"
-                          : status.includes("active")
-                            ? "bg-emerald-200 font-medium text-emerald-900 shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
-                        Active
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Toggle paused status
-                        if (status.includes("paused")) {
-                          // If both are selected, remove paused to leave only active
-                          if (status.includes("active")) {
-                            setStatus(["active"]);
-                          } else {
-                            // If only paused, clear to show all
-                            setStatus([]);
-                          }
-                        } else {
-                          // Add paused
-                          if (status.includes("active")) {
-                            setStatus(["active", "paused"]);
-                          } else {
-                            setStatus(["paused"]);
-                          }
-                        }
-                        setShowStatusMenu(false);
-                      }}
-                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                        status.includes("paused") && !status.includes("active")
-                          ? "bg-amber-500 font-semibold text-white shadow-sm"
-                          : status.includes("paused")
-                            ? "bg-amber-200 font-medium text-amber-900 shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-2 w-2 rounded-full bg-amber-600"></span>
-                        Paused
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectStatus("all")}
-                      className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                        !status || status.length === 0
-                          ? "bg-blue-500 font-semibold text-white shadow-sm"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-2 w-2 rounded-full bg-blue-600"></span>
-                        All
-                      </div>
-                    </button>
+                    {["active", "paused", "all"].map((statusOption) => {
+                      const isSelected =
+                        statusOption === "all"
+                          ? !status || status.length === 0
+                          : status?.includes(statusOption);
+
+                      return (
+                        <button
+                          key={statusOption}
+                          type="button"
+                          onClick={() => handleStatusChange(statusOption)}
+                          className="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors"
+                          style={{
+                            backgroundColor: isSelected ? theme.buttonPrimaryBg : "transparent",
+                            color: isSelected ? theme.buttonPrimaryText : theme.textPrimary
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block h-2 w-2 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  statusOption === "active"
+                                    ? theme.positive
+                                    : statusOption === "paused"
+                                      ? theme.warning
+                                      : theme.blue
+                              }}
+                            />
+                            {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </>
@@ -1545,18 +992,29 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             <button
               type="button"
               onClick={() => setShowTagsMenu(!showTagsMenu)}
-              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all"
+              style={{
+                backgroundColor: theme.inputBg,
+                borderColor: theme.inputBorder,
+                color: theme.textPrimary
+              }}
             >
-              <span className="text-gray-600 font-medium">Tags</span>
+              <span style={{ color: theme.textSecondary }}>Tags</span>
               {tags ? (
-                <span className="truncate rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-700">
+                <span
+                  className="truncate rounded-full px-2.5 py-0.5 text-xs font-bold"
+                  style={{ backgroundColor: `${theme.purple}20`, color: theme.purple }}
+                >
                   {tags}
                 </span>
               ) : (
-                <span className="text-xs text-gray-400 italic">Select...</span>
+                <span className="text-xs italic" style={{ color: theme.textTertiary }}>
+                  Select...
+                </span>
               )}
               <svg
-                className={`h-4 w-4 text-gray-400 transition-transform ${showTagsMenu ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showTagsMenu ? "rotate-180" : ""}`}
+                style={{ color: theme.textTertiary }}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1569,12 +1027,19 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 />
               </svg>
             </button>
+
             {showTagsMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowTagsMenu(false)} />
-                <div className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg bg-white shadow-2xl ring-1 ring-black ring-opacity-5 sm:right-auto sm:w-56">
+                <div
+                  className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg shadow-xl border sm:w-56"
+                  style={getDropdownStyle()}
+                >
                   <div className="p-2">
-                    <div className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <div
+                      className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide"
+                      style={{ color: theme.textSecondary }}
+                    >
                       Select Tag
                     </div>
                     {PREDEFINED_TAGS.map((tag) => (
@@ -1582,11 +1047,11 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                         key={tag}
                         type="button"
                         onClick={() => selectTag(tag)}
-                        className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors ${
-                          tags === tag
-                            ? "bg-purple-500 font-semibold text-white shadow-sm"
-                            : "text-gray-700 hover:bg-gray-100"
-                        }`}
+                        className="w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors"
+                        style={{
+                          backgroundColor: tags === tag ? theme.purple : "transparent",
+                          color: tags === tag ? "white" : theme.textPrimary
+                        }}
                       >
                         {tag}
                       </button>
@@ -1595,7 +1060,8 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                       <button
                         type="button"
                         onClick={() => selectTag("")}
-                        className="mt-2 w-full rounded-md border-t px-3 py-2.5 pt-3 text-left text-sm text-gray-500 hover:bg-gray-100"
+                        className="mt-2 w-full rounded-md border-t px-3 py-2.5 text-left text-sm"
+                        style={{ borderColor: theme.borderSubtle, color: theme.textSecondary }}
                       >
                         Clear selection
                       </button>
@@ -1607,11 +1073,18 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
           </div>
         </div>
 
-        {/* Title Input with Autocomplete */}
+        {/* Title Search with Autocomplete */}
         <div className="relative mt-3">
-          <label className="flex w-full items-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2.5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+          <label
+            className="flex w-full items-center gap-3 rounded-lg border px-4 py-2.5 shadow-sm transition-all"
+            style={{
+              backgroundColor: theme.inputBg,
+              borderColor: theme.inputBorder
+            }}
+          >
             <svg
-              className="h-5 w-5 text-gray-400 flex-shrink-0"
+              className="h-5 w-5 flex-shrink-0"
+              style={{ color: theme.textTertiary }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1623,7 +1096,12 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <span className="text-sm font-medium text-gray-600 flex-shrink-0">Title:</span>
+            <span
+              className="text-sm font-medium flex-shrink-0"
+              style={{ color: theme.textSecondary }}
+            >
+              Title:
+            </span>
             <input
               ref={titleInputRef}
               value={title}
@@ -1634,12 +1112,17 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                   setShowTitleSuggestions(true);
                 }
               }}
-              className="w-full flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+              className="w-full flex-1 bg-transparent text-sm outline-none"
+              style={{ color: theme.inputText }}
               placeholder="Type to search campaigns..."
               autoComplete="off"
             />
             {titleSearchLoading && (
-              <svg className="h-5 w-5 animate-spin text-blue-500 flex-shrink-0" viewBox="0 0 24 24">
+              <svg
+                className="h-5 w-5 animate-spin flex-shrink-0"
+                style={{ color: theme.blue }}
+                viewBox="0 0 24 24"
+              >
                 <circle
                   className="opacity-25"
                   cx="12"
@@ -1652,20 +1135,20 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                 <path
                   className="opacity-75"
                   fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
             )}
             {title && !titleSearchLoading && (
               <button
-                className="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 flex-shrink-0"
+                className="rounded-full p-1 transition-colors flex-shrink-0"
+                style={{ color: theme.textTertiary }}
                 onClick={(e) => {
                   e.preventDefault();
-                  setTitle("");
-                  setTitleSuggestions([]);
+                  dispatch(setTitle(""));
+                  dispatch(clearTitleSuggestions());
                   setShowTitleSuggestions(false);
                 }}
-                title="Clear title"
                 type="button"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1680,33 +1163,40 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
             )}
           </label>
 
-          {/* Autocomplete suggestions dropdown */}
+          {/* Autocomplete suggestions */}
           {showTitleSuggestions && titleSuggestions.length > 0 && (
             <div
               ref={titleDropdownRef}
-              className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border-2 border-blue-300 bg-white shadow-2xl"
+              className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border-2 shadow-xl"
+              style={{
+                backgroundColor: theme.bgDropdown,
+                borderColor: theme.blue
+              }}
             >
-              <div className="sticky top-0 z-10 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-gray-800">
-                    {titleSuggestions.length} Campaign{titleSuggestions.length !== 1 ? "s" : ""}{" "}
-                    Found
-                  </span>
-                </div>
+              <div
+                className="sticky top-0 z-10 border-b-2 px-4 py-3"
+                style={{ backgroundColor: theme.bgSecondary, borderColor: theme.borderSubtle }}
+              >
+                <span className="text-sm font-bold" style={{ color: theme.textPrimary }}>
+                  {titleSuggestions.length} Campaign{titleSuggestions.length !== 1 ? "s" : ""} Found
+                </span>
               </div>
 
-              <div className="max-h-[340px] overflow-y-auto divide-y divide-gray-100">
+              <div
+                className="max-h-[340px] overflow-y-auto divide-y"
+                style={{ borderColor: theme.borderSubtle }}
+              >
                 {titleSuggestions.map((suggestion, index) => (
                   <button
                     key={`${suggestion.id}-${index}`}
                     type="button"
                     onClick={() => selectTitleSuggestion(suggestion)}
                     onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                    className={`group flex w-full items-start gap-3 px-4 py-3 text-left transition-all ${
-                      index === selectedSuggestionIndex
-                        ? "bg-gradient-to-r from-blue-100 to-indigo-100"
-                        : "hover:bg-blue-50"
-                    }`}
+                    className="group flex w-full items-start gap-3 px-4 py-3 text-left transition-all"
+                    style={{
+                      backgroundColor:
+                        index === selectedSuggestionIndex ? theme.bgSecondary : "transparent"
+                    }}
                   >
                     {suggestion.platform && platformIconsMap[suggestion.platform] && (
                       <img
@@ -1716,11 +1206,13 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-900">
+                      <div className="text-sm font-semibold" style={{ color: theme.textPrimary }}>
                         {highlightMatch(suggestion.title, title)}
                       </div>
                       {suggestion.adAccountName && (
-                        <div className="text-xs text-gray-600 mt-1">{suggestion.adAccountName}</div>
+                        <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>
+                          {suggestion.adAccountName}
+                        </div>
                       )}
                     </div>
                   </button>
@@ -1734,21 +1226,26 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
-            onClick={resetForm}
+            onClick={handleReset}
             disabled={campaignsLoading}
-            className="rounded-lg border-2 border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-lg border-2 px-6 py-2.5 text-sm font-semibold shadow-sm transition-all disabled:opacity-50"
+            style={{
+              borderColor: theme.borderSubtle,
+              backgroundColor: theme.buttonSecondaryBg,
+              color: theme.buttonSecondaryText
+            }}
           >
             Reset Filters
           </button>
           <button
             type="button"
-            onClick={applyFilters}
+            onClick={handleApplyFilters}
             disabled={campaignsLoading}
-            className={`flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-md transition-all ${
-              campaignsLoading
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-            }`}
+            className="flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold shadow-md transition-all disabled:opacity-50"
+            style={{
+              backgroundColor: campaignsLoading ? theme.buttonSecondaryBg : theme.buttonPrimaryBg,
+              color: campaignsLoading ? theme.buttonSecondaryText : theme.buttonPrimaryText
+            }}
           >
             {campaignsLoading ? (
               <>
@@ -1765,7 +1262,7 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
                   <path
                     className="opacity-75"
                     fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
                 <span>Loading...</span>
@@ -1788,11 +1285,18 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
           </button>
         </div>
 
-        {/* ✅ INFO MESSAGE (No filters selected) */}
+        {/* Info/Warning/Error Messages */}
         {selectedAccounts.length === 0 && !campaignsLoading && !campaignsError && (
-          <div className="mt-4 flex items-start gap-3 rounded-lg border-2 border-blue-300 bg-blue-50 px-4 py-3 shadow-sm">
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
+            style={{
+              borderColor: `${theme.info}50`,
+              backgroundColor: `${theme.info}10`
+            }}
+          >
             <svg
-              className="mt-0.5 h-6 w-6 flex-shrink-0 text-blue-600"
+              className="mt-0.5 h-6 w-6 flex-shrink-0"
+              style={{ color: theme.info }}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -1803,24 +1307,30 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               />
             </svg>
             <div className="flex-1">
-              <div className="text-sm font-bold text-blue-900">ℹ️ No Account Filter</div>
-              <div className="mt-1 text-sm text-blue-800">
-                Clicking "Load All Campaigns" will fetch all campaigns from all platforms
+              <div className="text-sm font-bold" style={{ color: theme.info }}>
+                ℹ️ No Account Filter
+              </div>
+              <div className="mt-1 text-sm" style={{ color: theme.info }}>
+                Clicking "Load All Campaigns" will fetch all campaigns
                 {selectedPlatforms.length > 0 &&
-                  ` (filtered by: ${selectedPlatforms
-                    .map((p) => platformDisplayNames[p])
-                    .join(", ")})`}
-                . This may take a moment.
+                  ` (filtered by: ${selectedPlatforms.map((p) => platformDisplayNames[p]).join(", ")})`}
+                .
               </div>
             </div>
           </div>
         )}
 
-        {/* ✅ WARNING MESSAGE (Partial Results) */}
         {campaignsWarning && (
-          <div className="mt-4 flex items-start gap-3 rounded-lg border-2 border-yellow-400 bg-yellow-50 px-4 py-3 shadow-sm">
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
+            style={{
+              borderColor: `${theme.warning}50`,
+              backgroundColor: `${theme.warning}10`
+            }}
+          >
             <svg
-              className="mt-0.5 h-6 w-6 flex-shrink-0 text-yellow-600"
+              className="mt-0.5 h-6 w-6 flex-shrink-0"
+              style={{ color: theme.warning }}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -1831,19 +1341,27 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               />
             </svg>
             <div className="flex-1">
-              <div className="text-sm font-bold text-yellow-900">⚠️ Partial Results</div>
-              <div className="mt-1 text-sm text-yellow-800 whitespace-pre-line">
+              <div className="text-sm font-bold" style={{ color: theme.warning }}>
+                ⚠️ Partial Results
+              </div>
+              <div className="mt-1 text-sm whitespace-pre-line" style={{ color: theme.warning }}>
                 {campaignsWarning}
               </div>
             </div>
           </div>
         )}
 
-        {/* ✅ ERROR MESSAGE (No Results) */}
         {campaignsError && (
-          <div className="mt-4 flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3 shadow-sm">
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
+            style={{
+              borderColor: `${theme.negative}50`,
+              backgroundColor: `${theme.negative}10`
+            }}
+          >
             <svg
-              className="mt-0.5 h-6 w-6 flex-shrink-0 text-red-600"
+              className="mt-0.5 h-6 w-6 flex-shrink-0"
+              style={{ color: theme.negative }}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -1854,25 +1372,25 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               />
             </svg>
             <div className="flex-1">
-              <div className="text-sm font-bold text-red-900">❌ Error Loading Campaigns</div>
-              <div className="mt-1 text-sm text-red-700 whitespace-pre-line">{campaignsError}</div>
-              <div className="mt-3 text-xs text-red-600">
-                <strong>Debug steps:</strong>
-                <ul className="mt-1 ml-4 list-disc space-y-1">
-                  <li>Open browser console (F12) and check the detailed logs</li>
-                  <li>Look for "Strategy 1/2/3" messages showing which API calls were attempted</li>
-                  <li>Verify accounts have campaigns in the selected date range</li>
-                  <li>Try different accounts or platforms</li>
-                </ul>
+              <div className="text-sm font-bold" style={{ color: theme.negative }}>
+                ❌ Error Loading Campaigns
+              </div>
+              <div className="mt-1 text-sm whitespace-pre-line" style={{ color: theme.negative }}>
+                {campaignsError}
               </div>
             </div>
           </div>
         )}
 
-        {/* Loading Indicator */}
         {campaignsLoading && (
-          <div className="mt-4 flex items-center justify-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-            <svg className="h-5 w-5 animate-spin text-blue-600" viewBox="0 0 24 24">
+          <div
+            className="mt-4 flex items-center justify-center gap-3 rounded-lg border px-4 py-3"
+            style={{
+              borderColor: `${theme.blue}30`,
+              backgroundColor: `${theme.blue}10`
+            }}
+          >
+            <svg className="h-5 w-5 animate-spin" style={{ color: theme.blue }} viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"
@@ -1885,13 +1403,13 @@ export function CampaignsToolbar({ onApplyFilters, onApplyGrouping, initialFilte
               <path
                 className="opacity-75"
                 fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            <span className="text-sm font-medium text-blue-900">
+            <span className="text-sm font-medium" style={{ color: theme.blue }}>
               {selectedAccounts.length === 0
-                ? "Fetching all campaigns... (Check console for progress)"
-                : "Fetching campaigns... (Check console for detailed progress)"}
+                ? "Fetching all campaigns..."
+                : "Fetching campaigns..."}
             </span>
           </div>
         )}

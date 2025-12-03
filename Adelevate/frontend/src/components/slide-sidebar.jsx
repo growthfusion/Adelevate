@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { ChevronDown, Home, Menu, X, LogOut, KeyRound, Sun, Moon, FileText } from "lucide-react";
+import { ChevronDown, Home, Menu, X, LogOut, KeyRound, Sun, Moon, FileText, FlaskConical, Zap } from "lucide-react";
 import { BsLayoutSidebar } from "react-icons/bs";
 import { TbAutomation } from "react-icons/tb";
 import { MdDataSaverOn } from "react-icons/md";
@@ -495,6 +495,7 @@ const SlideSidebar = () => {
   const isDarkMode = useSelector(selectIsDarkMode);
 
   const [isAutomationOpen, setIsAutomationOpen] = useState(false);
+  const [isLanderOpen, setIsLanderOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(
@@ -553,6 +554,10 @@ const SlideSidebar = () => {
     setIsAutomationOpen(!isAutomationOpen);
   };
 
+  const toggleLander = () => {
+    setIsLanderOpen(!isLanderOpen);
+  };
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -580,6 +585,13 @@ const SlideSidebar = () => {
     return location.pathname === "/rules";
   };
 
+  // Check if lander section has active route
+  const isLanderActive = () => {
+    return ["/lander-dashboard", "/lander", "/landers", "/ab-tests", "/optimizations"].some(
+      (path) => location.pathname.startsWith(path)
+    );
+  };
+
   // Get device type based on screen width
   const getDeviceType = (width) => {
     if (width < 320) return "xs";
@@ -603,6 +615,11 @@ const SlideSidebar = () => {
     // Auto-open automation if rules is active
     if (isAutomationActive()) {
       setIsAutomationOpen(true);
+    }
+
+    // Auto-open lander if any lander page is active
+    if (isLanderActive()) {
+      setIsLanderOpen(true);
     }
 
     window.addEventListener("resize", handleResize);
@@ -678,11 +695,33 @@ const SlideSidebar = () => {
       badge: null
     },
     {
-      type: "single",
-      path: "/lander",
+      type: "parent",
       icon: PiRocketLight,
       label: "Lander",
-      badge: null
+      isOpen: isLanderOpen,
+      toggle: toggleLander,
+      children: [
+        {
+          path: "/lander-dashboard",
+          label: "Dashboard",
+          badge: null
+        },
+        {
+          path: "/lander",
+          label: "All Landers",
+          badge: "47"
+        },
+        {
+          path: "/ab-tests",
+          label: "A/B Tests",
+          badge: "3"
+        },
+        {
+          path: "/optimizations",
+          label: "Optimizations",
+          badge: "12"
+        }
+      ]
     }
   ];
 
