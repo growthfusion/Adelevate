@@ -229,53 +229,52 @@ export default function LogsDataTable() {
   const theme = useSelector(selectThemeColors);
   const isDark = useSelector(selectIsDarkMode);
 
-  // Enhanced theme colors for better dark mode
+  // Premium minimal theme colors
   const colors = {
     // Backgrounds
-    bgMain: isDark ? "#0A0A0A" : "#F8FAFC",
-    bgCard: isDark ? "#111111" : "#FFFFFF",
-    bgCardHover: isDark ? "#161616" : "#F1F5F9",
-    bgSecondary: isDark ? "#0D0D0D" : "#F1F5F9",
-    bgTertiary: isDark ? "#1A1A1A" : "#E2E8F0",
-    bgInput: isDark ? "#0D0D0D" : "#FFFFFF",
-    bgTableRow: isDark ? "#111111" : "#FFFFFF",
-    bgTableRowAlt: isDark ? "#0D0D0D" : "#F8FAFC",
-    bgTableRowHover: isDark ? "#1A1A1A" : "#F1F5F9",
-    bgBadge: isDark ? "#1A1A1A" : "#F1F5F9",
+    bgMain: isDark ? "#09090B" : "#F9FAFB",
+    bgCard: isDark ? "#111113" : "#FFFFFF",
+    bgCardHover: isDark ? "#16161A" : "#F3F4F6",
+    bgSecondary: isDark ? "#0D0D0F" : "#F9FAFB",
+    bgTertiary: isDark ? "#18181B" : "#F3F4F6",
+    bgInput: isDark ? "#16161A" : "#FFFFFF",
+    bgTableRow: isDark ? "#111113" : "#FFFFFF",
+    bgTableRowAlt: isDark ? "#0D0D0F" : "#F9FAFB",
+    bgTableRowHover: isDark ? "#16161A" : "#F3F4F6",
+    bgBadge: isDark ? "#18181B" : "#F3F4F6",
 
-    // Borders - subtle, no white borders
-    border: isDark ? "#1F1F1F" : "#E2E8F0",
-    borderHover: isDark ? "#2A2A2A" : "#CBD5E1",
-    borderInput: isDark ? "#252525" : "#E2E8F0",
+    // Borders - more subtle
+    border: isDark ? "#1F1F23" : "#E5E7EB",
+    borderHover: isDark ? "#27272A" : "#D1D5DB",
+    borderInput: isDark ? "#1F1F23" : "#F3F4F6",
     borderFocus: "#3B82F6",
 
     // Text
-    textPrimary: isDark ? "#F1F5F9" : "#0F172A",
-    textSecondary: isDark ? "#94A3B8" : "#475569",
-    textTertiary: isDark ? "#64748B" : "#94A3B8",
-    textMuted: isDark ? "#475569" : "#CBD5E1",
+    textPrimary: isDark ? "#FAFAFA" : "#111827",
+    textSecondary: isDark ? "#A1A1AA" : "#4B5563",
+    textTertiary: isDark ? "#71717A" : "#6B7280",
+    textMuted: isDark ? "#52525B" : "#9CA3AF",
 
-    // Accents
+    // Accents - Professional Blue
     accent: "#3B82F6",
     accentHover: "#2563EB",
-    accentLight: isDark ? "rgba(59, 130, 246, 0.15)" : "rgba(59, 130, 246, 0.1)",
-    accentGlow: isDark ? "rgba(59, 130, 246, 0.25)" : "rgba(59, 130, 246, 0.15)",
+    accentLight: isDark ? "rgba(59, 130, 246, 0.08)" : "rgba(59, 130, 246, 0.05)",
+    accentGlow: isDark ? "rgba(59, 130, 246, 0.15)" : "rgba(59, 130, 246, 0.1)",
 
     // Status colors
-    success: "#10B981",
-    successLight: isDark ? "rgba(16, 185, 129, 0.15)" : "rgba(16, 185, 129, 0.1)",
+    success: "#22C55E",
+    successLight: isDark ? "rgba(34, 197, 94, 0.12)" : "#ECFDF5",
     warning: "#F59E0B",
-    warningLight: isDark ? "rgba(245, 158, 11, 0.15)" : "rgba(245, 158, 11, 0.1)",
+    warningLight: isDark ? "rgba(245, 158, 11, 0.12)" : "#FFFBEB",
     error: "#EF4444",
-    errorLight: isDark ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.1)",
+    errorLight: isDark ? "rgba(239, 68, 68, 0.12)" : "#FEF2F2",
     info: "#3B82F6",
-    infoLight: isDark ? "rgba(59, 130, 246, 0.15)" : "rgba(59, 130, 246, 0.1)",
-    purple: "#8B5CF6",
-    purpleLight: isDark ? "rgba(139, 92, 246, 0.15)" : "rgba(139, 92, 246, 0.1)",
+    infoLight: isDark ? "rgba(59, 130, 246, 0.12)" : "#EFF6FF",
 
-    // Shadows
-    shadow: isDark ? "0 4px 24px rgba(0, 0, 0, 0.4)" : "0 4px 24px rgba(0, 0, 0, 0.08)",
-    shadowHover: isDark ? "0 8px 32px rgba(0, 0, 0, 0.5)" : "0 8px 32px rgba(0, 0, 0, 0.12)"
+    // Shadows - subtle
+    shadow: isDark ? "0 1px 3px rgba(0, 0, 0, 0.3)" : "0 1px 3px rgba(0, 0, 0, 0.06)",
+    shadowMd: isDark ? "0 4px 12px rgba(0, 0, 0, 0.25)" : "0 4px 12px rgba(0, 0, 0, 0.08)",
+    shadowHover: isDark ? "0 4px 12px rgba(0, 0, 0, 0.25)" : "0 4px 12px rgba(0, 0, 0, 0.08)"
   };
 
   // State
@@ -633,7 +632,7 @@ export default function LogsDataTable() {
 
     return (
       <span
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
         style={{
           background: badge.bg,
           color: badge.color
@@ -746,16 +745,11 @@ export default function LogsDataTable() {
 
     return (
       <div
-        className="rounded-2xl p-5 transition-all duration-300 hover:translate-y-[-2px] group"
+        className="rounded-2xl p-5"
         style={{
           background: colors.bgCard,
+          border: `1px solid ${colors.border}`,
           boxShadow: colors.shadow
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = colors.shadowHover;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = colors.shadow;
         }}
       >
         {/* Header */}
@@ -852,16 +846,10 @@ export default function LogsDataTable() {
         <div className="flex justify-end pt-3" style={{ borderTop: `1px solid ${colors.border}` }}>
           <button
             onClick={() => copyToClipboard(log.email)}
-            className="text-xs font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200"
+            className="text-xs font-semibold flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
             style={{
               color: colors.accent,
-              background: "transparent"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = colors.accentLight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
+              background: colors.accentLight
             }}
           >
             <svg
@@ -892,12 +880,13 @@ export default function LogsDataTable() {
     >
       {/* Toast notification */}
       {showToast && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+        <div className="fixed top-4 right-4 z-50">
           <div
             className="flex items-center gap-3 px-5 py-4 rounded-2xl"
             style={{
               background: colors.bgCard,
-              boxShadow: colors.shadowHover
+              border: `1px solid ${colors.border}`,
+              boxShadow: colors.shadowMd
             }}
           >
             <div
@@ -939,37 +928,13 @@ export default function LogsDataTable() {
           style={{ borderBottom: `1px solid ${colors.border}` }}
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div
-                className="h-12 w-12 rounded-2xl flex items-center justify-center"
-                style={{
-                  background: `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`,
-                  boxShadow: `0 8px 24px ${colors.accentGlow}`
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
-                  Action Logs
-                </h2>
-                <p className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                  Track and monitor all system activities
-                </p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
+                Action Logs
+              </h2>
+              <p className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
+                Track and monitor all system activities
+              </p>
             </div>
 
             {/* Controls */}
@@ -1075,11 +1040,11 @@ export default function LogsDataTable() {
               {/* Export button */}
               <button
                 onClick={exportCsv}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm"
                 style={{
-                  background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})`,
+                  backgroundColor: colors.accent,
                   color: "#FFFFFF",
-                  boxShadow: `0 4px 16px ${colors.accentGlow}`
+                  border: "none"
                 }}
               >
                 <svg
@@ -1129,11 +1094,11 @@ export default function LogsDataTable() {
               </div>
               <input
                 type="text"
-                className="block w-full pl-12 pr-4 py-3 text-sm rounded-xl focus:outline-none transition-all duration-200"
+                className="block w-full pl-12 pr-4 py-3 text-sm rounded-xl focus:outline-none"
                 style={{
                   background: colors.bgInput,
                   color: colors.textPrimary,
-                  border: `2px solid transparent`
+                  border: `1px solid ${colors.borderInput}`
                 }}
                 placeholder="Search by email, action, platform, or details..."
                 value={query}
@@ -1142,11 +1107,11 @@ export default function LogsDataTable() {
                   setPage(1);
                 }}
                 onFocus={(e) => {
-                  e.target.style.border = `2px solid ${colors.accent}`;
-                  e.target.style.boxShadow = `0 0 0 4px ${colors.accentLight}`;
+                  e.target.style.border = `1px solid ${colors.accent}`;
+                  e.target.style.boxShadow = `0 0 0 2px ${colors.accentLight}`;
                 }}
                 onBlur={(e) => {
-                  e.target.style.border = `2px solid transparent`;
+                  e.target.style.border = `1px solid ${colors.borderInput}`;
                   e.target.style.boxShadow = "none";
                 }}
               />
@@ -1315,11 +1280,11 @@ export default function LogsDataTable() {
                       setQuery("");
                       setActionFilter("all");
                     }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.02]"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
                     style={{
-                      background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})`,
+                      backgroundColor: colors.accent,
                       color: "#FFFFFF",
-                      boxShadow: `0 4px 16px ${colors.accentGlow}`
+                      border: "none"
                     }}
                   >
                     <svg
@@ -1440,16 +1405,9 @@ export default function LogsDataTable() {
                     {pageItems.map((log, idx) => (
                       <tr
                         key={log.id ?? `log-${idx}`}
-                        className="transition-colors duration-200"
                         style={{
-                          background: idx % 2 === 0 ? colors.bgTableRow : colors.bgTableRowAlt
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.bgTableRowHover;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background =
-                            idx % 2 === 0 ? colors.bgTableRow : colors.bgTableRowAlt;
+                          background: idx % 2 === 0 ? colors.bgTableRow : colors.bgTableRowAlt,
+                          borderBottom: `1px solid ${colors.border}`
                         }}
                       >
                         {/* User */}
@@ -1465,14 +1423,8 @@ export default function LogsDataTable() {
                               </div>
                               <button
                                 onClick={() => copyToClipboard(log.email)}
-                                className="mt-0.5 text-xs flex items-center gap-1 transition-colors duration-200"
+                                className="mt-0.5 text-xs flex items-center gap-1"
                                 style={{ color: colors.textTertiary }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = colors.accent;
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = colors.textTertiary;
-                                }}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -1631,17 +1583,11 @@ export default function LogsDataTable() {
                 <button
                   onClick={() => setPage(1)}
                   disabled={page === 1}
-                  className="p-2.5 rounded-xl transition-all duration-200"
+                  className="p-2.5 rounded-xl"
                   style={{
                     color: page === 1 ? colors.textMuted : colors.textSecondary,
                     background: "transparent",
                     cursor: page === 1 ? "not-allowed" : "pointer"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (page !== 1) e.currentTarget.style.background = colors.bgTertiary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
                   }}
                   title="First page"
                 >
@@ -1663,17 +1609,11 @@ export default function LogsDataTable() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="p-2.5 rounded-xl transition-all duration-200"
+                  className="p-2.5 rounded-xl"
                   style={{
                     color: page === 1 ? colors.textMuted : colors.textSecondary,
                     background: "transparent",
                     cursor: page === 1 ? "not-allowed" : "pointer"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (page !== 1) e.currentTarget.style.background = colors.bgTertiary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
                   }}
                   title="Previous page"
                 >
@@ -1709,14 +1649,11 @@ export default function LogsDataTable() {
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className="min-w-[40px] px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-200"
+                        className="min-w-[40px] px-3 py-2 text-sm font-semibold rounded-xl"
                         style={{
-                          background:
-                            page === pageNum
-                              ? `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})`
-                              : "transparent",
+                          backgroundColor: page === pageNum ? colors.accent : "transparent",
                           color: page === pageNum ? "#FFFFFF" : colors.textSecondary,
-                          boxShadow: page === pageNum ? `0 4px 12px ${colors.accentGlow}` : "none"
+                          border: "none"
                         }}
                       >
                         {pageNum}
@@ -1740,17 +1677,11 @@ export default function LogsDataTable() {
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="p-2.5 rounded-xl transition-all duration-200"
+                  className="p-2.5 rounded-xl"
                   style={{
                     color: page === totalPages ? colors.textMuted : colors.textSecondary,
                     background: "transparent",
                     cursor: page === totalPages ? "not-allowed" : "pointer"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (page !== totalPages) e.currentTarget.style.background = colors.bgTertiary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
                   }}
                   title="Next page"
                 >
@@ -1772,17 +1703,11 @@ export default function LogsDataTable() {
                 <button
                   onClick={() => setPage(totalPages)}
                   disabled={page === totalPages}
-                  className="p-2.5 rounded-xl transition-all duration-200"
+                  className="p-2.5 rounded-xl"
                   style={{
                     color: page === totalPages ? colors.textMuted : colors.textSecondary,
                     background: "transparent",
                     cursor: page === totalPages ? "not-allowed" : "pointer"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (page !== totalPages) e.currentTarget.style.background = colors.bgTertiary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
                   }}
                   title="Last page"
                 >
@@ -1807,21 +1732,6 @@ export default function LogsDataTable() {
 
       {/* Custom CSS Styles */}
       <style jsx>{`
-        @keyframes slide-in-right {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-
-        .animate-slide-in-right {
-          animation: slide-in-right 0.3s ease-out;
-        }
-
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;
@@ -1870,91 +1780,6 @@ export default function LogsDataTable() {
           outline-offset: 2px;
         }
 
-        /* Smooth transitions */
-        button,
-        input,
-        select,
-        a {
-          transition: all 0.2s ease;
-        }
-
-        /* Table row animation */
-        @keyframes fadeInRow {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        tbody tr {
-          animation: fadeInRow 0.3s ease-out;
-        }
-
-        tbody tr:nth-child(1) {
-          animation-delay: 0.02s;
-        }
-        tbody tr:nth-child(2) {
-          animation-delay: 0.04s;
-        }
-        tbody tr:nth-child(3) {
-          animation-delay: 0.06s;
-        }
-        tbody tr:nth-child(4) {
-          animation-delay: 0.08s;
-        }
-        tbody tr:nth-child(5) {
-          animation-delay: 0.1s;
-        }
-        tbody tr:nth-child(6) {
-          animation-delay: 0.12s;
-        }
-        tbody tr:nth-child(7) {
-          animation-delay: 0.14s;
-        }
-        tbody tr:nth-child(8) {
-          animation-delay: 0.16s;
-        }
-        tbody tr:nth-child(9) {
-          animation-delay: 0.18s;
-        }
-        tbody tr:nth-child(10) {
-          animation-delay: 0.2s;
-        }
-
-        /* Card animation */
-        @keyframes cardFadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.96);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .group {
-          animation: cardFadeIn 0.3s ease-out;
-        }
-
-        /* Pulse animation for indicators */
-        @keyframes pulse {
-          0%,
-          100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.6;
-          }
-        }
-
-        .animate-pulse {
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
 
         /* Loading spinner */
         @keyframes spin {
@@ -1970,76 +1795,6 @@ export default function LogsDataTable() {
           animation: spin 1s linear infinite;
         }
 
-        /* Hover lift effect */
-        .hover-lift {
-          transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
-        }
-
-        .hover-lift:hover {
-          transform: translateY(-2px);
-        }
-
-        /* Gradient text utility */
-        .gradient-text {
-          background: linear-gradient(135deg, ${colors.accent}, ${colors.purple});
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        /* Glow effect */
-        .glow {
-          box-shadow: 0 0 20px ${colors.accentGlow};
-        }
-
-        /* Shimmer loading effect */
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
-        }
-
-        .shimmer {
-          background: linear-gradient(
-            90deg,
-            ${colors.bgSecondary} 25%,
-            ${colors.bgTertiary} 50%,
-            ${colors.bgSecondary} 75%
-          );
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-
-        /* Sticky header shadow */
-        thead.sticky-shadow {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Badge pulse animation for new items */
-        @keyframes badgePulse {
-          0%,
-          100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.05);
-          }
-        }
-
-        .badge-pulse {
-          animation: badgePulse 2s ease-in-out infinite;
-        }
-
-        /* Smooth scroll behavior */
-        .custom-scrollbar {
-          scroll-behavior: smooth;
-        }
-
         /* Hide scrollbar on mobile but keep functionality */
         @media (max-width: 640px) {
           .custom-scrollbar::-webkit-scrollbar {
@@ -2047,10 +1802,6 @@ export default function LogsDataTable() {
           }
         }
 
-        /* Table cell hover effect */
-        td {
-          transition: background-color 0.15s ease;
-        }
 
         /* Input placeholder styling */
         input::placeholder {
@@ -2063,30 +1814,8 @@ export default function LogsDataTable() {
           background-image: none;
         }
 
-        /* Button active state */
-        button:active {
-          transform: scale(0.98);
-        }
 
-        /* Toast notification shadow */
-        .toast-shadow {
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        }
 
-        /* Avatar ring animation on hover */
-        @keyframes ringPulse {
-          0%,
-          100% {
-            box-shadow: 0 0 0 0 ${colors.accentGlow};
-          }
-          50% {
-            box-shadow: 0 0 0 4px ${colors.accentGlow};
-          }
-        }
-
-        .avatar-ring:hover {
-          animation: ringPulse 1.5s ease-in-out infinite;
-        }
 
         /* Responsive adjustments */
         @media (max-width: 640px) {

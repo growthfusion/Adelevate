@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 // Redux
-import { useTheme } from "@/hooks/useTheme";
+import { selectIsDarkMode } from "@/features/theme/themeSlice";
 import {
   fetchAccounts,
   createAccount,
@@ -35,6 +35,175 @@ import fb from "@/assets/images/automation_img/Facebook.svg";
 import snapchatIcon from "@/assets/images/automation_img/snapchat.svg";
 import tiktokIcon from "@/assets/images/automation_img/tiktok.svg";
 import googleIcon from "@/assets/images/automation_img/google.svg";
+
+// ============================================
+// THEME CONFIGURATION - Improved for better consistency
+// ============================================
+const createTheme = (isDarkMode) => {
+  if (isDarkMode) {
+    return {
+      // Backgrounds - Enhanced dark mode
+      bgMain: "#09090B",
+      bgCard: "#111113",
+      bgCardHover: "#16161A",
+      bgSection: "#0D0D0F",
+      bgModal: "#111113",
+      bgMuted: "#18181B",
+      bgElevated: "#1A1A1E",
+      bgInput: "#16161A",
+      bgInputFocus: "#1A1A1E",
+      bgButton: "#1F1F23",
+      bgButtonHover: "#27272A",
+      bgOverlay: "rgba(0, 0, 0, 0.85)",
+
+      // Borders - More subtle
+      border: "#1F1F23",
+      borderLight: "#1A1A1E",
+      borderSubtle: "#1F1F23",
+      borderMedium: "#27272A",
+      borderStrong: "#2E2E33",
+      borderInput: "#1F1F23",
+      borderInputFocus: "#3B82F6",
+      borderFocus: "#27272A",
+
+      // Text - Better hierarchy
+      textPrimary: "#FAFAFA",
+      textSecondary: "#A1A1AA",
+      textTertiary: "#71717A",
+      textMuted: "#52525B",
+      textPlaceholder: "#52525B",
+
+      // Accent - Premium Blue
+      accent: "#3B82F6",
+      accentHover: "#2563EB",
+      accentMuted: "#1D4ED8",
+      accentLight: "rgba(59, 130, 246, 0.08)",
+      accentBg: "rgba(59, 130, 246, 0.08)",
+      accentBorder: "rgba(59, 130, 246, 0.1)",
+      accentGlow: "rgba(59, 130, 246, 0.25)",
+
+      // Status - Better feedback
+      success: "#22C55E",
+      successLight: "rgba(34, 197, 94, 0.12)",
+      successBg: "rgba(34, 197, 94, 0.12)",
+      successBorder: "rgba(34, 197, 94, 0.2)",
+      successText: "#4ADE80",
+      successGlow: "rgba(34, 197, 94, 0.4)",
+
+      error: "#EF4444",
+      errorLight: "rgba(239, 68, 68, 0.12)",
+      errorBg: "rgba(239, 68, 68, 0.12)",
+      errorBorder: "rgba(239, 68, 68, 0.2)",
+      errorText: "#F87171",
+      errorGlow: "rgba(239, 68, 68, 0.4)",
+
+      warning: "#F59E0B",
+      warningBg: "rgba(245, 158, 11, 0.12)",
+      warningBorder: "rgba(245, 158, 11, 0.2)",
+      warningText: "#FBBF24",
+
+      // Gradients - Simple & Premium
+      gradientPrimary: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
+      gradientSuccess: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
+      gradientDanger: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+      gradientHeader: "linear-gradient(180deg, rgba(59, 130, 246, 0.02) 0%, transparent 100%)",
+
+      // Shadows - Subtle & Premium
+      shadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.3)",
+      shadowMd: "0 4px 12px rgba(0, 0, 0, 0.25)",
+      shadowLg: "0 10px 30px rgba(0, 0, 0, 0.3)",
+      shadowXl: "0 20px 50px rgba(0, 0, 0, 0.4)",
+      shadowButton: "0 4px 14px rgba(59, 130, 246, 0.25)",
+      shadowButtonHover: "0 6px 20px rgba(59, 130, 246, 0.35)",
+      shadowGlow: "0 0 16px rgba(59, 130, 246, 0.2)",
+
+      // Overlay
+      overlay: "rgba(0, 0, 0, 0.85)"
+    };
+  } else {
+    return {
+      // Backgrounds - Cleaner light mode
+      bgMain: "#F9FAFB",
+      bgCard: "#FFFFFF",
+      bgCardHover: "#F3F4F6",
+      bgSection: "#F9FAFB",
+      bgModal: "#FFFFFF",
+      bgMuted: "#F3F4F6",
+      bgElevated: "#FFFFFF",
+      bgInput: "#FFFFFF",
+      bgInputFocus: "#FFFFFF",
+      bgButton: "#F3F4F6",
+      bgButtonHover: "#E5E7EB",
+      bgOverlay: "rgba(0, 0, 0, 0.5)",
+
+      // Borders - More subtle
+      border: "#E5E7EB",
+      borderLight: "#F3F4F6",
+      borderSubtle: "#F3F4F6",
+      borderMedium: "#E5E7EB",
+      borderStrong: "#D1D5DB",
+      borderInput: "#F3F4F6",
+      borderInputFocus: "#3B82F6",
+      borderFocus: "#E5E7EB",
+
+      // Text - Improved readability
+      textPrimary: "#111827",
+      textSecondary: "#4B5563",
+      textTertiary: "#6B7280",
+      textMuted: "#9CA3AF",
+      textPlaceholder: "#9CA3AF",
+
+      // Accent - Premium Blue
+      accent: "#3B82F6",
+      accentHover: "#2563EB",
+      accentMuted: "#1D4ED8",
+      accentLight: "rgba(59, 130, 246, 0.05)",
+      accentBg: "rgba(59, 130, 246, 0.05)",
+      accentBorder: "rgba(59, 130, 246, 0.08)",
+      accentGlow: "rgba(59, 130, 246, 0.15)",
+
+      // Status - Clear feedback
+      success: "#059669",
+      successLight: "#ECFDF5",
+      successBg: "#ECFDF5",
+      successBorder: "#A7F3D0",
+      successText: "#059669",
+      successGlow: "rgba(5, 150, 105, 0.2)",
+
+      error: "#DC2626",
+      errorLight: "#FEF2F2",
+      errorBg: "#FEF2F2",
+      errorBorder: "#FECACA",
+      errorText: "#DC2626",
+      errorGlow: "rgba(220, 38, 38, 0.2)",
+
+      warning: "#D97706",
+      warningBg: "#FFFBEB",
+      warningBorder: "#FDE68A",
+      warningText: "#D97706",
+
+      // Gradients - Simple & Premium
+      gradientPrimary: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
+      gradientSuccess: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+      gradientDanger: "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)",
+      gradientHeader: "linear-gradient(180deg, rgba(59, 130, 246, 0.015) 0%, transparent 100%)",
+
+      // Shadows - Clean & Minimal
+      shadow: "0 1px 3px rgba(0, 0, 0, 0.06)",
+      shadowSm: "0 1px 2px rgba(0, 0, 0, 0.04)",
+      shadowMd: "0 4px 12px rgba(0, 0, 0, 0.08)",
+      shadowLg: "0 10px 30px rgba(0, 0, 0, 0.1)",
+      shadowXl: "0 20px 50px rgba(0, 0, 0, 0.12)",
+      shadowButton: "0 4px 14px rgba(59, 130, 246, 0.2)",
+      shadowButtonHover: "0 6px 20px rgba(59, 130, 246, 0.3)",
+      shadowGlow: "0 0 16px rgba(59, 130, 246, 0.15)",
+
+      // Overlay
+      overlay: "rgba(0, 0, 0, 0.5)"
+    };
+  }
+};
 
 // ============================================
 // PLATFORM ICON COMPONENT
@@ -92,9 +261,8 @@ const PlatformIcon = ({ platform, className = "w-6 h-6", theme }) => {
 // ============================================
 // EDIT ACCOUNT MODAL COMPONENT
 // ============================================
-function EditAccountModal({ platforms }) {
+function EditAccountModal({ platforms, theme, isDarkMode }) {
   const dispatch = useDispatch();
-  const { theme, isDarkMode } = useTheme();
   const account = useSelector(selectSelectedAccount);
   const isOpen = useSelector(selectEditModalOpen);
   const isSubmitting = useSelector(selectIsSubmitting);
@@ -291,19 +459,22 @@ function EditAccountModal({ platforms }) {
                 type="text"
                 value={formData.bmName}
                 onChange={(e) => setFormData({ ...formData, bmName: e.target.value })}
-                className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl xs:rounded-xl focus:outline-none transition-all duration-200"
+                className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                 style={{
                   backgroundColor: theme.bgInput,
-                  border: `1px solid ${theme.borderInput}`,
-                  color: theme.textPrimary
+                  border: `2px solid ${theme.borderInput}`,
+                  color: theme.textPrimary,
+                  boxShadow: isDarkMode ? theme.shadowSm : "none"
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = theme.borderInputFocus;
-                  e.target.style.boxShadow = theme.shadowGlow;
+                  e.target.style.backgroundColor = theme.bgInputFocus;
+                  e.target.style.boxShadow = `0 0 0 3px ${theme.accentLight}, ${theme.shadowMd}`;
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = theme.borderInput;
-                  e.target.style.boxShadow = "none";
+                  e.target.style.backgroundColor = theme.bgInput;
+                  e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                 }}
                 required
               />
@@ -322,19 +493,22 @@ function EditAccountModal({ platforms }) {
                 type={showToken ? "text" : "password"}
                 value={formData.accessToken}
                 onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
-                className="w-full px-3 xs:px-4 py-2.5 xs:py-3 pr-10 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200 font-mono"
+                className="w-full px-4 xs:px-5 py-3 xs:py-3.5 pr-12 xs:pr-14 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200 font-mono"
                 style={{
                   backgroundColor: theme.bgInput,
-                  border: `1px solid ${theme.borderInput}`,
-                  color: theme.textPrimary
+                  border: `2px solid ${theme.borderInput}`,
+                  color: theme.textPrimary,
+                  boxShadow: isDarkMode ? theme.shadowSm : "none"
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = theme.borderInputFocus;
-                  e.target.style.boxShadow = theme.shadowGlow;
+                  e.target.style.backgroundColor = theme.bgInputFocus;
+                  e.target.style.boxShadow = `0 0 0 3px ${theme.accentLight}, ${theme.shadowMd}`;
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = theme.borderInput;
-                  e.target.style.boxShadow = "none";
+                  e.target.style.backgroundColor = theme.bgInput;
+                  e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                 }}
                 required
               />
@@ -405,19 +579,22 @@ function EditAccountModal({ platforms }) {
                 type="text"
                 value={formData.accountId}
                 onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
+                className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                 style={{
                   backgroundColor: theme.bgInput,
-                  border: `1px solid ${theme.borderInput}`,
-                  color: theme.textPrimary
+                  border: `2px solid ${theme.borderInput}`,
+                  color: theme.textPrimary,
+                  boxShadow: isDarkMode ? theme.shadowSm : "none"
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = theme.borderInputFocus;
-                  e.target.style.boxShadow = theme.shadowGlow;
+                  e.target.style.backgroundColor = theme.bgInputFocus;
+                  e.target.style.boxShadow = `0 0 0 3px ${theme.accentLight}, ${theme.shadowMd}`;
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = theme.borderInput;
-                  e.target.style.boxShadow = "none";
+                  e.target.style.backgroundColor = theme.bgInput;
+                  e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                 }}
                 required
               />
@@ -434,19 +611,22 @@ function EditAccountModal({ platforms }) {
                 type="text"
                 value={formData.accountLabel}
                 onChange={(e) => setFormData({ ...formData, accountLabel: e.target.value })}
-                className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
+                className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                 style={{
                   backgroundColor: theme.bgInput,
-                  border: `1px solid ${theme.borderInput}`,
-                  color: theme.textPrimary
+                  border: `2px solid ${theme.borderInput}`,
+                  color: theme.textPrimary,
+                  boxShadow: isDarkMode ? theme.shadowSm : "none"
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = theme.borderInputFocus;
-                  e.target.style.boxShadow = theme.shadowGlow;
+                  e.target.style.backgroundColor = theme.bgInputFocus;
+                  e.target.style.boxShadow = `0 0 0 3px ${theme.accentLight}, ${theme.shadowMd}`;
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = theme.borderInput;
-                  e.target.style.boxShadow = "none";
+                  e.target.style.backgroundColor = theme.bgInput;
+                  e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                 }}
                 required
               />
@@ -556,9 +736,8 @@ function EditAccountModal({ platforms }) {
 // ============================================
 // DELETE CONFIRMATION MODAL COMPONENT
 // ============================================
-function DeleteConfirmModal({ platforms }) {
+function DeleteConfirmModal({ platforms, theme, isDarkMode }) {
   const dispatch = useDispatch();
-  const { theme, isDarkMode } = useTheme();
   const account = useSelector(selectSelectedAccount);
   const isOpen = useSelector(selectDeleteModalOpen);
   const isSubmitting = useSelector(selectIsSubmitting);
@@ -785,7 +964,12 @@ function DeleteConfirmModal({ platforms }) {
 // ============================================
 function Add_Accounts() {
   const dispatch = useDispatch();
-  const { theme, isDarkMode } = useTheme();
+  
+  // Get isDarkMode from Redux
+  const isDarkMode = useSelector(selectIsDarkMode);
+  
+  // Create theme inside component
+  const theme = createTheme(isDarkMode);
 
   // Redux State
   const filteredAccounts = useSelector(selectFilteredAccounts);
@@ -892,22 +1076,26 @@ function Add_Accounts() {
       style={{ backgroundColor: theme.bgMain }}
     >
       {/* Main Content */}
-      <div className="pt-[20%] xs:pt-[20%] sm:pt-6 md:pt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Header Section */}
-        <div className="mb-6 xs:mb-8">
-          <div className="flex items-center gap-3 mb-3">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center gap-4 mb-2">
+          
             <div>
               <h1
-                className="text-xl xs:text-2xl md:text-3xl font-bold"
-                style={{ color: theme.textPrimary }}
+                className="text-2xl sm:text-3xl font-bold mb-1"
+                style={{ 
+                  color: theme.textPrimary,
+                  letterSpacing: "-0.025em"
+                }}
               >
                 Platform Integrations
               </h1>
               <p
-                className="text-xs xs:text-sm md:text-base mt-1"
-                style={{ color: theme.textTertiary }}
+                className="text-sm sm:text-base"
+                style={{ color: theme.textSecondary }}
               >
-                Add your advertising platforms to start managing campaigns
+                Add and manage your advertising platform accounts securely
               </p>
             </div>
           </div>
@@ -916,19 +1104,22 @@ function Add_Accounts() {
         {/* Alert Messages */}
         {success && (
           <div
-            className="mb-4 xs:mb-6 rounded-xl xs:rounded-2xl p-3 xs:p-4 flex items-start gap-2 xs:gap-3 animate-fadeIn"
+            className="mb-6 rounded-xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 animate-fadeIn"
             style={{
-              backgroundColor: theme.successLight,
+              backgroundColor: theme.successBg,
               border: `1px solid ${theme.successBorder}`,
-              boxShadow: isDarkMode ? `0 0 30px ${theme.successGlow}` : theme.shadowMd
+              boxShadow: theme.shadowMd
             }}
           >
             <div
-              className="h-6 w-6 xs:h-8 xs:w-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: theme.gradientSuccess }}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ 
+                backgroundColor: theme.success,
+                boxShadow: theme.shadowSm
+              }}
             >
               <svg
-                className="w-4 h-4 xs:w-5 xs:h-5 text-white"
+                className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -939,13 +1130,16 @@ function Add_Accounts() {
                 />
               </svg>
             </div>
-            <div className="flex-1">
-              <h3 className="text-xs xs:text-sm font-semibold" style={{ color: theme.success }}>
-                Success!
-              </h3>
+            <div className="flex-1 min-w-0">
               <p
-                className="text-xs xs:text-sm mt-0.5"
-                style={{ color: isDarkMode ? theme.success : "#065F46" }}
+                className="text-xs sm:text-sm font-semibold mb-1"
+                style={{ color: theme.successText }}
+              >
+                Success
+              </p>
+              <p
+                className="text-sm sm:text-base font-medium"
+                style={{ color: theme.textPrimary }}
               >
                 {success}
               </p>
@@ -955,19 +1149,22 @@ function Add_Accounts() {
 
         {error && (
           <div
-            className="mb-4 xs:mb-6 rounded-xl xs:rounded-2xl p-3 xs:p-4 flex items-start gap-2 xs:gap-3 animate-fadeIn"
+            className="mb-6 rounded-xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 animate-fadeIn"
             style={{
-              backgroundColor: theme.errorLight,
+              backgroundColor: theme.errorBg,
               border: `1px solid ${theme.errorBorder}`,
-              boxShadow: isDarkMode ? `0 0 30px ${theme.errorGlow}` : theme.shadowMd
+              boxShadow: theme.shadowMd
             }}
           >
             <div
-              className="h-6 w-6 xs:h-8 xs:w-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: theme.gradientDanger }}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ 
+                backgroundColor: theme.error,
+                boxShadow: theme.shadowSm
+              }}
             >
               <svg
-                className="w-4 h-4 xs:w-5 xs:h-5 text-white"
+                className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -978,13 +1175,16 @@ function Add_Accounts() {
                 />
               </svg>
             </div>
-            <div className="flex-1">
-              <h3 className="text-xs xs:text-sm font-semibold" style={{ color: theme.error }}>
-                Error occurred
-              </h3>
+            <div className="flex-1 min-w-0">
               <p
-                className="text-xs xs:text-sm mt-0.5"
-                style={{ color: isDarkMode ? theme.error : "#991B1B" }}
+                className="text-xs sm:text-sm font-semibold mb-1"
+                style={{ color: theme.errorText }}
+              >
+                Error
+              </p>
+              <p
+                className="text-sm sm:text-base font-medium"
+                style={{ color: theme.textPrimary }}
               >
                 {error}
               </p>
@@ -1032,7 +1232,7 @@ function Add_Accounts() {
                     </span>
                   </label>
 
-                  <div className="grid grid-cols-1 ss:grid-cols-2 lg:grid-cols-2 gap-2 xs:gap-3">
+                  <div className="grid grid-cols-1 ss:grid-cols-2 lg:grid-cols-2 gap-3 xs:gap-4">
                     {platforms.map((platform) => {
                       const isSelected = selectedPlatform === platform.value;
                       return (
@@ -1040,80 +1240,75 @@ function Add_Accounts() {
                           key={platform.value}
                           type="button"
                           onClick={() => setSelectedPlatform(platform.value)}
-                          className="relative p-3 xs:p-4 rounded-xl xs:rounded-2xl transition-all duration-200 text-left"
+                          className="relative p-4 xs:p-5 rounded-xl xs:rounded-2xl transition-all duration-200 text-left group"
                           style={{
                             backgroundColor: isSelected
-                              ? theme.accentLight
-                              : isDarkMode
-                                ? "rgba(255,255,255,0.02)"
-                                : theme.bgMuted,
-                            border: `2px solid ${isSelected ? theme.accent : theme.borderSubtle}`,
-                            boxShadow: isSelected
-                              ? isDarkMode
-                                ? `0 0 20px ${theme.accentGlow}`
-                                : theme.shadowMd
-                              : "none",
+                              ? theme.accentBg
+                              : theme.bgCard,
+                            border: `1px solid ${isSelected ? theme.accent : theme.border}`,
+                            boxShadow: isSelected ? theme.shadowMd : theme.shadow,
                             transform: isSelected ? "scale(1.02)" : "scale(1)"
                           }}
                           onMouseEnter={(e) => {
                             if (!isSelected) {
                               e.currentTarget.style.borderColor = theme.borderMedium;
-                              e.currentTarget.style.backgroundColor = isDarkMode
-                                ? "rgba(255,255,255,0.04)"
-                                : theme.bgButtonHover;
+                              e.currentTarget.style.backgroundColor = theme.bgElevated;
+                              e.currentTarget.style.boxShadow = theme.shadowMd;
+                              e.currentTarget.style.transform = "translateY(-2px)";
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!isSelected) {
-                              e.currentTarget.style.borderColor = theme.borderSubtle;
-                              e.currentTarget.style.backgroundColor = isDarkMode
-                                ? "rgba(255,255,255,0.02)"
-                                : theme.bgMuted;
+                              e.currentTarget.style.borderColor = theme.border;
+                              e.currentTarget.style.backgroundColor = theme.bgCard;
+                              e.currentTarget.style.boxShadow = theme.shadow;
+                              e.currentTarget.style.transform = "translateY(0)";
                             }
                           }}
                         >
-                          <div className="flex items-start gap-2 xs:gap-3">
+                          <div className="flex items-start gap-3 xs:gap-4">
                             <div
-                              className="h-10 w-10 xs:h-12 xs:w-12 rounded-xl flex items-center justify-center flex-shrink-0 p-2"
+                              className="h-12 w-12 xs:h-14 xs:w-14 rounded-xl xs:rounded-2xl flex items-center justify-center flex-shrink-0 p-2.5 xs:p-3"
                               style={{
                                 backgroundColor: isSelected
-                                  ? theme.bgCard
-                                  : isDarkMode
-                                    ? "rgba(255,255,255,0.05)"
-                                    : theme.bgCard,
-                                border: `1px solid ${theme.borderSubtle}`,
-                                boxShadow: theme.shadowSm
+                                  ? isDarkMode
+                                    ? "rgba(255,255,255,0.08)"
+                                    : theme.bgMain
+                                  : theme.bgMuted,
+                                border: `1px solid ${isSelected ? theme.accentBorder : theme.borderLight}`,
+                                boxShadow: isSelected ? theme.shadowSm : "none"
                               }}
                             >
                               <img
                                 src={platform.icon}
                                 alt={platform.name}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain filter transition-all duration-200"
+                                style={{
+                                  filter: isSelected ? "none" : "grayscale(20%)"
+                                }}
                                 onError={(e) => {
                                   e.target.style.display = "none";
                                 }}
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between gap-2 mb-1">
                                 <h3
-                                  className="font-semibold text-sm xs:text-base"
-                                  style={{ color: theme.textPrimary }}
+                                  className="font-bold text-sm xs:text-base"
+                                  style={{ color: isSelected ? theme.accent : theme.textPrimary }}
                                 >
                                   {platform.name}
                                 </h3>
                                 {isSelected && (
                                   <div
-                                    className="h-5 w-5 xs:h-6 xs:w-6 rounded-full flex items-center justify-center flex-shrink-0"
+                                    className="h-6 w-6 xs:h-7 xs:w-7 rounded-full flex items-center justify-center flex-shrink-0 animate-fadeIn"
                                     style={{
-                                      background: theme.gradientPrimary,
-                                      boxShadow: isDarkMode
-                                        ? `0 0 10px ${theme.accentGlow}`
-                                        : theme.shadowSm
+                                      backgroundColor: theme.accent,
+                                      boxShadow: theme.shadowSm
                                     }}
                                   >
                                     <svg
-                                      className="w-3 h-3 xs:w-3.5 xs:h-3.5 text-white"
+                                      className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-white"
                                       fill="currentColor"
                                       viewBox="0 0 20 20"
                                     >
@@ -1127,7 +1322,7 @@ function Add_Accounts() {
                                 )}
                               </div>
                               <p
-                                className="text-xs mt-0.5 xs:mt-1"
+                                className="text-xs leading-relaxed"
                                 style={{ color: theme.textTertiary }}
                               >
                                 {platform.description}
@@ -1157,19 +1352,22 @@ function Add_Accounts() {
                       placeholder="e.g., My Business Manager"
                       value={bmName}
                       onChange={(e) => setBmName(e.target.value)}
-                      className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
+                      className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                       style={{
                         backgroundColor: theme.bgInput,
                         border: `1px solid ${theme.borderInput}`,
-                        color: theme.textPrimary
+                        color: theme.textPrimary,
+                        boxShadow: isDarkMode ? theme.shadowSm : "none"
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = theme.borderInputFocus;
-                        e.target.style.boxShadow = theme.shadowGlow;
+                        e.target.style.backgroundColor = theme.bgInputFocus;
+                        e.target.style.boxShadow = `0 0 0 2px ${theme.accentLight}`;
                       }}
                       onBlur={(e) => {
                         e.target.style.borderColor = theme.borderInput;
-                        e.target.style.boxShadow = "none";
+                        e.target.style.backgroundColor = theme.bgInput;
+                        e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                       }}
                       required
                     />
@@ -1194,19 +1392,22 @@ function Add_Accounts() {
                         placeholder="Enter your API access token"
                         value={accessToken}
                         onChange={(e) => setAccessToken(e.target.value)}
-                        className="w-full px-3 xs:px-4 py-2.5 xs:py-3 pr-10 xs:pr-12 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200 font-mono"
+                        className="w-full px-4 xs:px-5 py-3 xs:py-3.5 pr-12 xs:pr-14 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200 font-mono"
                         style={{
                           backgroundColor: theme.bgInput,
                           border: `1px solid ${theme.borderInput}`,
-                          color: theme.textPrimary
+                          color: theme.textPrimary,
+                          boxShadow: isDarkMode ? theme.shadowSm : "none"
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = theme.borderInputFocus;
-                          e.target.style.boxShadow = theme.shadowGlow;
+                          e.target.style.backgroundColor = theme.bgInputFocus;
+                          e.target.style.boxShadow = `0 0 0 2px ${theme.accentLight}`;
                         }}
                         onBlur={(e) => {
                           e.target.style.borderColor = theme.borderInput;
-                          e.target.style.boxShadow = "none";
+                          e.target.style.backgroundColor = theme.bgInput;
+                          e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                         }}
                         required
                       />
@@ -1304,19 +1505,22 @@ function Add_Accounts() {
                         placeholder="e.g., act_123456789"
                         value={accountId}
                         onChange={(e) => setAccountId(e.target.value)}
-                        className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
+                        className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                         style={{
                           backgroundColor: theme.bgInput,
                           border: `1px solid ${theme.borderInput}`,
-                          color: theme.textPrimary
+                          color: theme.textPrimary,
+                          boxShadow: isDarkMode ? theme.shadowSm : "none"
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = theme.borderInputFocus;
-                          e.target.style.boxShadow = theme.shadowGlow;
+                          e.target.style.backgroundColor = theme.bgInputFocus;
+                          e.target.style.boxShadow = `0 0 0 2px ${theme.accentLight}`;
                         }}
                         onBlur={(e) => {
                           e.target.style.borderColor = theme.borderInput;
-                          e.target.style.boxShadow = "none";
+                          e.target.style.backgroundColor = theme.bgInput;
+                          e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                         }}
                         required
                       />
@@ -1341,19 +1545,22 @@ function Add_Accounts() {
                         placeholder="e.g., Primary Ad Account"
                         value={accountLabel}
                         onChange={(e) => setAccountLabel(e.target.value)}
-                        className="w-full px-3 xs:px-4 py-2.5 xs:py-3 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
+                        className="w-full px-4 xs:px-5 py-3 xs:py-3.5 text-sm xs:text-base rounded-xl focus:outline-none transition-all duration-200"
                         style={{
                           backgroundColor: theme.bgInput,
                           border: `1px solid ${theme.borderInput}`,
-                          color: theme.textPrimary
+                          color: theme.textPrimary,
+                          boxShadow: isDarkMode ? theme.shadowSm : "none"
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = theme.borderInputFocus;
-                          e.target.style.boxShadow = theme.shadowGlow;
+                          e.target.style.backgroundColor = theme.bgInputFocus;
+                          e.target.style.boxShadow = `0 0 0 2px ${theme.accentLight}`;
                         }}
                         onBlur={(e) => {
                           e.target.style.borderColor = theme.borderInput;
-                          e.target.style.boxShadow = "none";
+                          e.target.style.backgroundColor = theme.bgInput;
+                          e.target.style.boxShadow = isDarkMode ? theme.shadowSm : "none";
                         }}
                         required
                       />
@@ -1386,42 +1593,63 @@ function Add_Accounts() {
                       <span className="sm:hidden">* Required fields</span>
                     </div>
 
-                    <div className="flex flex-col-reverse ss:flex-row gap-2 xs:gap-3 order-1 xs:order-2">
+                    <div className="flex flex-col-reverse ss:flex-row gap-3 xs:gap-4 order-1 xs:order-2">
                       <button
                         type="button"
                         onClick={handleReset}
                         disabled={isSubmitting}
-                        className="px-4 xs:px-6 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200"
+                        className="px-5 xs:px-6 py-3 xs:py-3.5 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                         style={{
-                          backgroundColor: "transparent",
-                          border: `1px solid ${theme.borderMedium}`,
+                          backgroundColor: theme.bgButton,
+                          border: `1px solid ${theme.border}`,
                           color: theme.textSecondary,
-                          opacity: isSubmitting ? 0.5 : 1
+                          opacity: isSubmitting ? 0.5 : 1,
+                          cursor: isSubmitting ? "not-allowed" : "pointer"
                         }}
                         onMouseEnter={(e) => {
                           if (!isSubmitting) {
                             e.currentTarget.style.backgroundColor = theme.bgButtonHover;
+                            e.currentTarget.style.borderColor = theme.borderMedium;
+                            e.currentTarget.style.color = theme.textPrimary;
+                            e.currentTarget.style.transform = "translateY(-1px)";
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.backgroundColor = theme.bgButton;
+                          e.currentTarget.style.borderColor = theme.border;
+                          e.currentTarget.style.color = theme.textSecondary;
+                          e.currentTarget.style.transform = "translateY(0)";
                         }}
                       >
-                        Cancel
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 xs:h-5 xs:w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                        <span>Cancel</span>
                       </button>
                       <button
                         type="submit"
                         disabled={!selectedPlatform || isSubmitting}
-                        className="px-4 xs:px-6 lg:px-8 py-2.5 xs:py-3 text-sm xs:text-base font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        className="px-5 xs:px-8 lg:px-10 py-3 xs:py-3.5 text-sm xs:text-base font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                         style={{
                           background:
                             !selectedPlatform || isSubmitting
                               ? theme.bgMuted
                               : theme.gradientPrimary,
                           color: !selectedPlatform || isSubmitting ? theme.textMuted : "#FFFFFF",
-                          boxShadow:
-                            !selectedPlatform || isSubmitting ? "none" : theme.shadowButton,
-                          cursor: !selectedPlatform || isSubmitting ? "not-allowed" : "pointer"
+                          boxShadow: !selectedPlatform || isSubmitting ? "none" : theme.shadowButton,
+                          cursor: !selectedPlatform || isSubmitting ? "not-allowed" : "pointer",
+                          border: "none"
                         }}
                         onMouseEnter={(e) => {
                           if (selectedPlatform && !isSubmitting) {
@@ -1431,14 +1659,13 @@ function Add_Accounts() {
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow =
-                            selectedPlatform && !isSubmitting ? theme.shadowButton : "none";
+                          e.currentTarget.style.boxShadow = selectedPlatform && !isSubmitting ? theme.shadowButton : "none";
                         }}
                       >
                         {isSubmitting ? (
                           <>
                             <svg
-                              className="animate-spin h-4 w-4 xs:h-5 xs:w-5"
+                              className="animate-spin h-5 w-5"
                               xmlns="http://www.w3.org/2000/svg"
                               fill="none"
                               viewBox="0 0 24 24"
@@ -1463,15 +1690,15 @@ function Add_Accounts() {
                           <>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4 xs:h-5 xs:w-5"
+                              className="h-5 w-5"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
+                              strokeWidth={2.5}
                             >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                strokeWidth={2}
                                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                               />
                             </svg>
@@ -1500,7 +1727,7 @@ function Add_Accounts() {
               <div
                 className="p-4 xs:p-5 md:p-6"
                 style={{
-                  borderBottom: `1px solid ${theme.borderSubtle}`,
+                  borderBottom: `1px solid ${theme.border}`,
                   background: theme.gradientHeader
                 }}
               >
@@ -1841,8 +2068,8 @@ function Add_Accounts() {
       </div>
 
       {/* Modals */}
-      <EditAccountModal platforms={platforms} />
-      <DeleteConfirmModal platforms={platforms} />
+      <EditAccountModal platforms={platforms} theme={theme} isDarkMode={isDarkMode} />
+      <DeleteConfirmModal platforms={platforms} theme={theme} isDarkMode={isDarkMode} />
 
       {/* Animations */}
       <style>{`
