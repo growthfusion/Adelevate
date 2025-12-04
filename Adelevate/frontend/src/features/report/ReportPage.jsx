@@ -29,25 +29,21 @@ import googleIcon from "@/assets/images/automation_img/google.svg";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-// API Configuration - Helper function to get correct API URL
 const getApiUrl = () => {
-  // Check for environment variable first (for production)
   const apiUrl = import.meta.env.VITE_REPORTS_API_URL;
-  
+
   if (apiUrl) {
-    // Use environment variable if set
     return apiUrl.endsWith('/daily') ? apiUrl : `${apiUrl}/daily`;
   }
-  
+
   if (import.meta.env.PROD) {
-    // In production, use relative path that goes through proxy/backend
-    // Your web server (nginx/Apache/Cloudflare) must proxy /api/reports/* to http://65.109.65.93:8080/v1/reports/*
     return "/api/reports/daily";
   }
-  
-  // In development, use the proxy we set up in vite.config.js
+
   return "/reports-api/daily";
 };
+
+
 
 // Platform icon mapping
 const platformIcons = {
