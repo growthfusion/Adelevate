@@ -124,16 +124,35 @@ const mapCampaignData = (rows, startIdx = 0) => {
   });
 };
 
-// Async thunk: Fetch all campaigns
+// ========================================
+// ASYNC THUNK: FETCH ALL CAMPAIGNS (WITH TIMEZONE)
+// ========================================
 export const fetchAllCampaigns = createAsyncThunk(
   "campaigns/fetchAll",
-  async ({ platforms = [], status = [] }, { rejectWithValue }) => {
+  async (
+    { platforms = [], status = [], timezone = "UTC", dateRange = null },
+    { rejectWithValue }
+  ) => {
     try {
       const hasStatusFilter = status && status.length > 0;
       const useActiveEndpoint = hasStatusFilter;
       const endpoint = useActiveEndpoint ? `${API_BASE}/active` : API_BASE;
 
-      const response = await fetch(endpoint, { cache: "no-store" });
+      // Build query params with timezone
+      const params = new URLSearchParams();
+      params.append("timezone", timezone);
+
+      if (dateRange?.startDate) {
+        params.append("start_date", new Date(dateRange.startDate).toISOString());
+      }
+      if (dateRange?.endDate) {
+        params.append("end_date", new Date(dateRange.endDate).toISOString());
+      }
+
+      const url = `${endpoint}?${params.toString()}`;
+      console.log("Fetching campaigns with timezone:", timezone, "URL:", url);
+
+      const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const data = await response.json();
@@ -157,19 +176,40 @@ export const fetchAllCampaigns = createAsyncThunk(
         });
       }
 
-      return mapCampaignData(campaigns);
+      return {
+        campaigns: mapCampaignData(campaigns),
+        timezone
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Async thunk: Fetch campaigns by account
+// ========================================
+// ASYNC THUNK: FETCH CAMPAIGNS BY ACCOUNT (WITH TIMEZONE)
+// ========================================
 export const fetchCampaignsByAccount = createAsyncThunk(
   "campaigns/fetchByAccount",
-  async ({ accountIds, platform, status = [] }, { rejectWithValue }) => {
+  async (
+    { accountIds, platform, status = [], timezone = "UTC", dateRange = null },
+    { rejectWithValue }
+  ) => {
     try {
       const platformVariations = PLATFORM_API_NAMES[platform] || [platform];
+
+      // Build request body with timezone
+      const requestBody = {
+        ad_account_ids: accountIds,
+        timezone: timezone
+      };
+
+      if (dateRange?.startDate) {
+        requestBody.start_date = new Date(dateRange.startDate).toISOString();
+      }
+      if (dateRange?.endDate) {
+        requestBody.end_date = new Date(dateRange.endDate).toISOString();
+      }
 
       // Strategy 1: Try /by-account endpoint
       for (const platformName of platformVariations) {
@@ -177,7 +217,7 @@ export const fetchCampaignsByAccount = createAsyncThunk(
           const response = await fetch(`${API_BASE}/by-account`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ad_account_ids: accountIds, platform: platformName })
+            body: JSON.stringify({ ...requestBody, platform: platformName })
           });
 
           if (response.ok) {
@@ -196,7 +236,10 @@ export const fetchCampaignsByAccount = createAsyncThunk(
                   return status.includes(normalizedStatus);
                 });
               }
-              return mapCampaignData(campaigns);
+              return {
+                campaigns: mapCampaignData(campaigns),
+                timezone
+              };
             }
           }
         } catch (e) {
@@ -209,7 +252,7 @@ export const fetchCampaignsByAccount = createAsyncThunk(
         const response = await fetch(`${API_BASE}/details`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ad_account_ids: accountIds, platform })
+          body: JSON.stringify({ ...requestBody, platform })
         });
 
         if (response.ok) {
@@ -228,7 +271,10 @@ export const fetchCampaignsByAccount = createAsyncThunk(
                 return status.includes(normalizedStatus);
               });
             }
-            return mapCampaignData(campaigns);
+            return {
+              campaigns: mapCampaignData(campaigns),
+              timezone
+            };
           }
         }
       } catch (e) {
@@ -238,7 +284,11 @@ export const fetchCampaignsByAccount = createAsyncThunk(
       // Strategy 3: Fallback to /active and filter client-side
       const hasStatusFilter = status.length > 0;
       const endpoint = hasStatusFilter ? `${API_BASE}/active` : API_BASE;
-      const response = await fetch(endpoint, { cache: "no-store" });
+
+      const params = new URLSearchParams();
+      params.append("timezone", timezone);
+
+      const response = await fetch(`${endpoint}?${params.toString()}`, { cache: "no-store" });
 
       if (response.ok) {
         const data = await response.json();
@@ -259,10 +309,13 @@ export const fetchCampaignsByAccount = createAsyncThunk(
           });
         }
 
-        return mapCampaignData(campaigns);
+        return {
+          campaigns: mapCampaignData(campaigns),
+          timezone
+        };
       }
 
-      return [];
+      return { campaigns: [], timezone };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -400,7 +453,7 @@ const initialState = {
     title: "",
     tags: "",
     dateRange: null,
-    timeZone: "America/Los_Angeles"
+    timeZone: "America/Los_Angeles" // Default timezone
   },
 
   // Title search
@@ -502,7 +555,6 @@ const campaignsSlice = createSlice({
         state.drillDown.expandedCampaigns.push(campaignId);
       } else {
         state.drillDown.expandedCampaigns.splice(idx, 1);
-        // Clean up nested expansions
         Object.keys(state.drillDown.expandedDates).forEach((key) => {
           if (key.startsWith(`${campaignId}-`)) {
             delete state.drillDown.expandedDates[key];
@@ -579,7 +631,7 @@ const campaignsSlice = createSlice({
       })
       .addCase(fetchAllCampaigns.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.campaigns = action.payload;
+        state.campaigns = action.payload.campaigns;
         state.lastUpdated = new Date().toISOString();
         state.drillDown = initialState.drillDown;
         state.tableSettings.page = 1;
@@ -597,8 +649,7 @@ const campaignsSlice = createSlice({
       })
       .addCase(fetchCampaignsByAccount.fulfilled, (state, action) => {
         state.isLoading = false;
-        // Merge with existing campaigns (for multi-platform fetch)
-        const newCampaigns = action.payload;
+        const newCampaigns = action.payload.campaigns;
         const existingIds = new Set(state.campaigns.map((c) => c.campaignId));
         const uniqueNew = newCampaigns.filter((c) => !existingIds.has(c.campaignId));
         state.campaigns = [...state.campaigns, ...uniqueNew];

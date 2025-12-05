@@ -8,6 +8,7 @@ import { selectThemeColors, selectIsDarkMode } from "@/features/theme/themeSlice
 import SlideSidebar from "./components/slide-sidebar";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import AnimatedLoginPage from "./components/login";
+import HomePage from "./features/Home/page";
 
 // Pages
 import Page from "./features/dashboard/Page";
@@ -130,6 +131,7 @@ function AppContent() {
         <AuthEventLogger />
         <Routes>
           {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<AnimatedLoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
@@ -357,11 +359,8 @@ function AppContent() {
             }
           />
 
-          {/* Root redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-          {/* Catch all - redirect to dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Catch all - redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

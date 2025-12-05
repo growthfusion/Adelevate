@@ -57,6 +57,28 @@ const ALL_PLATFORMS = [
   { id: "newsbreak", name: "NewsBreak" }
 ];
 
+// ========================================
+// TIMEZONE OPTIONS
+// ========================================
+const TIME_ZONE_OPTIONS = [
+  {
+    id: "UTC",
+    name: "UTC"
+  },
+  {
+    id: "Asia/Kolkata",
+    name: "IST"
+  },
+  {
+    id: "America/New_York",
+    name: "America/New_York"
+  },
+  {
+    id: "America/Los_Angeles",
+    name: "America/Los_Angeles"
+  }
+];
+
 const PREDEFINED_TAGS = [
   "Mythili",
   "Naga",
@@ -72,14 +94,6 @@ const PREDEFINED_TAGS = [
   "Gokulraj"
 ];
 
-const TIME_ZONE_OPTIONS = [
-  { id: "America/Los_Angeles", name: "America/Los_Angeles" },
-  { id: "America/New_York", name: "America/New_York" },
-  { id: "Europe/London", name: "Europe/London" },
-  { id: "Asia/Tokyo", name: "Asia/Tokyo" },
-  { id: "Australia/Sydney", name: "Australia/Sydney" }
-];
-
 const normalizePlatformFromDB = (p) => {
   if (!p) return "";
   const v = String(p).toLowerCase();
@@ -87,6 +101,37 @@ const normalizePlatformFromDB = (p) => {
   if (v === "snapchat") return "snap";
   return v;
 };
+
+// ========================================
+// LIVE TIME DISPLAY COMPONENT
+// ========================================
+function CurrentTimeDisplay({ timezone }) {
+  const [time, setTime] = React.useState("");
+
+  React.useEffect(() => {
+    const updateTime = () => {
+      try {
+        const now = new Date();
+        const formatted = now.toLocaleTimeString("en-US", {
+          timeZone: timezone,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true
+        });
+        setTime(formatted);
+      } catch (e) {
+        setTime("--:--:--");
+      }
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [timezone]);
+
+  return <>{time}</>;
+}
 
 function CampaignsToolbar() {
   const dispatch = useDispatch();
@@ -146,6 +191,12 @@ function CampaignsToolbar() {
   const titleDropdownRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
+  // Get current timezone info helper
+  const getCurrentTimezoneInfo = () => {
+    const tz = TIME_ZONE_OPTIONS.find((z) => z.id === timeZone);
+    return tz || TIME_ZONE_OPTIONS[0];
+  };
+
   // Fetch user role and platform access
   useEffect(() => {
     let mounted = true;
@@ -183,7 +234,6 @@ function CampaignsToolbar() {
         setAllowedPlatforms(platforms);
         setAccessLoaded(true);
 
-        // Set initial platforms in Redux
         if (platforms.length > 0 && selectedPlatforms.length === 0) {
           dispatch(setPlatforms(platforms));
         }
@@ -196,6 +246,14 @@ function CampaignsToolbar() {
     return () => {
       mounted = false;
     };
+  }, [dispatch]);
+
+  // Load saved timezone from localStorage
+  useEffect(() => {
+    const savedTimezone = localStorage.getItem("preferred_timezone");
+    if (savedTimezone && TIME_ZONE_OPTIONS.some((tz) => tz.id === savedTimezone)) {
+      dispatch(setTimeZone(savedTimezone));
+    }
   }, [dispatch]);
 
   // Fetch ad accounts on mount
@@ -284,7 +342,7 @@ function CampaignsToolbar() {
     }
   };
 
-  // Click outside handler for title suggestions
+  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -338,9 +396,13 @@ function CampaignsToolbar() {
     setShowTagsMenu(false);
   };
 
-  const selectTimeZone = (zone) => {
-    dispatch(setTimeZone(zone));
+  // ========================================
+  // TIMEZONE SELECTION HANDLER
+  // ========================================
+  const selectTimeZone = (zoneId) => {
+    dispatch(setTimeZone(zoneId));
     setShowTimeZoneMenu(false);
+    localStorage.setItem("preferred_timezone", zoneId);
   };
 
   const handleStatusChange = (statusValue) => {
@@ -358,17 +420,23 @@ function CampaignsToolbar() {
     setShowStatusMenu(false);
   };
 
-  // Apply filters
+  // ========================================
+  // APPLY FILTERS - SENDS TIMEZONE TO BACKEND
+  // ========================================
   const handleApplyFilters = async () => {
     dispatch(clearError());
     dispatch(clearWarning());
 
+    console.log("Applying filters with timezone:", timeZone);
+
     if (selectedAccounts.length === 0) {
-      // Fetch all campaigns
+      // Fetch all campaigns with timezone
       dispatch(
         fetchAllCampaigns({
           platforms: selectedPlatforms,
-          status: status || []
+          status: status || [],
+          timezone: timeZone,
+          dateRange: dateRange
         })
       );
     } else {
@@ -390,13 +458,15 @@ function CampaignsToolbar() {
         }
       });
 
-      // Fetch for each platform
+      // Fetch for each platform with timezone
       const fetchPromises = Object.entries(accountsByPlatform).map(([platform, accountIds]) =>
         dispatch(
           fetchCampaignsByAccount({
             accountIds,
             platform,
-            status: status || []
+            status: status || [],
+            timezone: timeZone,
+            dateRange: dateRange
           })
         )
       );
@@ -411,8 +481,10 @@ function CampaignsToolbar() {
     dispatch(resetFilters());
     dispatch(setPlatforms(allowedPlatforms.length > 0 ? [...allowedPlatforms] : []));
     dispatch(setDateRange({ startDate: today, endDate: today, key: "today" }));
+    dispatch(setTimeZone("America/Los_Angeles"));
     dispatch(setCampaigns([]));
     setShowTitleSuggestions(false);
+    localStorage.removeItem("preferred_timezone");
   };
 
   // Highlight matching text
@@ -451,18 +523,13 @@ function CampaignsToolbar() {
     return "All";
   };
 
-  // Button styles helper
-  const getButtonStyle = (isActive = false) => ({
-    backgroundColor: isActive ? theme.buttonPrimaryBg : theme.buttonSecondaryBg,
-    color: isActive ? theme.buttonPrimaryText : theme.buttonSecondaryText,
-    borderColor: theme.borderSubtle
-  });
-
   const getDropdownStyle = () => ({
     backgroundColor: theme.bgDropdown,
     borderColor: theme.borderSubtle,
     boxShadow: theme.shadowDropdown
   });
+
+  const currentTzInfo = getCurrentTimezoneInfo();
 
   return (
     <section
@@ -485,25 +552,50 @@ function CampaignsToolbar() {
             />
           </div>
 
-          {/* Time Zone Selector */}
+          {/* ========================================
+              TIMEZONE SELECTOR
+              ======================================== */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowTimeZoneMenu(!showTimeZoneMenu)}
-              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all"
+              className="flex h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-all hover:border-blue-400"
               style={{
                 backgroundColor: theme.inputBg,
                 borderColor: theme.inputBorder,
                 color: theme.textPrimary
               }}
             >
-              <span style={{ color: theme.textSecondary }}>Timezone</span>
-              <span
-                className="truncate text-xs font-semibold max-w-[120px]"
-                style={{ color: theme.blue }}
-              >
-                {timeZone.split("/")[1] || timeZone}
-              </span>
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4"
+                  style={{ color: theme.textSecondary }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                  />
+                </svg>
+                <span style={{ color: theme.textSecondary }}>TZ</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span
+                  className="rounded-md px-2 py-0.5 text-xs font-bold"
+                  style={{
+                    backgroundColor: `${theme.blue}20`,
+                    color: theme.blue
+                  }}
+                >
+                  {currentTzInfo.name}
+                </span>
+              </div>
+
               <svg
                 className={`h-4 w-4 transition-transform ${showTimeZoneMenu ? "rotate-180" : ""}`}
                 style={{ color: theme.textTertiary }}
@@ -524,31 +616,96 @@ function CampaignsToolbar() {
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowTimeZoneMenu(false)} />
                 <div
-                  className="absolute left-0 right-0 z-40 mt-2 max-h-80 overflow-auto rounded-lg shadow-xl border sm:w-72"
+                  className="absolute left-0 right-0 z-40 mt-2 rounded-xl shadow-xl border overflow-hidden sm:w-72"
                   style={getDropdownStyle()}
                 >
-                  <div className="p-2">
-                    <div
-                      className="mb-2 px-3 py-2 text-xs font-bold uppercase tracking-wide"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      Select Timezone
-                    </div>
-                    {TIME_ZONE_OPTIONS.map((zone) => (
-                      <button
-                        key={zone.id}
-                        type="button"
-                        onClick={() => selectTimeZone(zone.id)}
-                        className="w-full truncate rounded-md px-3 py-2.5 text-left text-sm transition-colors"
-                        style={{
-                          backgroundColor:
-                            timeZone === zone.id ? theme.buttonPrimaryBg : "transparent",
-                          color: timeZone === zone.id ? theme.buttonPrimaryText : theme.textPrimary
-                        }}
+                  {/* Header */}
+                  <div
+                    className="px-4 py-3 border-b"
+                    style={{
+                      backgroundColor: theme.bgSecondary,
+                      borderColor: theme.borderSubtle
+                    }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="h-5 w-5"
+                        style={{ color: theme.blue }}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        {zone.name}
-                      </button>
-                    ))}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-sm font-bold" style={{ color: theme.textPrimary }}>
+                        Select Timezone
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Timezone Options */}
+                  <div className="p-2">
+                    {TIME_ZONE_OPTIONS.map((zone) => {
+                      const isSelected = timeZone === zone.id;
+                      return (
+                        <button
+                          key={zone.id}
+                          type="button"
+                          onClick={() => selectTimeZone(zone.id)}
+                          className="w-full rounded-lg px-3 py-3 text-left transition-all flex items-center justify-between group"
+                          style={{
+                            backgroundColor: isSelected ? theme.buttonPrimaryBg : "transparent",
+                            color: isSelected ? theme.buttonPrimaryText : theme.textPrimary
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-4 h-4 rounded-full border-2 flex items-center justify-center"
+                              style={{
+                                borderColor: isSelected ? "white" : theme.borderSubtle
+                              }}
+                            >
+                              {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+
+                            <span className="font-bold text-sm">{zone.name}</span>
+                          </div>
+
+                          {isSelected && (
+                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Current Time Preview */}
+                  <div
+                    className="px-4 py-3 border-t"
+                    style={{
+                      backgroundColor: theme.bgSecondary,
+                      borderColor: theme.borderSubtle
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs" style={{ color: theme.textSecondary }}>
+                        Current time in {currentTzInfo.name}:
+                      </span>
+                      <span className="text-sm font-mono font-bold" style={{ color: theme.blue }}>
+                        <CurrentTimeDisplay timezone={timeZone} />
+                      </span>
+                    </div>
                   </div>
                 </div>
               </>
@@ -714,7 +871,6 @@ function CampaignsToolbar() {
                   className="fixed inset-x-4 top-1/2 z-40 -translate-y-1/2 sm:absolute sm:inset-x-auto sm:top-auto sm:left-0 sm:translate-y-0 sm:mt-2 w-auto sm:w-96 lg:w-[32rem] max-h-[80vh] overflow-hidden rounded-xl shadow-xl border"
                   style={getDropdownStyle()}
                 >
-                  {/* Account dropdown header */}
                   <div
                     className="sticky top-0 z-10 border-b px-4 py-3 sm:px-6"
                     style={{ backgroundColor: theme.bgSecondary, borderColor: theme.borderSubtle }}
@@ -764,7 +920,6 @@ function CampaignsToolbar() {
                     </div>
                   </div>
 
-                  {/* Account list */}
                   <div className="max-h-[calc(80vh-140px)] overflow-y-auto">
                     <div className="space-y-3 p-4 sm:p-6">
                       {Object.entries(adAccounts)
@@ -839,17 +994,15 @@ function CampaignsToolbar() {
                                       >
                                         {account.name}
                                       </div>
-                                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                                        <code
-                                          className="break-all rounded-md px-2 py-1 text-xs font-mono"
-                                          style={{
-                                            backgroundColor: theme.bgSecondary,
-                                            color: theme.textSecondary
-                                          }}
-                                        >
-                                          {account.id}
-                                        </code>
-                                      </div>
+                                      <code
+                                        className="break-all rounded-md px-2 py-1 text-xs font-mono mt-1 inline-block"
+                                        style={{
+                                          backgroundColor: theme.bgSecondary,
+                                          color: theme.textSecondary
+                                        }}
+                                      >
+                                        {account.id}
+                                      </code>
                                     </div>
                                   </label>
                                 ))}
@@ -860,7 +1013,6 @@ function CampaignsToolbar() {
                     </div>
                   </div>
 
-                  {/* Clear selection button */}
                   {selectedAccounts.length > 0 && (
                     <div
                       className="sticky bottom-0 border-t px-4 py-3 sm:px-6"
@@ -1073,14 +1225,11 @@ function CampaignsToolbar() {
           </div>
         </div>
 
-        {/* Title Search with Autocomplete */}
+        {/* Title Search */}
         <div className="relative mt-3">
           <label
             className="flex w-full items-center gap-3 rounded-lg border px-4 py-2.5 shadow-sm transition-all"
-            style={{
-              backgroundColor: theme.inputBg,
-              borderColor: theme.inputBorder
-            }}
+            style={{ backgroundColor: theme.inputBg, borderColor: theme.inputBorder }}
           >
             <svg
               className="h-5 w-5 flex-shrink-0"
@@ -1168,10 +1317,7 @@ function CampaignsToolbar() {
             <div
               ref={titleDropdownRef}
               className="absolute left-0 right-0 z-50 mt-2 max-h-[420px] overflow-hidden rounded-xl border-2 shadow-xl"
-              style={{
-                backgroundColor: theme.bgDropdown,
-                borderColor: theme.blue
-              }}
+              style={{ backgroundColor: theme.bgDropdown, borderColor: theme.blue }}
             >
               <div
                 className="sticky top-0 z-10 border-b-2 px-4 py-3"
@@ -1285,14 +1431,11 @@ function CampaignsToolbar() {
           </button>
         </div>
 
-        {/* Info/Warning/Error Messages */}
+        {/* Info Message */}
         {selectedAccounts.length === 0 && !campaignsLoading && !campaignsError && (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
-            style={{
-              borderColor: `${theme.info}50`,
-              backgroundColor: `${theme.info}10`
-            }}
+            style={{ borderColor: `${theme.info}50`, backgroundColor: `${theme.info}10` }}
           >
             <svg
               className="mt-0.5 h-6 w-6 flex-shrink-0"
@@ -1320,13 +1463,11 @@ function CampaignsToolbar() {
           </div>
         )}
 
+        {/* Warning/Error Messages */}
         {campaignsWarning && (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
-            style={{
-              borderColor: `${theme.warning}50`,
-              backgroundColor: `${theme.warning}10`
-            }}
+            style={{ borderColor: `${theme.warning}50`, backgroundColor: `${theme.warning}10` }}
           >
             <svg
               className="mt-0.5 h-6 w-6 flex-shrink-0"
@@ -1354,10 +1495,7 @@ function CampaignsToolbar() {
         {campaignsError && (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg border-2 px-4 py-3 shadow-sm"
-            style={{
-              borderColor: `${theme.negative}50`,
-              backgroundColor: `${theme.negative}10`
-            }}
+            style={{ borderColor: `${theme.negative}50`, backgroundColor: `${theme.negative}10` }}
           >
             <svg
               className="mt-0.5 h-6 w-6 flex-shrink-0"
@@ -1385,10 +1523,7 @@ function CampaignsToolbar() {
         {campaignsLoading && (
           <div
             className="mt-4 flex items-center justify-center gap-3 rounded-lg border px-4 py-3"
-            style={{
-              borderColor: `${theme.blue}30`,
-              backgroundColor: `${theme.blue}10`
-            }}
+            style={{ borderColor: `${theme.blue}30`, backgroundColor: `${theme.blue}10` }}
           >
             <svg className="h-5 w-5 animate-spin" style={{ color: theme.blue }} viewBox="0 0 24 24">
               <circle
@@ -1407,9 +1542,7 @@ function CampaignsToolbar() {
               />
             </svg>
             <span className="text-sm font-medium" style={{ color: theme.blue }}>
-              {selectedAccounts.length === 0
-                ? "Fetching all campaigns..."
-                : "Fetching campaigns..."}
+              Fetching campaigns...
             </span>
           </div>
         )}
